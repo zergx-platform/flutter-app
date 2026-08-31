@@ -61,11 +61,13 @@ class _ZergxAppState extends State<ZergxApp> {
         colorSchemeSeed: Colors.indigo,
         useMaterial3: true,
         brightness: Brightness.light,
+        fontFamilyFallback: const ['NotoSansSC'],
       ),
       darkTheme: ThemeData(
         colorSchemeSeed: Colors.indigo,
         useMaterial3: true,
         brightness: Brightness.dark,
+        fontFamilyFallback: const ['NotoSansSC'],
       ),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
       home: _buildHome(),
