@@ -1,0 +1,4 @@
+/app/zergx_flutter >/tmp/zergx_flutter.log 2>&1 &
+
+# A terminal alongside the app, useful for debugging the desktop session.
+foot >/tmp/foot.log 2>&1 &
