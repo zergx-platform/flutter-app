@@ -127,23 +127,26 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Packages'),
-        bottom: TabBar(
-          tabs: const [Tab(text: 'Registries'), Tab(text: 'Packages')],
-          onTap: (i) {
-            setState(() => _tab = i);
-            if (i == 1 && _pkgs.isEmpty && !_pkgLoading) _loadPackages();
-          },
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Packages'),
+          bottom: TabBar(
+            tabs: const [Tab(text: 'Registries'), Tab(text: 'Packages')],
+            onTap: (i) {
+              setState(() => _tab = i);
+              if (i == 1 && _pkgs.isEmpty && !_pkgLoading) _loadPackages();
+            },
+          ),
+          actions: [
+            IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () => _tab == 0 ? _loadAll() : _loadPackages()),
+          ],
         ),
-        actions: [
-          IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => _tab == 0 ? _loadAll() : _loadPackages()),
-        ],
+        body: _tab == 0 ? _registries(context) : _packages(context),
       ),
-      body: _tab == 0 ? _registries(context) : _packages(context),
     );
   }
 
