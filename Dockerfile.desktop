@@ -1,52 +1,15 @@
 # syntax=docker/dockerfile:1
 # Desktop flavour: headless labwc Wayland session + wayvnc + noVNC serving the
-# Flutter Linux desktop app. Lives at repo root (Dockerfile.desktop) because
-# ops-extension only passes the dockerfile BASENAME to buildkit (see
-# internal/buildkit/buildkit.go); a subdir path via `dockerfile=desktop/Dockerfile`
-# would break the `COPY --from=build /src/...` stage references.
+# Flutter Linux desktop app. SINGLE STAGE — the Flutter Linux binary is built
+# on the host/dev pod (`flutter build linux --release`) and copied in; no
+# Flutter SDK is installed inside the image.
 ARG REGISTRY=artifact.zergx.svc.cluster.local
-ARG HTTP_PROXY=http://mihomo.develop.svc.cluster.local:789
-ARG HTTPS_PROXY=http://mihomo.develop.svc.cluster.local:789
 
-# ---------------------------------------------------------------------------
-# Build stage: Flutter SDK + Linux desktop build (in-container, reproducible).
-# ---------------------------------------------------------------------------
-FROM ${REGISTRY}/library/debian:13-slim AS build
-ENV HTTP_PROXY=${HTTP_PROXY} HTTPS_PROXY=${HTTPS_PROXY} \
-    NO_PROXY=localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io
-
-# Aliyun Debian mirror (dl-cdn/deb.debian.org are unreachable from the cluster).
-RUN printf 'deb http://mirrors.aliyun.com/debian trixie main contrib non-free non-free-firmware\n\
-deb http://mirrors.aliyun.com/debian trixie-updates main contrib non-free non-free-firmware\n\
-deb http://mirrors.aliyun.com/debian-security trixie-security main contrib non-free non-free-firmware\n' \
-    > /etc/apt/sources.list \
-    && rm -f /etc/apt/sources.list.d/debian.sources
-
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    curl ca-certificates xz-utils git \
-    clang cmake ninja-build pkg-config g++ make \
-    libgtk-3-dev libglib2.0-dev liblzma-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Flutter SDK (stable, pinned to what the web client uses).
-ARG FLUTTER_VERSION=3.47.2
-RUN curl -fsSL -o /tmp/flutter.tar.xz \
-      "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
-    && tar -xJf /tmp/flutter.tar.xz -C /opt \
-    && rm -f /tmp/flutter.tar.xz
-ENV PATH="/opt/flutter/bin:${PATH}"
-
-WORKDIR /src
-COPY . .
-RUN flutter config --no-analytics \
-    && flutter pub get \
-    && flutter build linux --release
-
-# ---------------------------------------------------------------------------
-# Runtime stage: headless labwc + wayvnc + noVNC over the desktop bundle.
-# ---------------------------------------------------------------------------
 FROM ${REGISTRY}/library/debian:13-slim
-ENV HTTP_PROXY=${HTTP_PROXY} HTTPS_PROXY=${HTTPS_PROXY} \
+
+# Proxy + Aliyun Debian mirror (dl-cdn/deb.debian.org are unreachable here).
+ENV HTTP_PROXY=http://mihomo.develop.svc.cluster.local:7890 \
+    HTTPS_PROXY=http://mihomo.develop.svc.cluster.local:7890 \
     NO_PROXY=localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io
 
 RUN printf 'deb http://mirrors.aliyun.com/debian trixie main contrib non-free non-free-firmware\n\
@@ -57,11 +20,14 @@ deb http://mirrors.aliyun.com/debian-security trixie-security main contrib non-f
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     labwc wayvnc foot novnc websockify \
-    libgtk-3-0 libglib2.0-0 libx11-6 libxcb1 libxkbcommon0 libegl1 libgles2 libgl1 \
+    libgtk-3-0 libglib2.0-0 \
+    libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 \
+    libegl1 libgles2 libgl1 libegl-mesa0 libglu1-mesa \
+    libxi6 libxrender1 libxcomposite1 libxdamage1 libxrandr2 libxext6 \
     fontconfig fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /src/build/linux/x64/release/bundle /app
+COPY build/linux/x64/release/bundle /app
 COPY entrypoint.desktop.sh /entrypoint.sh
 COPY autostart.desktop /root/.config/labwc/autostart
 RUN chmod +x /entrypoint.sh /app/zergx_flutter
