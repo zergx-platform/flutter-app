@@ -1,4 +1,9 @@
 # syntax=docker/dockerfile:1
+# Desktop flavour: headless labwc Wayland session + wayvnc + noVNC serving the
+# Flutter Linux desktop app. Lives at repo root (Dockerfile.desktop) because
+# ops-extension only passes the dockerfile BASENAME to buildkit (see
+# internal/buildkit/buildkit.go); a subdir path via `dockerfile=desktop/Dockerfile`
+# would break the `COPY --from=build /src/...` stage references.
 ARG REGISTRY=artifact.zergx.svc.cluster.local
 ARG HTTP_PROXY=http://mihomo.develop.svc.cluster.local:789
 ARG HTTPS_PROXY=http://mihomo.develop.svc.cluster.local:789
@@ -57,9 +62,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /src/build/linux/x64/release/bundle /app
-COPY desktop/entrypoint.sh /entrypoint.sh
-COPY desktop/autostart /root/.config/labwc/autostart
+COPY entrypoint.desktop.sh /entrypoint.sh
+COPY autostart.desktop /root/.config/labwc/autostart
 RUN chmod +x /entrypoint.sh /app/zergx_flutter
 
-EXPOSE 608
+EXPOSE 6080
 ENTRYPOINT ["/entrypoint.sh"]
