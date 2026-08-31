@@ -138,7 +138,7 @@ class _NavRail extends StatelessWidget {
       (SiderTab.packages, Icons.all_inbox_outlined, 'Packages'),
       (SiderTab.config, Icons.settings_outlined, 'Config'),
     ];
-    return NavigationRail(
+      return NavigationRail(
       selectedIndex: tab.index,
       labelType: MediaQuery.of(context).size.width < 900
           ? NavigationRailLabelType.none
