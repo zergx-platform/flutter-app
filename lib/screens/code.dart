@@ -379,7 +379,7 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _bar(BuildContext context, VoidCallback onBack, String label) {
-    return Container(
+    return SizedBox(
       height: 40,
       child: Row(
         children: [

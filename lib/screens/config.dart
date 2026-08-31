@@ -228,17 +228,22 @@ class _ConfigScreenState extends State<ConfigScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        RadioListTile<String>(
-          title: const Text('Kubernetes'),
-          value: 'kubernetes',
+        RadioGroup<String>(
           groupValue: backend,
-          onChanged: (v) => setState(() => _values['container_backend'] = v!),
-        ),
-        RadioListTile<String>(
-          title: const Text('Docker'),
-          value: 'docker',
-          groupValue: backend,
-          onChanged: (v) => setState(() => _values['container_backend'] = v!),
+          onChanged: (v) =>
+              setState(() => _values['container_backend'] = v ?? 'kubernetes'),
+          child: Column(
+            children: [
+              RadioListTile<String>(
+                title: const Text('Kubernetes'),
+                value: 'kubernetes',
+              ),
+              RadioListTile<String>(
+                title: const Text('Docker'),
+                value: 'docker',
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         if (backend == 'kubernetes') ...[

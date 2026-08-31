@@ -61,6 +61,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: OutlinedButton.icon(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               final name = await promptDialog(context,
                   title: 'New organization', label: 'Organization name');
               if (name != null && name.trim().isNotEmpty) {
@@ -68,9 +69,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
                   await store.api.ensureOrg(name.trim());
                   await store.refreshRepos();
                 } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('Failed: $e')));
+                  messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
                 }
               }
             },

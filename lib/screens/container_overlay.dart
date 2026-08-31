@@ -198,8 +198,11 @@ class _TerminalState extends State<_Terminal> {
               itemBuilder: (_, i) {
                 final line = _history[i];
                 Color? color;
-                if (line.startsWith('[error]')) color = Colors.redAccent;
-                else if (line.startsWith('\$') || line.startsWith('>')) color = Theme.of(context).colorScheme.outline;
+                if (line.startsWith('[error]')) {
+                  color = Colors.redAccent;
+                } else if (line.startsWith('\$') || line.startsWith('>')) {
+                  color = Theme.of(context).colorScheme.outline;
+                }
                 return Text(line,
                     style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: color));
               },

@@ -321,8 +321,8 @@ class ZergxApi {
         'org': org,
         'repo': repo,
         'git_url': gitUrl,
-        if (token != null) 'token': token,
-        if (rev != null) 'rev': rev,
+        'token': ?token,
+        'rev': ?rev,
       });
 
   Future<void> deleteBookmark(String org, String repo, String bookmark) =>
@@ -355,7 +355,7 @@ class ZergxApi {
     final query = <String, dynamic>{
       'path': filePath,
       if (branch != null && branch.isNotEmpty) 'branch': branch,
-      if (limit != null) 'limit': limit,
+      'limit': ?limit,
     };
     final j = await _get(
       '/api/v1/repos/${_enc(org)}/${_enc(repo)}/file-log',
@@ -376,8 +376,8 @@ class ZergxApi {
   Future<List<FileCommit>> log(String org, String repo,
       {String? rev, int? limit}) async {
     final query = <String, dynamic>{
-      if (rev != null) 'rev': rev,
-      if (limit != null) 'limit': limit,
+      'rev': ?rev,
+      'limit': ?limit,
     };
     final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/log', query)
         as Map<String, dynamic>;
@@ -570,8 +570,8 @@ class ZergxApi {
     final query = <String, dynamic>{
       if (type != null && type.isNotEmpty) 'type': type,
       if (q != null && q.isNotEmpty) 'q': q,
-      if (limit != null) 'limit': limit,
-      if (offset != null) 'offset': offset,
+      'limit': ?limit,
+      'offset': ?offset,
     };
     return await _get('/api/v1/packages/list', query) as Map<String, dynamic>;
   }

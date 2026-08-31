@@ -138,7 +138,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
           ),
-          if (trailing != null) trailing,
+          ?trailing,
         ],
       ),
     );
