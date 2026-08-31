@@ -38,6 +38,16 @@ class _ChatScreenState extends State<ChatScreen> {
     store.addListener(_onStore);
     store.refreshSessions();
     store.refreshRepos();
+    _scroll.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final m = _msg;
+    if (m == null || !_scroll.hasClients) return;
+    // Near the top and there is more history → auto-load older messages.
+    if (_scroll.position.pixels < 80 && m.hasMore && !m.loading) {
+      m.loadMore();
+    }
   }
 
   void _onStore() {
@@ -114,6 +124,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _scroll.removeListener(_onScroll);
     store.removeListener(_onStore);
     _msg?.removeListener(_onMsg);
     _msg?.dispose();
@@ -267,6 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
               const PopupMenuItem(value: 'mailbox', child: Text('Mailbox')),
               const PopupMenuItem(value: 'container', child: Text('Container')),
               const PopupMenuItem(value: 'todos', child: Text('Todos')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete session')),
             ],
           ),
         ],
@@ -297,6 +309,48 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'todos':
         store.openOverlay(SessionOverlay.todos);
         break;
+      case 'delete':
+        _deleteSession();
+        break;
+    }
+  }
+
+  Future<void> _deleteSession() async {
+    final sid = store.activeSessionId;
+    final s = store.activeSession;
+    if (sid == null) return;
+    final label = s != null && s.org.isNotEmpty
+        ? '${s.org}/${s.repo}/${s.branch}'
+        : sid;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete session'),
+        content: Text('Delete session "$label"?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        if (s != null && s.org.isNotEmpty) {
+          await store.deleteBookmark(s.org, s.repo, s.branch);
+        } else {
+          await store.deleteSession(sid);
+        }
+      } catch (_) {
+        await store.deleteSession(sid);
+      }
+      store.closeSession();
     }
   }
 
@@ -320,6 +374,8 @@ class _ChatScreenState extends State<ChatScreen> {
         text: store.activeSession?.maxTurns?.toString() ?? '');
     final sysPrompt = TextEditingController(
         text: store.activeSession?.systemPrompt ?? '');
+    final baseImage = TextEditingController(
+        text: store.activeSession?.baseImage ?? '');
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -350,6 +406,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     maxLines: 3,
                     decoration: const InputDecoration(labelText: 'System Prompt (blank = inherit)'),
                   ),
+                  TextField(
+                    controller: baseImage,
+                    decoration: const InputDecoration(labelText: 'Worker Base Image'),
+                  ),
                 ],
               ),
             ),
@@ -364,6 +424,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     updates['max_turns'] = int.tryParse(maxTurns.text);
                   }
                   updates['system_prompt'] = sysPrompt.text;
+                  updates['base_image'] =
+                      baseImage.text.trim().isEmpty ? null : baseImage.text.trim();
                   try {
                     final updated = await store.api.settings(sid, updates);
                     _applySession(updated);

@@ -9,8 +9,16 @@ import '../widgets/dialogs.dart';
 /// models.dev template fetch and PWA install section).
 class ConfigScreen extends StatefulWidget {
   final AppStore store;
+  final bool darkMode;
+  final ValueChanged<bool> onDarkMode;
   final VoidCallback? onLogout;
-  const ConfigScreen({super.key, required this.store, this.onLogout});
+  const ConfigScreen({
+    super.key,
+    required this.store,
+    this.darkMode = true,
+    required this.onDarkMode,
+    this.onLogout,
+  });
 
   @override
   State<ConfigScreen> createState() => _ConfigScreenState();
@@ -157,7 +165,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
   }
 
   Widget _appearance() {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final dark = widget.darkMode;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -165,11 +173,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
           title: const Text('Dark mode'),
           subtitle: const Text('Toggle light/dark appearance'),
           value: dark,
-          onChanged: (_) {
-            // Full theme switching is out of scope; note in UI.
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Theme switching available via system settings')));
-          },
+          onChanged: (v) => widget.onDarkMode(v),
         ),
       ],
     );
@@ -561,11 +565,21 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   bool _loading = true;
   String? _editingId;
   late Preset _edit;
+  bool _showNew = false;
+  final _newId = TextEditingController();
+
+  static const _seedPresetIds = {'default', 'build', 'plan'};
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _newId.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -577,6 +591,25 @@ class _PresetsDetailState extends State<_PresetsDetail> {
       _tools = await widget.api.tools();
     } catch (_) {}
     setState(() => _loading = false);
+  }
+
+  Future<void> _create() async {
+    final id = _newId.text.trim();
+    if (id.isEmpty) return;
+    await widget.api.savePreset(
+        Preset(id: id, systemPrompt: '', tools: [], maxTurns: 30));
+    setState(() => _showNew = false);
+    _newId.clear();
+    await _load();
+  }
+
+  Future<void> _delete(Preset p) async {
+    final ok = await confirmDialog(context,
+        title: 'Delete preset', description: 'Delete preset ${p.id}?');
+    if (ok) {
+      await widget.api.deletePreset(p.id);
+      await _load();
+    }
   }
 
   void _open(Preset p) {
@@ -602,13 +635,55 @@ class _PresetsDetailState extends State<_PresetsDetail> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (_showNew) ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _newId,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Preset id...', isDense: true),
+                  onSubmitted: (_) => _create(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                  onPressed: _newId.text.trim().isEmpty ? null : _create,
+                  child: const Text('Create')),
+              IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => setState(() => _showNew = false)),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ] else
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() => _showNew = true),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('New preset'),
+            ),
+          ),
         for (final p in _presets)
           Card(
             child: Column(
               children: [
                 ListTile(
-                  title: Text('${p.id} (turns:${p.maxTurns}, tools:${p.tools.length})'),
-                  trailing: const Icon(Icons.expand_more, size: 18),
+                  title: Text(
+                      '${p.id} (turns:${p.maxTurns}, tools:${p.tools.length})'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!_seedPresetIds.contains(p.id))
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          onPressed: () => _delete(p),
+                        ),
+                      const Icon(Icons.expand_more, size: 18),
+                    ],
+                  ),
                   onTap: () => _editingId == p.id
                       ? setState(() => _editingId = null)
                       : _open(p),
@@ -619,9 +694,11 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                     child: Column(
                       children: [
                         TextField(
-                          controller: TextEditingController(text: _edit.systemPrompt),
+                          controller:
+                              TextEditingController(text: _edit.systemPrompt),
                           maxLines: 3,
-                          decoration: const InputDecoration(labelText: 'System Prompt'),
+                          decoration:
+                              const InputDecoration(labelText: 'System Prompt'),
                           onChanged: (v) => _edit = Preset(
                               id: _edit.id,
                               systemPrompt: v,
@@ -629,9 +706,11 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                               maxTurns: _edit.maxTurns),
                         ),
                         TextField(
-                          controller: TextEditingController(text: '${_edit.maxTurns}'),
+                          controller: TextEditingController(
+                              text: '${_edit.maxTurns}'),
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Max Turns'),
+                          decoration:
+                              const InputDecoration(labelText: 'Max Turns'),
                           onChanged: (v) => _edit = Preset(
                               id: _edit.id,
                               systemPrompt: _edit.systemPrompt,
@@ -645,7 +724,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           children: [
                             for (final t in _tools.map((t) => t.name).toList())
                               FilterChip(
-                                label: Text(t, style: const TextStyle(fontSize: 11)),
+                                label:
+                                    Text(t, style: const TextStyle(fontSize: 11)),
                                 selected: _edit.tools.contains(t),
                                 onSelected: (sel) {
                                   final tools = [..._edit.tools];
@@ -667,7 +747,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            FilledButton(onPressed: _save, child: const Text('Save')),
+                            FilledButton(
+                                onPressed: _save, child: const Text('Save')),
                           ],
                         ),
                       ],
@@ -677,7 +758,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             ),
           ),
         if (_presets.isEmpty)
-          const Padding(padding: EdgeInsets.all(8), child: Text('No presets.')),
+          const Padding(
+              padding: EdgeInsets.all(8), child: Text('No presets.')),
       ],
     );
   }

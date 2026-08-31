@@ -26,6 +26,7 @@ class ZergxApp extends StatefulWidget {
 class _ZergxAppState extends State<ZergxApp> {
   String? _baseUrl;
   String? _token;
+  bool _dark = true;
   AppStore? _store;
 
   @override
@@ -41,8 +42,14 @@ class _ZergxAppState extends State<ZergxApp> {
       setState(() {
         _baseUrl = base;
         _token = prefs.token ?? '';
+        _dark = prefs.darkMode;
       });
     }
+  }
+
+  void _setDarkMode(bool dark) {
+    setState(() => _dark = dark);
+    Prefs.saveDarkMode(dark);
   }
 
   @override
@@ -53,8 +60,14 @@ class _ZergxAppState extends State<ZergxApp> {
       theme: ThemeData(
         colorSchemeSeed: Colors.indigo,
         useMaterial3: true,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.indigo,
+        useMaterial3: true,
         brightness: Brightness.dark,
       ),
+      themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
       home: _buildHome(),
     );
   }
@@ -77,13 +90,16 @@ class _ZergxAppState extends State<ZergxApp> {
       );
     }
     _store ??= AppStore(ZergxApi(baseUrl: _baseUrl!, token: _token!));
-    return _Shell(store: _store!);
+    return _Shell(store: _store!, darkMode: _dark, onDarkMode: _setDarkMode);
   }
 }
 
 class _Shell extends StatelessWidget {
   final AppStore store;
-  const _Shell({required this.store});
+  final bool darkMode;
+  final ValueChanged<bool> onDarkMode;
+  const _Shell(
+      {required this.store, required this.darkMode, required this.onDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +118,11 @@ class _Shell extends StatelessWidget {
             body = CodeScreen(store: store);
             break;
           case SiderTab.config:
-            body = ConfigScreen(store: store);
+            body = ConfigScreen(
+              store: store,
+              darkMode: darkMode,
+              onDarkMode: onDarkMode,
+            );
             break;
           case SiderTab.containers:
             body = ContainersScreen(store: store);

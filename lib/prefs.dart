@@ -2,16 +2,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _kBase = 'base_url';
 const _kToken = 'token';
+const _kDark = 'dark_mode';
 
 class Prefs {
   final String? baseUrl;
   final String? token;
-  const Prefs({this.baseUrl, this.token});
+  final bool darkMode;
+  const Prefs({this.baseUrl, this.token, this.darkMode = true});
 
   static Future<Prefs> load() async {
     try {
       final p = await SharedPreferences.getInstance();
-      return Prefs(baseUrl: p.getString(_kBase), token: p.getString(_kToken));
+      return Prefs(
+        baseUrl: p.getString(_kBase),
+        token: p.getString(_kToken),
+        darkMode: p.getBool(_kDark) ?? true,
+      );
     } catch (_) {
       return const Prefs();
     }
@@ -21,5 +27,12 @@ class Prefs {
     final p = await SharedPreferences.getInstance();
     await p.setString(_kBase, base);
     await p.setString(_kToken, token);
+  }
+
+  static Future<void> saveDarkMode(bool dark) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool(_kDark, dark);
+    } catch (_) {}
   }
 }
