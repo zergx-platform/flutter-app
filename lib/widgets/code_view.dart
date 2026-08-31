@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 
-String formatSize(int bytes) {
-  if (bytes < 1024) return '${bytes}B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
-}
-
-/// Recreates TreeNode.svelte: recursively renders the file-tree cache.
+/// Line-numbered, syntax-free code viewer (recreates CodeView.svelte).
 class CodeView extends StatelessWidget {
   final String code;
   final String filepath;
