@@ -26,7 +26,13 @@ class _CodeScreenState extends State<CodeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => store.refreshRepos());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureRepos());
+  }
+
+  Future<void> _ensureRepos() async {
+    if (store.orgs.isEmpty) await store.refreshRepos();
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _loadCommits() async {
