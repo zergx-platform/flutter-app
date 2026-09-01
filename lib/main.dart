@@ -15,7 +15,7 @@ import 'screens/config.dart';
 import 'screens/containers.dart';
 import 'screens/packages.dart';
 
-const defaultBaseUrl = 'https://gateway.zergx.10.199.64.20.nip.io';
+const defaultBaseUrl = 'https://platform.zergx.10.199.64.20.nip.io';
 
 void main() {
   runApp(const ZergxApp());
@@ -369,7 +369,13 @@ class _SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<_SetupScreen> {
   late final TextEditingController _base =
       TextEditingController(text: widget.initialBaseUrl);
-  final TextEditingController _token = TextEditingController();
+  late final TextEditingController _token =
+      TextEditingController(text: _defaultToken);
+
+  /// The current valid gateway token, prefilled so the user can connect
+  /// with a single tap.
+  static const _defaultToken =
+      '5H7q_K940ySbgXng7H3nNWTTweGcjhGmFSJwJnTAQRw';
 
   @override
   void dispose() {
