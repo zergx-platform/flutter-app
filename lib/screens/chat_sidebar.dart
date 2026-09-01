@@ -5,6 +5,7 @@ import '../store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_avatar.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/session_row.dart';
 
 /// Recreates ChatSidebar.svelte: recent sessions (IM-style rows with
 /// avatars, relative time, preview, unread badge) + the org/repo tree.
@@ -16,19 +17,8 @@ class ChatSidebar extends StatefulWidget {
   State<ChatSidebar> createState() => _ChatSidebarState();
 }
 
-/// Indent ladder for the repo tree: org=0, repo=16, bookmark=32.
-const _treeIndent = <double>[0, 16, 32];
-
-String _relativeTime(String iso) {
-  final t = DateTime.tryParse(iso);
-  if (t == null) return '';
-  final d = DateTime.now().difference(t);
-  if (d.inMinutes < 1) return 'now';
-  if (d.inMinutes < 60) return '${d.inMinutes}m';
-  if (d.inHours < 24) return '${d.inHours}h';
-  if (d.inDays < 7) return '${d.inDays}d';
-  return '${t.month}/${t.day}';
-}
+/// Indent ladder for the repo tree: org=16, repo=32, bookmark=48.
+const _treeIndent = <double>[16, 32, 48];
 
 class _ChatSidebarState extends State<ChatSidebar> {
   AppStore get store => widget.store;
@@ -79,28 +69,10 @@ class _ChatSidebarState extends State<ChatSidebar> {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      // WeChat-style: remove the flat "New organization" button (creation is
+      // the AppBar "+" now); the tree sits flush without side padding.
+      padding: EdgeInsets.zero,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final name = await promptDialog(context,
-                  title: 'New organization', label: 'Organization name');
-              if (name != null && name.trim().isNotEmpty) {
-                try {
-                  await store.api.ensureOrg(name.trim());
-                  await store.refreshRepos();
-                } catch (e) {
-                  messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
-                }
-              }
-            },
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('New organization'),
-          ),
-        ),
         if (_recent.isNotEmpty) ...[
           const _Header('Recent'),
           for (final s in _recent) _sessionRow(s),
@@ -119,84 +91,14 @@ class _ChatSidebarState extends State<ChatSidebar> {
 
   Widget _sessionRow(Session s) {
     final isActive = store.activeSessionId == s.id;
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    final unread = s.unreadCount ?? 0;
     final preview = s.lastMessagePreview.isNotEmpty
         ? s.lastMessagePreview
         : (s.org.isNotEmpty ? '${s.org}/${s.repo}/${s.branch}' : s.id);
-    final stamp = _relativeTime(
-        s.lastMessageAt.isNotEmpty ? s.lastMessageAt : s.updatedAt);
-    return InkWell(
+    return SessionRow(
+      session: s,
+      isActive: isActive,
+      subtitle: preview,
       onTap: () => store.pickSession(s.id),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        color: isActive ? colors.primary.withValues(alpha: 0.10) : null,
-        child: Row(
-          children: [
-            ChatAvatar(org: s.org, repo: s.repo, branch: s.branch),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          s.branch.isNotEmpty ? s.branch : s.id,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.meta.copyWith(
-                              fontWeight: isActive
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: isActive ? colors.primary : null),
-                        ),
-                      ),
-                      if (stamp.isNotEmpty)
-                        Text(stamp,
-                            style: text.micro
-                                .copyWith(color: colors.mutedForeground)),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(preview,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: text.micro.copyWith(
-                                color: colors.mutedForeground)),
-                      ),
-                      if (unread > 0 && !isActive) ...[
-                        const SizedBox(width: AppSpacing.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
-                          constraints: const BoxConstraints(minWidth: 16),
-                          decoration: BoxDecoration(
-                            color: colors.destructive,
-                            borderRadius:
-                                BorderRadius.circular(999),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text('$unread',
-                              style: text.micro.copyWith(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -213,19 +115,18 @@ class _ChatSidebarState extends State<ChatSidebar> {
               org: org.org, repo: '', branch: org.org, radius: 14),
           title: Text(org.org,
               style: text.meta.copyWith(fontWeight: FontWeight.w600)),
-          trailing: org.repos.isEmpty
-              ? IconButton(
-                  icon: Icon(Icons.delete_outline_rounded,
-                      size: 16, color: colors.mutedForeground),
-                  onPressed: () async {
-                    final ok = await confirmDialog(context,
-                        title: 'Delete organization',
-                        description:
-                            'Delete organization ${org.org}? This removes all its repos and sessions.');
-                    if (ok) await store.deleteOrg(org.org);
-                  },
-                )
-              : const SizedBox(width: 16),
+          trailing: IconButton(
+            icon: Icon(Icons.delete_outline_rounded,
+                size: 16, color: colors.mutedForeground),
+            tooltip: 'Delete organization',
+            onPressed: () async {
+              final ok = await confirmDialog(context,
+                  title: 'Delete organization',
+                  description:
+                      'Delete organization ${org.org}? This removes all its repos and sessions.');
+              if (ok) await store.deleteOrg(org.org);
+            },
+          ),
         ),
         for (final repo in org.repos) _repoNode(org, repo),
       ],
@@ -244,40 +145,19 @@ class _ChatSidebarState extends State<ChatSidebar> {
           leading:
               Icon(Icons.folder_copy_outlined, size: 16, color: colors.primary),
           title: Text(repo.repo, style: text.meta),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          trailing:
+              // Repo-scoped actions: delete this repo (its branches follow).
               IconButton(
-                icon: const Icon(Icons.add_rounded, size: 15),
-                tooltip: 'New repo',
-                onPressed: () async {
-                  final name = await promptDialog(context,
-                      title: 'New repo in ${org.org}', label: 'Repo name');
-                  if (name != null && name.trim().isNotEmpty) {
-                    await store.api.ensureRepo(org.org, name.trim());
-                    await store.refreshRepos();
-                    await store.refreshSessions();
-                  }
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.download_rounded, size: 15),
-                tooltip: 'Clone repo',
-                onPressed: () => _cloneDialog(org.org),
-              ),
-              IconButton(
-                icon: Icon(Icons.delete_outline_rounded,
-                    size: 15, color: colors.mutedForeground),
-                tooltip: 'Delete repo',
-                onPressed: () async {
-                  final ok = await confirmDialog(context,
-                      title: 'Delete repo',
-                      description:
-                          'Delete repo ${org.org}/${repo.repo}? This removes all its sessions.');
-                  if (ok) await store.deleteRepo(org.org, repo.repo);
-                },
-              ),
-            ],
+            icon: Icon(Icons.delete_outline_rounded,
+                size: 15, color: colors.mutedForeground),
+            tooltip: 'Delete repo',
+            onPressed: () async {
+              final ok = await confirmDialog(context,
+                  title: 'Delete repo',
+                  description:
+                      'Delete repo ${org.org}/${repo.repo}? This removes all its sessions.');
+              if (ok) await store.deleteRepo(org.org, repo.repo);
+            },
           ),
         ),
         for (final bm in repo.bookmarks)
@@ -309,73 +189,6 @@ class _ChatSidebarState extends State<ChatSidebar> {
           ),
       ],
     );
-  }
-
-  Future<void> _cloneDialog(String org) async {
-    final urlCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-    final tokenCtrl = TextEditingController();
-    final revCtrl = TextEditingController();
-    final r = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Clone into $org'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                  controller: urlCtrl,
-                  decoration: const InputDecoration(labelText: 'Git URL')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Repo name')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: tokenCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Access token (optional)')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: revCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Branch / tag / commit (optional)')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clone'),
-          ),
-        ],
-      ),
-    );
-    if (r == true) {
-      final url = urlCtrl.text.trim();
-      final name = nameCtrl.text.trim();
-      if (url.isNotEmpty && name.isNotEmpty) {
-        try {
-          await store.api.cloneRepo(
-            org,
-            name,
-            url,
-            tokenCtrl.text.trim().isEmpty ? null : tokenCtrl.text.trim(),
-            revCtrl.text.trim().isEmpty ? null : revCtrl.text.trim(),
-          );
-          await store.refreshRepos();
-          await store.refreshSessions();
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Clone failed: $e')));
-        }
-      }
-    }
   }
 
   Future<void> _forkDialog(String sessionId) async {

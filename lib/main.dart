@@ -4,7 +4,9 @@ import 'api.dart';
 import 'prefs.dart';
 import 'store.dart';
 import 'theme/app_theme.dart';
+import 'widgets/create_menu.dart';
 import 'screens/chat.dart';
+import 'screens/search.dart';
 import 'screens/chat_sidebar.dart';
 import 'screens/code.dart';
 import 'screens/config.dart';
@@ -312,30 +314,66 @@ class _BottomBar extends StatelessWidget {
   static bool selected(SiderTab t, SiderTab current) => t == current;
 }
 
-/// Sessions list home — shown when no conversation is open (IM-style).
+/// Sessions list home — shown when no conversation is open. WeChat-style:
+/// AppBar title + "+" create menu, a search affordance, then the chat list.
 class _SessionsHome extends StatelessWidget {
   final AppStore store;
   const _SessionsHome({required this.store});
 
   @override
   Widget build(BuildContext context) {
-    final text = textOf(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Sessions')),
+      appBar: AppBar(
+        title: const Text('ZergX'),
+        actions: [
+          CreateMenu(store: store, iconColor: colorsOf(context).primary),
+        ],
+      ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.sm),
-            child: Text(
-              'Pick a repo & branch to start chatting',
-              style: text.meta.copyWith(
-                  color: colorsOf(context).mutedForeground),
-            ),
-          ),
+          _SearchBar(store: store),
           Expanded(child: ChatSidebar(store: store)),
         ],
+      ),
+    );
+  }
+}
+
+/// WeChat-style pinned search field that opens a full search page.
+class _SearchBar extends StatelessWidget {
+  final AppStore store;
+  const _SearchBar({required this.store});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+      child: InkWell(
+        borderRadius: AppRadius.rLg,
+        onTap: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => SessionSearchPage(store: store),
+          ));
+        },
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colors.muted,
+            borderRadius: AppRadius.rLg,
+          ),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, size: 18, color: colors.mutedForeground),
+              const SizedBox(width: AppSpacing.sm),
+              Text('搜索', style: text.micro.copyWith(color: colors.mutedForeground)),
+            ],
+          ),
+        ),
       ),
     );
   }

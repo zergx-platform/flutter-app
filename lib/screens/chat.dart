@@ -72,10 +72,10 @@ class _ChatScreenState extends State<ChatScreen> {
       _presets = await widget.store.api.presets();
     } catch (_) {}
     if (mounted) setState(() {});
-    final s = store.activeSession;
-    if (s != null) {
-      store.openRepo(s.org, s.repo, s.branch);
-    }
+    // Do NOT hijack store.codeOrg/codeRepo here: the Code tab is an
+    // independent workspace the user browses by itself. The active session's
+    // repository is only bound into the code view when the user explicitly
+    // opens the Files overlay below.
   }
 
   Future<void> _setup() async {
@@ -386,8 +386,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final sid = store.activeSessionId;
     if (sid == null) return;
     try {
-      await store.api.compact(sid);
-      await _setup();
+      final created = await store.api.compact(sid);
+      if (!mounted) return;
+      if (created) {
+        // A compaction checkpoint was created: reopen the conversation so the
+        // new "历史已压缩" summary message renders at the top of the tail.
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('History compacted')));
+        await _setup();
+      } else {
+        // Nothing to fold (the agent returns {ok:false}); the current
+        // conversation is unchanged.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Nothing to compact — history is short')));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));

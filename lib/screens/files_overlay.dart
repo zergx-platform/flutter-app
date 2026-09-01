@@ -20,6 +20,18 @@ class _FilesOverlayState extends State<FilesOverlay> {
   AppStore get store => widget.store;
 
   @override
+  void initState() {
+    super.initState();
+    // The Files overlay is always bound to the ACTIVE session's repository
+    // (web: store.openRepo on the files overlay). This never touches the
+    // independent Code tab's own selection.
+    final s = store.activeSession;
+    if (s != null && (store.codeOrg != s.org || store.codeRepo != s.repo)) {
+      store.openRepo(s.org, s.repo, s.branch);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (store.activeDiffChangeId != null && store.selectedFilePath != null) {
       return Column(
@@ -68,10 +80,14 @@ class _FilesOverlayState extends State<FilesOverlay> {
     }
     return Column(
       children: [
-        _filesHeader(context,
-            label: store.codeRepo.isNotEmpty
-                ? '${store.codeOrg}/${store.codeRepo}'
-                : 'Files'),
+        _filesHeader(
+          context,
+          label: store.codeRepo.isNotEmpty
+              ? '${store.codeOrg}/${store.codeRepo}'
+              : 'Files',
+          // Root level: no back arrow (drill-in only), matching FilesPage.
+          showBack: false,
+        ),
         Expanded(
           child: store.codeLoading
               ? const Center(child: CircularProgressIndicator())
@@ -127,17 +143,20 @@ class _FilesOverlayState extends State<FilesOverlay> {
   }
 
   Widget _filesHeader(BuildContext context,
-      {required String label, Widget? trailing}) {
+      {required String label, Widget? trailing, bool showBack = true}) {
     final text = textOf(context);
+    // Web's FilesPage shows the back arrow only at drill-in levels
+    // (a selected file or an open diff), never at the tree root.
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, size: 18),
-            onPressed: () => store.stepFileBack(),
-          ),
+          if (showBack)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              onPressed: () => store.stepFileBack(),
+            ),
           Expanded(
             child: Text(label,
                 overflow: TextOverflow.ellipsis, style: text.mono),

@@ -173,8 +173,10 @@ class ZergxApi {
     return j['interrupted'] == true;
   }
 
-  Future<void> compact(String id) =>
-      _post('/api/v1/sessions/${_enc(id)}/compact', null);
+  Future<bool> compact(String id) async {
+    final j = await _post('/api/v1/sessions/${_enc(id)}/compact', null);
+    return j is Map ? j['ok'] == true : true;
+  }
 
   Future<void> markRead(String id) =>
       _post('/api/v1/sessions/${_enc(id)}/read', null);
