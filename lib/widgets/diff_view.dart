@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
 import '../theme/app_theme.dart';
 import 'diff_parser.dart';
 
@@ -25,7 +26,8 @@ class DiffView extends StatelessWidget {
     if (diffText.trim().isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Text('No changes', style: TextStyle(color: colors.mutedForeground)),
+        child: Text(t(context, 'noChanges'),
+            style: TextStyle(color: colors.mutedForeground)),
       );
     }
     final files = parseDiff(diffText);

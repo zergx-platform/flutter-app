@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -58,7 +60,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
                       ? Icons.description_outlined
                       : Icons.history_rounded,
                   size: 16),
-              tooltip: 'History',
+              tooltip: t(context, 'history'),
               onPressed: () {
                 if (store.showFileHistory) {
                   store.showFileHistory = false;
@@ -108,7 +110,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
     }
     if (store.fileHistory.isEmpty) {
       return Center(
-          child: Text('No history for this file.',
+          child: Text(t(context, 'noHistory'),
               style: TextStyle(color: colors.mutedForeground)));
     }
     final commits = store.fileHistory;
@@ -217,7 +219,7 @@ class _TodosOverlayState extends State<TodosOverlay> {
     final text = textOf(context);
     if (_todos.isEmpty) {
       return Center(
-          child: Text('No todos yet — the agent tracks its plan here via todowrite.',
+          child: Text(t(context, 'noTodosYet'),
               style: TextStyle(color: colors.mutedForeground, fontSize: 12)));
     }
     return ListView(

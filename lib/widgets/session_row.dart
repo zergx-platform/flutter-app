@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import '../theme/app_theme.dart';
 import 'chat_avatar.dart';
 
-/// WeChat-style relative timestamp.
+/// WeChat-style relative timestamp (locale-aware).
 String wechatTime(String iso) {
   final t = DateTime.tryParse(iso);
   if (t == null) return '';
   final d = DateTime.now().difference(t);
-  if (d.inMinutes < 1) return '';
-  if (d.inMinutes < 60) return '${d.inMinutes}分钟前';
-  if (d.inHours < 24) return '${d.inHours}小时前';
-  if (d.inDays < 7) return '${d.inDays}天前';
+  if (d.inMinutes < 1) return I18n.isZh ? '' : 'just now';
+  if (d.inMinutes < 60) return I18n.isZh ? '${d.inMinutes}分钟前' : '${d.inMinutes}m ago';
+  if (d.inHours < 24) return I18n.isZh ? '${d.inHours}小时前' : '${d.inHours}h ago';
+  if (d.inDays < 7) return I18n.isZh ? '${d.inDays}天前' : '${d.inDays}d ago';
   return '${t.month}/${t.day}';
 }
 

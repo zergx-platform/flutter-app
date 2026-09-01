@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -61,7 +62,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Adopt failed: $e')));
+          .showSnackBar(SnackBar(content: Text(t(context, 'adoptFailed', [e.toString()]))));
     }
   }
 
@@ -74,15 +75,15 @@ class _ChatSidebarState extends State<ChatSidebar> {
       padding: EdgeInsets.zero,
       children: [
         if (_recent.isNotEmpty) ...[
-          const _Header('Recent'),
+          _HeaderKey('recent'),
           for (final s in _recent) _sessionRow(s),
         ],
-        const _Header('All repositories'),
+        _HeaderKey('allRepos'),
         for (final org in store.orgs) _orgNode(org),
         if (store.orgs.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Text('No repositories. Create a session first.',
+            child: Text(t(context, 'noRepos'),
                 style: TextStyle(color: colors.mutedForeground)),
           ),
       ],
@@ -118,7 +119,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
           trailing: IconButton(
             icon: Icon(Icons.delete_outline_rounded,
                 size: 16, color: colors.mutedForeground),
-            tooltip: 'Delete organization',
+            tooltip: t(context, 'deleteOrgTitle'),
             onPressed: () async {
               final ok = await confirmDialog(context,
                   title: 'Delete organization',
@@ -150,7 +151,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
               IconButton(
             icon: Icon(Icons.delete_outline_rounded,
                 size: 15, color: colors.mutedForeground),
-            tooltip: 'Delete repo',
+            tooltip: t(context, 'deleteRepoTitle'),
             onPressed: () async {
               final ok = await confirmDialog(context,
                   title: 'Delete repo',
@@ -180,7 +181,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
             trailing: bm.session != null
                 ? IconButton(
                     icon: const Icon(Icons.call_split_rounded, size: 15),
-                    tooltip: 'Fork',
+                    tooltip: t(context, 'fork'),
                     onPressed: () => _forkDialog(bm.session!.sessionId),
                   )
                 : null,
@@ -196,19 +197,21 @@ class _ChatSidebarState extends State<ChatSidebar> {
     final r = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Fork Session'),
+        title: Text(t(context, 'fork')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Branch name'),
+          decoration: InputDecoration(labelText: t(context, 'forkBranchLabel')),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: Text(t(ctx, 'cancel')),
+          ),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: const Text('Fork')),
+              child: Text(t(ctx, 'fork')),
+          ),
         ],
       ),
     );
@@ -217,7 +220,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
       if (store.existingBookmarks.contains(branch)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Branch already exists')));
+            .showSnackBar(SnackBar(content: Text(t(context, 'branchExists'))));
         return;
       }
       store.activeSessionId = sessionId;
@@ -240,5 +243,15 @@ class _Header extends StatelessWidget {
               letterSpacing: 1,
               color: colorsOf(context).mutedForeground)),
     );
+  }
+}
+
+/// Header fed by an i18n key (recent / allRepos).
+class _HeaderKey extends StatelessWidget {
+  final String textKey;
+  const _HeaderKey(this.textKey);
+  @override
+  Widget build(BuildContext context) {
+    return _Header(t(context, textKey));
   }
 }

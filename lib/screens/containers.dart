@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -68,12 +70,12 @@ class _ContainersScreenState extends State<ContainersScreen> {
     final text = textOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Containers'),
+        title: Text(t(context, 'containersTitle')),
         actions: [
           IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
           IconButton(
               icon: const Icon(Icons.public_rounded),
-              tooltip: 'Deploy service',
+              tooltip: t(context, 'deployService'),
               onPressed: () => _deployDialog()),
         ],
       ),
@@ -88,26 +90,26 @@ class _ContainersScreenState extends State<ContainersScreen> {
                     child: Text(_error,
                         style: text.meta.copyWith(color: colors.destructive)),
                   ),
-                Text('Deployments',
+                Text(t(context, 'deployments'),
                     style: text.meta
                         .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                 if (_deployments.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    child: Text('No deployments yet.',
+                    child: Text(t(context, 'noDeployments'),
                         style: text.meta
                             .copyWith(color: colors.mutedForeground)),
                   )
                 else
                   for (final d in _deployments) _deploymentCard(d),
                 const SizedBox(height: AppSpacing.lg),
-                Text('Sandboxes',
+                Text(t(context, 'sandboxes'),
                     style: text.meta
                         .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                 if (_sandboxes.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    child: Text('No containers running.',
+                    child: Text(t(context, 'noContainers'),
                         style: text.meta
                             .copyWith(color: colors.mutedForeground)),
                   )
@@ -141,7 +143,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
                     : colors.destructive.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text('${d.ready}/${d.replicas} ready',
+              child: Text(t(context, 'ready', ['${d.ready}', '${d.replicas}']),
                   style: text.micro.copyWith(
                       color: d.ready > 0 ? colors.success : colors.destructive)),
             ),
@@ -186,7 +188,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
             TextButton(
               onPressed:
                   s.status != 'running' ? null : () => _openTerminal(s),
-              child: const Text('Terminal'),
+              child: Text(t(context, 'terminal')),
             ),
             IconButton(
               icon: Icon(Icons.delete_outline_rounded,
@@ -218,43 +220,48 @@ class _ContainersScreenState extends State<ContainersScreen> {
     final r = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Deploy Service'),
+        title: Text(t(context, 'deployService')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'Name')),
+                  decoration: InputDecoration(
+                      labelText: t(ctx, 'nameLabel'))),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: image,
-                  decoration: const InputDecoration(labelText: 'Image')),
+                  decoration: InputDecoration(
+                      labelText: t(ctx, 'imageLabel'))),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: replicas,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Replicas')),
+                  decoration: InputDecoration(
+                      labelText: t(ctx, 'replicasLabel'))),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: port,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Port')),
+                  decoration: InputDecoration(
+                      labelText: t(ctx, 'portLabel'))),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: session,
-                  decoration:
-                      const InputDecoration(labelText: 'Session (optional)')),
+                  decoration: InputDecoration(
+                      labelText: t(ctx, 'sessionOptLabel'))),
             ],
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(t(ctx, 'cancel')),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Deploy'),
+            child: Text(t(ctx, 'confirm')),
           ),
         ],
       ),

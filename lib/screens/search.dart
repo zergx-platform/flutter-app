@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -68,7 +70,7 @@ class _SessionSearchPageState extends State<SessionSearchPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Adopt failed: $e')));
+            .showSnackBar(SnackBar(content: Text(t(context, 'adoptFailed', [e.toString()]))));
       }
     }
   }
@@ -84,8 +86,8 @@ class _SessionSearchPageState extends State<SessionSearchPage> {
         title: TextField(
           controller: _q,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '搜索 org / repo / bookmark',
+          decoration: InputDecoration(
+            hintText: t(context, 'searchHint'),
             border: InputBorder.none,
           ),
         ),
@@ -119,12 +121,12 @@ class _SessionSearchPageState extends State<SessionSearchPage> {
     final text = textOf(context);
     if (store.orgs.isEmpty) {
       return Center(
-          child: Text('No repositories yet.',
+          child: Text(t(context, 'noRepos'),
               style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView(
       children: [
-        const _Header('All repositories'),
+        _Header(t(context, 'allRepos')),
         for (final org in store.orgs)
           for (final repo in org.repos)
             for (final bm in repo.bookmarks)

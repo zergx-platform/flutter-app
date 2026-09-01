@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -99,7 +101,7 @@ class _CodeScreenState extends State<CodeScreen> {
           height: AppBars.height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           alignment: Alignment.centerLeft,
-          child: Text('Repositories',
+          child: Text(t(context, 'repositories'),
               style: text.meta.copyWith(fontWeight: FontWeight.w600)),
         ),
         Expanded(
@@ -149,7 +151,7 @@ class _CodeScreenState extends State<CodeScreen> {
               if (store.orgs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Text('No repositories. Create a session first.',
+                  child: Text(t(context, 'noRepos'),
                       style: TextStyle(color: colors.mutedForeground)),
                 ),
             ],
@@ -196,7 +198,7 @@ class _CodeScreenState extends State<CodeScreen> {
         Expanded(
           child: store.codeRepo.isEmpty
               ? Center(
-                  child: Text('Select a repository',
+                  child: Text(t(context, 'selectBranch'),
                       style: TextStyle(color: colors.mutedForeground)))
               : _showCommits
                   ? _commitsList(context)
@@ -218,7 +220,7 @@ class _CodeScreenState extends State<CodeScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_commits.isEmpty) {
-      return const Center(child: Text('No commits'));
+      return Center(child: Text(t(context, 'noCommits')));
     }
     return ListView(
       children: [
@@ -349,7 +351,7 @@ class _CodeScreenState extends State<CodeScreen> {
         return const Center(child: CircularProgressIndicator());
       }
       if (store.fileHistory.isEmpty) {
-        return const Center(child: Text('No changes for this file'));
+        return Center(child: Text(t(context, 'noHistory')));
       }
       return ListView(
         children: [

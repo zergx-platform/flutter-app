@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import '../theme/app_theme.dart';
 import 'tool_part.dart';
@@ -69,8 +70,8 @@ class MessageBubble extends StatelessWidget {
         .map((p) => p.text)
         .join('\n');
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied'), duration: Duration(seconds: 1)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(t(context, 'copied')), duration: const Duration(seconds: 1)));
   }
 
   Future<void> _actions(BuildContext context) async {
@@ -83,12 +84,12 @@ class MessageBubble extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.copy_rounded),
-              title: const Text('Copy'),
+              title: Text(t(ctx, 'copy')),
               onTap: () => Navigator.pop(ctx, 'copy'),
             ),
             ListTile(
               leading: const Icon(Icons.undo_rounded),
-              title: const Text('Undo until here'),
+              title: Text(t(ctx, 'undo')),
               onTap: () => Navigator.pop(ctx, 'undo'),
             ),
           ],
@@ -129,14 +130,14 @@ class MessageBubble extends StatelessWidget {
       }
     }
     if (isStreaming && parts.isEmpty) {
-      parts.add(Text('thinking...',
+      parts.add(Text(t(context, 'thinking'),
           style: text.meta
               .copyWith(color: colors.mutedForeground, fontStyle: FontStyle.italic)));
     }
     if (isError) {
       parts.insert(
         0,
-        Text('Error',
+        Text(t(context, 'error'),
             style: text.micro.copyWith(
                 color: colors.destructive, fontWeight: FontWeight.w600)),
       );
@@ -198,18 +199,18 @@ class MessageBubble extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('撤销此消息？'),
-        content: const Text('将删除该消息，并撤销之后的所有消息。'),
+        title: Text(t(ctx, 'undoTitle')),
+        content: Text(t(ctx, 'undoBody')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+              child: Text(t(ctx, 'cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(
                 backgroundColor: colorsOf(ctx).destructive,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('撤销'),
+            child: Text(t(ctx, 'undo')),
           ),
         ],
       ),
@@ -242,9 +243,9 @@ class _BubbleActions extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _tinyIcon(Icons.copy_rounded, 'Copy', onCopy, colors),
+          _tinyIcon(Icons.copy_rounded, t(context, 'copy'), onCopy, colors),
           const SizedBox(width: 2),
-          _tinyIcon(Icons.undo_rounded, 'Undo', onUndo, colors),
+          _tinyIcon(Icons.undo_rounded, t(context, 'undo'), onUndo, colors),
           if (isUser) ...[
             const SizedBox(width: 4),
             // Show the message's persisted timestamp instead of "you".
@@ -295,7 +296,7 @@ class _ReasoningBlock extends StatelessWidget {
     final colors = colorsOf(context);
     final text_ = textOf(context);
     return _CollapseBlock(
-      label: 'Thinking${streaming ? '...' : ''}',
+      label: t(context, 'thinkLabel') + (streaming ? '...' : ''),
       labelColor: colors.warning,
       initiallyOpen: true,
       textStyle: text_.micro
@@ -328,7 +329,7 @@ class _CompactionBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     return _CollapseBlock(
-      label: '历史已压缩 · 查看摘要',
+      label: t(context, 'compactedLabel'),
       labelColor: colors.mutedForeground,
       initiallyOpen: false,
       textStyle: textOf(context).micro.copyWith(color: colors.mutedForeground),

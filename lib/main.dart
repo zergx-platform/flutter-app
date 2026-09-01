@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'api.dart';
+import 'i18n.dart';
 import 'prefs.dart';
 import 'store.dart';
 import 'theme/app_theme.dart';
@@ -39,6 +41,8 @@ class _ZergxAppState extends State<ZergxApp> {
   }
 
   Future<void> _load() async {
+    // Load persisted locale before the first build.
+    await I18n.load();
     final prefs = await Prefs.load();
     final base = prefs.baseUrl?.isNotEmpty == true ? prefs.baseUrl! : defaultBaseUrl;
     if (mounted) {
@@ -57,13 +61,23 @@ class _ZergxAppState extends State<ZergxApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ZergX',
-      debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(Brightness.light),
-      darkTheme: buildAppTheme(Brightness.dark),
-      themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
-      home: _buildHome(),
+    return ValueListenableBuilder<Locale>(
+      valueListenable: I18n.notifier,
+      builder: (context, locale, _) => MaterialApp(
+        title: t(context, 'appTitle'),
+        debugShowCheckedModeBanner: false,
+        theme: buildAppTheme(Brightness.light),
+        darkTheme: buildAppTheme(Brightness.dark),
+        themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
+        locale: locale,
+        supportedLocales: const [Locale('zh'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: _buildHome(),
+      ),
     );
   }
 
@@ -383,14 +397,15 @@ class _SetupScreenState extends State<_SetupScreen> {
                     const SizedBox(height: AppSpacing.xl),
                     TextField(
                       controller: _base,
-                      decoration: const InputDecoration(
-                          labelText: 'Gateway URL'),
+                      decoration: InputDecoration(
+                          labelText: t(context, 'gatewayUrl')),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: _token,
                       obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Token'),
+                      decoration: InputDecoration(
+                          labelText: t(context, 'tokenLabel')),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     FilledButton(
@@ -400,7 +415,7 @@ class _SetupScreenState extends State<_SetupScreen> {
                               _base.text.trim(), _token.text.trim());
                         }
                       },
-                      child: const Text('Connect'),
+                      child: Text(t(context, 'connect')),
                     ),
                   ],
                 ),

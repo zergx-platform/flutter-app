@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -57,7 +59,7 @@ class _TimelineOverlayState extends State<TimelineOverlay> {
     final changes = _changes ?? [];
     if (changes.isEmpty) {
       return Center(
-          child: Text('No changes yet',
+          child: Text(t(context, 'noChangesYet'),
               style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.separated(
@@ -130,7 +132,7 @@ class _MailboxOverlayState extends State<MailboxOverlay> {
     final text = textOf(context);
     if (_entries.isEmpty) {
       return Center(
-          child: Text('No messages',
+          child: Text(t(context, 'noMessages'),
               style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.builder(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import '../theme/app_theme.dart';
 import 'tool_icon.dart';
@@ -245,7 +246,7 @@ class _ToolPartViewState extends State<ToolPartView> {
     } else if (widget.isStreaming && status == 'running') {
       children.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Text('running...',
+        child: Text(I18n.isZh ? '运行中…' : 'running...',
             style: text.micro.copyWith(
                 color: colors.mutedForeground,
                 fontStyle: FontStyle.italic)),

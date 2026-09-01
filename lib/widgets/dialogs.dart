@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
+
 /// Shared confirm dialog.
 Future<bool> confirmDialog(BuildContext context,
     {required String title,
@@ -13,9 +15,10 @@ Future<bool> confirmDialog(BuildContext context,
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+            child: Text(t(ctx, 'cancel'))),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+          style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error),
           onPressed: () => Navigator.pop(ctx, true),
           child: Text(confirmText),
         ),
@@ -42,7 +45,9 @@ Future<String?> promptDialog(BuildContext context,
         onSubmitted: (v) => Navigator.pop(ctx, v),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t(ctx, 'cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, ctrl.text),
           child: Text(confirmText),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
 import '../messages.dart';
 import '../models.dart';
 import '../store.dart';
@@ -254,17 +255,17 @@ class _ChatScreenState extends State<ChatScreen> {
               PopupMenuButton<String>(
                 onSelected: (v) => _menuAction(v),
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'settings', child: Text('Session settings')),
-                  const PopupMenuItem(value: 'compact', child: Text('Compact history')),
-                  const PopupMenuItem(value: 'timeline', child: Text('Timeline')),
-                  const PopupMenuItem(value: 'files', child: Text('Files')),
-                  const PopupMenuItem(value: 'mailbox', child: Text('Mailbox')),
-                  const PopupMenuItem(value: 'container', child: Text('Container')),
-                  const PopupMenuItem(value: 'todos', child: Text('Todos')),
+                  PopupMenuItem(value: 'settings', child: Text(t(context, 'sessionSettings'))),
+                  PopupMenuItem(value: 'compact', child: Text(t(context, 'compactHistory'))),
+                  PopupMenuItem(value: 'timeline', child: Text(t(context, 'timeline'))),
+                  PopupMenuItem(value: 'files', child: Text(t(context, 'files'))),
+                  PopupMenuItem(value: 'mailbox', child: Text(t(context, 'mailbox'))),
+                  PopupMenuItem(value: 'container', child: Text(t(context, 'container'))),
+                  PopupMenuItem(value: 'todos', child: Text(t(context, 'todos'))),
                   const PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'delete',
-                    child: Text('Delete session',
+                    child: Text(t(context, 'deleteSession'),
                         style: TextStyle(color: colors.destructive)),
                   ),
                 ],
@@ -319,18 +320,19 @@ class _ChatScreenState extends State<ChatScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete session'),
-        content: Text('Delete session "$label"?'),
+        title: Text(t(context, 'deleteSessionTitle')),
+        content: Text(t(context, 'deleteSessionBody', [label])),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(t(ctx, 'cancel')),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
                 backgroundColor: colorsOf(ctx).destructive,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(t(ctx, 'delete')),
           ),
         ],
       ),
@@ -359,13 +361,13 @@ class _ChatScreenState extends State<ChatScreen> {
         // A compaction checkpoint was created: reopen the conversation so the
         // new "历史已压缩" summary message renders at the top of the tail.
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('History compacted')));
+            .showSnackBar(SnackBar(content: Text(t(context, 'historyCompacted'))));
         await _setup();
       } else {
         // Nothing to fold (the agent returns {ok:false}); the current
         // conversation is unchanged.
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Nothing to compact — history is short')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t(context, 'nothingToCompact'))));
       }
     } catch (e) {
       if (mounted) {
@@ -388,7 +390,7 @@ class _ChatScreenState extends State<ChatScreen> {
           String model = store.activeSession?.model ?? '';
           String preset = store.activeSession?.preset ?? '';
           return AlertDialog(
-            title: const Text('Session Settings'),
+            title: Text(t(ctx, 'settingsTitle')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -402,7 +404,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         DropdownMenuItem(value: mo.id, child: Text(mo.id)),
                     ],
                     onChanged: (v) => setState(() => model = v ?? ''),
-                    decoration: const InputDecoration(labelText: 'Model'),
+                    decoration: InputDecoration(labelText: t(ctx, 'modelLabel')),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
@@ -412,20 +414,19 @@ class _ChatScreenState extends State<ChatScreen> {
                         DropdownMenuItem(value: p.id, child: Text(p.id)),
                     ],
                     onChanged: (v) => setState(() => preset = v ?? ''),
-                    decoration: const InputDecoration(labelText: 'Preset'),
+                    decoration: InputDecoration(labelText: t(ctx, 'presetLabel')),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: maxTurns,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Max Turns'),
+                    decoration: InputDecoration(labelText: t(ctx, 'maxTurnsLabel')),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: sysPrompt,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                        labelText: 'System Prompt (blank = inherit)'),
+                    decoration: InputDecoration(labelText: t(ctx, 'sysPromptLabel')),
                   ),
                 ],
               ),
@@ -433,7 +434,8 @@ class _ChatScreenState extends State<ChatScreen> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel')),
+                  child: Text(t(ctx, 'cancel')),
+              ),
               FilledButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
@@ -454,7 +456,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
                   }
                 },
-                child: const Text('Apply'),
+                child: Text(t(ctx, 'apply')),
               ),
             ],
           );
@@ -525,8 +527,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       maxLines: 6,
                       textInputAction: TextInputAction.newline,
                       onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        hintText: 'Type a message...',
+                      decoration: InputDecoration(
+                        hintText: t(context, 'typeMessage'),
                       ),
                     ),
                   ),
@@ -723,11 +725,11 @@ class _OverlayPage extends StatelessWidget {
           },
         ),
         title: Text(switch (overlay) {
-          SessionOverlay.timeline => 'Timeline',
-          SessionOverlay.files => 'Files',
-          SessionOverlay.mailbox => 'Mailbox',
-          SessionOverlay.container => 'Container',
-          SessionOverlay.todos => 'Todos',
+          SessionOverlay.timeline => t(context, 'timeline'),
+          SessionOverlay.files => t(context, 'files'),
+          SessionOverlay.mailbox => t(context, 'mailbox'),
+          SessionOverlay.container => t(context, 'container'),
+          SessionOverlay.todos => t(context, 'todos'),
         }),
       ),
       body: body,
@@ -787,7 +789,8 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
                   store.sessionOverlay = SessionOverlay.timeline;
                 }
               },
-              child: const Text('Back')),
+              child: Text(t(context, 'back')),
+              ),
         ),
         Expanded(
           child: _error.isNotEmpty

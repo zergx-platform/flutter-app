@@ -7,7 +7,8 @@ import '../theme/app_theme.dart';
 /// Simple deterministic layout:
 ///   - background = a vivid color derived from the ORG name
 ///   - text color = a vivid color derived from the REPO name
-///   - label      = first 4 letters of the bookmark (branch) name, uppercase
+///   - label      = first 2 letters of the bookmark (branch) name,
+///                  first uppercase + second lowercase
 /// Falls back down the ladder (branch → org → repo → '?') for empty parts.
 /// Colors are hash-derived, always saturated (never transparent), and stable
 /// across rebuilds and the web build.
@@ -66,7 +67,8 @@ class ChatAvatar extends StatelessWidget {
     return HSLColor.fromAHSL(1, hue, 0.60, 0.48).toColor();
   }
 
-  /// First four letters of the bookmark name, uppercase.
+  /// First two letters of the bookmark name: first uppercase, second
+  /// lowercase. Empty → org, then repo, then '?'.
   static String _label(String branch, String org, String repo) {
     final source = branch.isNotEmpty
         ? branch
@@ -75,6 +77,9 @@ class ChatAvatar extends StatelessWidget {
             : repo.isNotEmpty
                 ? repo
                 : '?';
-    return source.characters.take(4).join().toUpperCase();
+    final chars = source.characters.take(2).toList();
+    if (chars.isEmpty) return '?';
+    if (chars.length == 1) return chars[0].toUpperCase();
+    return '${chars[0].toUpperCase()}${chars[1].toLowerCase()}';
   }
 }

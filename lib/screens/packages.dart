@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../i18n.dart';
 import 'package:flutter/services.dart';
 
 import '../models.dart';
@@ -131,7 +133,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     final colors = colorsOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Packages'),
+        title: Text(t(context, 'packagesTitle')),
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh_rounded),
@@ -147,9 +149,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md,
                     AppSpacing.lg, AppSpacing.sm),
             child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('Registries')),
-                ButtonSegment(value: 1, label: Text('Packages')),
+              segments: [
+                ButtonSegment(value: 0, label: Text(t(context, 'registries'))),
+                ButtonSegment(value: 1, label: Text(t(context, 'packagesTab'))),
               ],
               selected: {_tab},
               showSelectedIcon: false,
@@ -202,14 +204,14 @@ class _PackagesScreenState extends State<PackagesScreen> {
                       style: text.meta.copyWith(color: colors.destructive)),
                 ),
               TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Filter ecosystems...',
+                decoration: InputDecoration(
+                  hintText: t(context, 'filterEcosystems'),
                   prefixIcon: Icon(Icons.search_rounded),
                 ),
                 onChanged: (v) => setState(() => _query = v),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text('Proxy Registries (${filtered.length})',
+              Text(t(context, 'proxyRegistries', ['${filtered.length}']),
                   style: text.meta
                       .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
               const SizedBox(height: AppSpacing.sm),
@@ -220,25 +222,26 @@ class _PackagesScreenState extends State<PackagesScreen> {
                     title: Text(t.type,
                         style: text.mono.copyWith(fontSize: 13)),
                     subtitle: Text(
-                        '${_typeLabels[t.type] ?? t.type}\n${t.upstream.isEmpty ? 'no upstream (local only)' : t.upstream}${t.upstream.isEmpty ? '' : '\n${_endpointFor(t.type)}'}',
+                        '${_typeLabels[t.type] ?? t.type}\n${t.upstream.isEmpty ? (I18n.isZh ? '无上游（仅本地）' : 'no upstream (local only)') : t.upstream}${t.upstream.isEmpty ? '' : '\n${_endpointFor(t.type)}'}',
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
                     onLongPress: () {
                       Clipboard.setData(
                           ClipboardData(text: _endpointFor(t.type)));
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Endpoint copied')));
+                        SnackBar(content: Text(Texts.t(context, 'endpointCopied'))),
+                      );
                     },
                   ),
                 ),
               const SizedBox(height: AppSpacing.md),
-              Text('OCI Image Catalog (${_repositories.length})',
+              Text(t(context, 'ociCatalog', ['${_repositories.length}']),
                   style: text.meta
                       .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
               if (_repositories.isEmpty)
                 Padding(
                     padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: Text('No images stored.',
+                    child: Text(t(context, 'noImages'),
                         style: text.meta
                             .copyWith(color: colors.mutedForeground)))
               else
@@ -250,7 +253,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   ),
               if (_zergxCfg != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text('Registry Backend Config (read-only)',
+                Text(t(context, 'registryConfig'),
                     style: text.meta
                         .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: AppSpacing.xs),
@@ -277,8 +280,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
             children: [
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Search packages...',
+                  decoration: InputDecoration(
+                    hintText: t(context, 'searchPackages'),
                     prefixIcon: Icon(Icons.search_rounded),
                   ),
                   onChanged: (v) => _pkgQuery = v,
@@ -291,7 +294,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
               const SizedBox(width: AppSpacing.sm),
               DropdownButton<String>(
                 value: _typeFilter.isEmpty ? null : _typeFilter,
-                hint: Text('Type', style: text.meta),
+                hint: Text(t(context, 'typeLabel'), style: text.meta),
                 underline: const SizedBox.shrink(),
                 items: [
                   for (final t in _types.where((t) => t.type.isNotEmpty))
@@ -330,7 +333,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${_offset + 1}–${_offset + _pkgs.length} of $_total',
+              Text(I18n.isZh
+                  ? '${_offset + 1}–${_offset + _pkgs.length} / 共$_total'
+                  : '${_offset + 1}–${_offset + _pkgs.length} of $_total',
                   style: text.micro.copyWith(color: colors.mutedForeground)),
               Row(
                 children: [
@@ -341,7 +346,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                             _offset = (_offset - _pageSize).clamp(0, _offset);
                             _loadPackages();
                           },
-                    child: const Text('Prev'),
+                    child: Text(t(context, 'prev')),
                   ),
                   TextButton(
                     onPressed: _offset + _pageSize >= _total || _pkgLoading
@@ -350,7 +355,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                             _offset += _pageSize;
                             _loadPackages();
                           },
-                    child: const Text('Next'),
+                    child: Text(t(context, 'next')),
                   ),
                 ],
               ),
@@ -386,15 +391,16 @@ class _PackagesScreenState extends State<PackagesScreen> {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Delete package'),
-                  content: Text('Delete package ${p.name} (${p.type})?'),
+                  title: Text(t(ctx, 'deletePackage')),
+                  content: Text(
+                      t(ctx, 'deletePackageBody', [p.name, p.type])),
                   actions: [
                     TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel')),
+                        child: Text(t(ctx, 'cancel'))),
                     FilledButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Delete')),
+                        child: Text(t(ctx, 'delete'))),
                   ],
                 ),
               );
@@ -416,7 +422,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
               children: [
                 for (final v in _versionDetail) _versionRow(p, v),
                 if (_versionDetail.isEmpty)
-                  Text('No versions found.',
+                  Text(t(context, 'noVersions'),
                       style: text.micro.copyWith(color: colors.mutedForeground)),
               ],
             ),
@@ -438,7 +444,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
             children: [
               Text(v.version, style: text.mono.copyWith(fontSize: 12)),
               const SizedBox(width: AppSpacing.sm),
-              Text('${v.downloadCount} downloads',
+              Text(t(context, 'downloads', ['${v.downloadCount}']),
                   style: text.micro.copyWith(color: colors.mutedForeground)),
             ],
           ),

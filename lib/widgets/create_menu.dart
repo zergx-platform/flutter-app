@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../i18n.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/dialogs.dart';
@@ -21,13 +22,17 @@ class CreateMenu extends StatelessWidget {
   Future<void> _newOrg(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final name = await promptDialog(context,
-        title: 'New organization', label: 'Organization name');
+        title: t(context, 'createNewOrg'),
+        label: t(context, 'orgNameLabel'));
     if (name != null && name.trim().isNotEmpty) {
       try {
         await store.api.ensureOrg(name.trim());
         await store.refreshRepos();
       } catch (e) {
-        messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+        if (context.mounted) {
+          messenger.showSnackBar(
+              SnackBar(content: Text(t(context, 'failed', [e.toString()]))));
+        }
       }
     }
   }
@@ -38,7 +43,7 @@ class CreateMenu extends StatelessWidget {
     final orgs = store.orgs.map((o) => o.org).toList();
     if (orgs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Create an organization first')));
+          SnackBar(content: Text(t(context, 'createOrgFirst'))));
       return null;
     }
     if (orgs.length == 1) return orgs.first;
@@ -51,7 +56,7 @@ class CreateMenu extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: Text('Choose organization',
+              child: Text(t(ctx, 'chooseOrg'),
                   style: textOf(ctx)
                       .meta
                       .copyWith(fontWeight: FontWeight.w600)),
@@ -74,14 +79,18 @@ class CreateMenu extends StatelessWidget {
     if (org == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final name = await promptDialog(context,
-        title: 'New repo in $org', label: 'Repo name');
+        title: t(context, 'newRepoIn', [org]),
+        label: t(context, 'repoNameLabel'));
     if (name != null && name.trim().isNotEmpty) {
       try {
         await store.api.ensureRepo(org, name.trim());
         await store.refreshRepos();
         await store.refreshSessions();
       } catch (e) {
-        messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+        if (context.mounted) {
+          messenger.showSnackBar(
+              SnackBar(content: Text(t(context, 'failed', [e.toString()]))));
+        }
       }
     }
   }
@@ -95,7 +104,7 @@ class CreateMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      tooltip: 'Create',
+      tooltip: t(context, 'createNewOrg'),
       icon: Icon(Icons.add_rounded, color: iconColor, size: 22),
       onSelected: (v) {
         switch (v) {
@@ -107,10 +116,13 @@ class CreateMenu extends StatelessWidget {
             _cloneRepo(context);
         }
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: 'org', child: Text('New organization')),
-        PopupMenuItem(value: 'repo', child: Text('New repo…')),
-        PopupMenuItem(value: 'clone', child: Text('Clone repo…')),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+            value: 'org', child: Text(t(context, 'createNewOrg'))),
+        PopupMenuItem(
+            value: 'repo', child: Text(t(context, 'createNewRepo'))),
+        PopupMenuItem(
+            value: 'clone', child: Text(t(context, 'createCloneRepo'))),
       ],
     );
   }
@@ -126,38 +138,40 @@ Future<void> showCloneDialog(BuildContext context, AppStore store, String org) a
   final r = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text('Clone into $org'),
+      title: Text(t(ctx, 'cloneInto', [org])),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
                 controller: urlCtrl,
-                decoration: const InputDecoration(labelText: 'Git URL')),
+                decoration: InputDecoration(
+                    labelText: t(ctx, 'gitUrlLabel'))),
             const SizedBox(height: AppSpacing.sm),
             TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Repo name')),
+                decoration: InputDecoration(
+                    labelText: t(ctx, 'repoName2'))),
             const SizedBox(height: AppSpacing.sm),
             TextField(
                 controller: tokenCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Access token (optional)')),
+                decoration: InputDecoration(
+                    labelText: t(ctx, 'accessTokenOpt'))),
             const SizedBox(height: AppSpacing.sm),
             TextField(
                 controller: revCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Branch / tag / commit (optional)')),
+                decoration: InputDecoration(
+                    labelText: t(ctx, 'revOpt'))),
           ],
         ),
       ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+            child: Text(t(ctx, 'cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Clone'),
+          child: Text(t(ctx, 'clone')),
         ),
       ],
     ),
@@ -178,8 +192,8 @@ Future<void> showCloneDialog(BuildContext context, AppStore store, String org) a
         await store.refreshSessions();
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Clone failed: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(t(context, 'cloneFailed', [e.toString()]))));
         }
       }
     }

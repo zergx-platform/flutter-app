@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../i18n.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -55,19 +56,24 @@ class _ConfigScreenState extends State<ConfigScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: _stack.isNotEmpty
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _pop)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back), onPressed: _pop)
             : null,
-        title: Text(_stack.isNotEmpty ? _titleOf(_stack.last) : 'Settings'),
+        title: Text(_stack.isNotEmpty
+            ? _titleOf(_stack.last)
+            : t(context, 'settings')),
         actions: [
           if (widget.onLogout != null)
-            TextButton(onPressed: widget.onLogout, child: const Text('Logout')),
+            TextButton(
+                onPressed: widget.onLogout,
+                child: Text(t(context, 'confirm'))),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _stack.isEmpty
-              ? _listView()
-              : _detail(_stack.last),
+              ? _listView(context)
+              : _detail(_stack.last, context),
     );
   }
 
@@ -86,33 +92,68 @@ class _ConfigScreenState extends State<ConfigScreen> {
     }
   }
 
-  Widget _listView() {
+  Widget _listView(BuildContext context) {
     return ListView(
       children: [
-        const _SectionHeader('App'),
-        _listTile(Icons.palette_outlined, 'Appearance', () => _push('appearance')),
-        const _SectionHeader('LlM'),
-        _listTile(Icons.dns_outlined, 'LLM Providers', () => _push('providers')),
-        _listTile(Icons.auto_awesome_outlined, 'Presets', () => _push('presets')),
-        const _SectionHeader('Workspace'),
-        _listTile(Icons.handyman_outlined, 'Tools', () => _push('tools')),
+        _SectionHeader(t(context, 'appearance')),
+        _listTile(context, Icons.palette_outlined, 'appearance',
+            () => _push('appearance')),
+        _SectionHeader(t(context, 'llm')),
+        _listTile(context, Icons.dns_outlined, 'providers',
+            () => _push('providers')),
+        _listTile(
+            context, Icons.auto_awesome_outlined, 'presets', () => _push('presets')),
+        _SectionHeader(t(context, 'workspace')),
+        _listTile(
+            context, Icons.handyman_outlined, 'tools', () => _push('tools')),
+        _SectionHeader(t(context, 'language')),
+        _listTile(context, Icons.language_rounded, 'language', _pickLanguage),
       ],
     );
   }
 
-  Widget _listTile(IconData icon, String label, VoidCallback onTap) {
+  Future<void> _pickLanguage() async {
+    final cur = I18n.locale.languageCode;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(t(ctx, 'language')),
+        children: [
+          for (final (code, label) in [
+            ('zh', '中文'),
+            ('en', 'English'),
+          ])
+            ListTile(
+              leading: Icon(
+                  I18n.locale.languageCode == code
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: colorsOf(ctx).primary),
+              title: Text(label),
+              onTap: () => Navigator.pop(ctx, code),
+            ),
+        ],
+      ),
+    );
+    if (picked != null && picked != cur) {
+      await I18n.save(Locale(picked));
+    }
+  }
+
+  Widget _listTile(
+      BuildContext context, IconData icon, String labelKey, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icon, size: 20),
-      title: Text(label),
+      title: Text(t(context, labelKey)),
       trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: onTap,
     );
   }
 
-  Widget _detail(String id) {
+  Widget _detail(String id, BuildContext context) {
     switch (id) {
       case 'appearance':
-        return _appearance();
+        return _appearance(context);
       case 'providers':
         return _providersDetail();
       case 'presets':
@@ -124,14 +165,14 @@ class _ConfigScreenState extends State<ConfigScreen> {
     }
   }
 
-  Widget _appearance() {
+  Widget _appearance(BuildContext context) {
     final dark = widget.darkMode;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         SwitchListTile(
-          title: const Text('Dark mode'),
-          subtitle: const Text('Toggle light/dark appearance'),
+          title: Text(t(context, 'darkMode')),
+          subtitle: Text(t(context, 'darkModeSub')),
           value: dark,
           onChanged: (v) => widget.onDarkMode(v),
         ),
@@ -200,7 +241,8 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
           Card(
             margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ListTile(
-              title: Text('${e.key} (${e.value.apiType})'),
+              title: Text(t(context, 'providerTitle',
+                  [e.key, e.value.apiType])),
               subtitle: Text(e.value.baseUrl,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -208,15 +250,17 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('${e.value.models.length} models',
+                  Text(t(context, 'modelsCount',
+                      ['${e.value.models.length}']),
                       style: text.micro.copyWith(color: colors.mutedForeground)),
                   IconButton(
                     icon: Icon(Icons.delete_outline_rounded,
                         size: 18, color: colors.mutedForeground),
                     onPressed: () async {
                       final ok = await confirmDialog(context,
-                          title: 'Delete provider',
-                          description: 'Delete provider ${e.key}?');
+                          title: t(context, 'deleteProvider'),
+                          description:
+                              t(context, 'deleteProviderBody', [e.key]));
                       if (ok) {
                         await widget.api.deleteProvider(e.key);
                         widget.onChanged();
@@ -230,7 +274,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
         if (widget.providers.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Text('No providers. Add one to get started.',
+            child: Text(t(context, 'noProviders'),
                 style: TextStyle(color: colors.mutedForeground)),
           ),
         const SizedBox(height: AppSpacing.sm),
@@ -247,7 +291,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
           OutlinedButton.icon(
             onPressed: () => setState(() => _showAdd = true),
             icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Add Provider'),
+            label: Text(t(context, 'addProvider')),
           ),
       ],
     );
@@ -343,7 +387,8 @@ class _AddProviderFormState extends State<_AddProviderForm> {
           children: [
             TextField(
                 controller: _id,
-                decoration: const InputDecoration(labelText: 'Provider ID *')),
+                decoration: InputDecoration(
+                    labelText: t(context, 'providerIdReq'))),
             DropdownButtonFormField<String>(
               initialValue: _apiType,
               items: const [
@@ -353,26 +398,29 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                 DropdownMenuItem(value: 'gemini', child: Text('gemini')),
               ],
               onChanged: (v) => setState(() => _apiType = v!),
-              decoration: const InputDecoration(labelText: 'API Type'),
+              decoration:
+                  InputDecoration(labelText: t(context, 'apiType')),
             ),
             TextField(
                 controller: _url,
-                decoration: const InputDecoration(labelText: 'Base URL *')),
+                decoration: InputDecoration(
+                    labelText: t(context, 'baseUrlReq'))),
             TextField(
                 controller: _key,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: 'API Key *')),
+                decoration: InputDecoration(
+                    labelText: t(context, 'apiKeyReq'))),
             TextField(
                 controller: _models,
-                decoration: const InputDecoration(
-                    labelText: 'Models (comma-separated IDs)')),
+                decoration: InputDecoration(
+                    labelText: t(context, 'modelsCsv'))),
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 OutlinedButton.icon(
                   onPressed: _testing ? null : _test,
                   icon: const Icon(Icons.science_outlined, size: 14),
-                  label: Text(_testing ? 'Testing...' : 'Test'),
+                  label: Text(t(context, _testing ? 'testing' : 'test')),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Flexible(
@@ -386,13 +434,16 @@ class _AddProviderFormState extends State<_AddProviderForm> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(onPressed: widget.onCancel, child: const Text('Cancel')),
+                TextButton(
+                    onPressed: widget.onCancel,
+                    child: Text(t(context, 'cancel'))),
                 const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: (_id.text.isEmpty || _url.text.isEmpty || _registering)
                       ? null
                       : _register,
-                  child: Text(_registering ? 'Registering...' : 'Register'),
+                  child: Text(
+                      t(context, _registering ? 'registering' : 'register')),
                 ),
               ],
             ),
@@ -496,14 +547,15 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                 child: TextField(
                   controller: _newId,
                   autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Preset id...'),
+                  decoration: InputDecoration(
+                      labelText: t(context, 'presetId')),
                   onSubmitted: (_) => _create(),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               FilledButton(
                   onPressed: _newId.text.trim().isEmpty ? null : _create,
-                  child: const Text('Create')),
+                  child: Text(t(context, 'create'))),
               IconButton(
                   icon: const Icon(Icons.close_rounded, size: 18),
                   onPressed: () => setState(() => _showNew = false)),
@@ -516,7 +568,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             child: OutlinedButton.icon(
               onPressed: () => setState(() => _showNew = true),
               icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('New preset'),
+              label: Text(t(context, 'newPreset')),
             ),
           ),
         for (final p in _presets)
@@ -525,8 +577,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             child: Column(
               children: [
                 ListTile(
-                  title: Text(
-                      '${p.id} (turns:${p.maxTurns}, tools:${p.tools.length})'),
+                  title: Text('${p.id} (turns:${p.maxTurns}, tools:${p.tools.length})'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -553,8 +604,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           controller:
                               TextEditingController(text: _edit.systemPrompt),
                           maxLines: 3,
-                          decoration:
-                              const InputDecoration(labelText: 'System Prompt'),
+                          decoration: InputDecoration(
+                              labelText: t(context, 'systemPrompt')),
                           onChanged: (v) => _edit = Preset(
                               id: _edit.id,
                               systemPrompt: v,
@@ -565,8 +616,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           controller: TextEditingController(
                               text: '${_edit.maxTurns}'),
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Max Turns'),
+                          decoration: InputDecoration(
+                              labelText: t(context, 'maxTurns')),
                           onChanged: (v) => _edit = Preset(
                               id: _edit.id,
                               systemPrompt: _edit.systemPrompt,
@@ -603,7 +654,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             FilledButton(
-                                onPressed: _save, child: const Text('Save')),
+                                onPressed: _save, child: Text(t(context, 'save'))),
                           ],
                         ),
                       ],
@@ -615,8 +666,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
         if (_presets.isEmpty)
           Padding(
               padding: const EdgeInsets.all(AppSpacing.sm),
-              child:
-                  Text('No presets.', style: TextStyle(color: colors.mutedForeground))),
+              child: Text(t(context, 'noPresets'),
+                  style: TextStyle(color: colors.mutedForeground))),
       ],
     );
   }
@@ -660,7 +711,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
           {name: _config[name] ?? const <String, dynamic>{}});
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Saved')));
+            .showSnackBar(SnackBar(content: Text(t(context, 'saved'))));
       }
     } catch (e) {
       if (mounted) {
@@ -672,7 +723,9 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_tools.isEmpty) return const Center(child: Text('No tools registered.'));
+    if (_tools.isEmpty) {
+      return Center(child: Text(t(context, 'noTools')));
+    }
     final cats = <String, List<ToolInfo>>{};
     for (final t in _tools) {
       (cats[t.category.isNotEmpty ? t.category : 'other'] ??= []).add(t);
@@ -692,45 +745,46 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     );
   }
 
-  Widget _toolCard(ToolInfo t) {
+  Widget _toolCard(ToolInfo tool) {
     final colors = colorsOf(context);
     final text = textOf(context);
-    final fields = t.configFields ?? [];
-    final hasConfig = (_config[t.name] ?? {}).isNotEmpty;
+    final fields = tool.configFields ?? [];
+    final hasConfig = (_config[tool.name] ?? {}).isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         children: [
           ListTile(
-            title: Text(t.name, style: text.mono.copyWith(fontSize: 12)),
+            title: Text(tool.name, style: text.mono.copyWith(fontSize: 12)),
             trailing: fields.isEmpty
-                ? Text('no config',
+                ? Text(t(context, 'noConfig'),
                     style: text.micro.copyWith(color: colors.mutedForeground))
-                : Text(hasConfig ? 'configured' : 'needs config',
+                : Text(
+                    t(context, hasConfig ? 'configured' : 'needsConfig'),
                     style: text.micro.copyWith(
                         color: hasConfig ? colors.success : colors.warning)),
             onTap: () => setState(
-                () => _expanded = _expanded == t.name ? null : t.name),
+                () => _expanded = _expanded == tool.name ? null : tool.name),
           ),
-          if (_expanded == t.name)
+          if (_expanded == tool.name)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (t.description.isNotEmpty)
-                    Text(t.description,
+                  if (tool.description.isNotEmpty)
+                    Text(tool.description,
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
                   for (final f in fields) ...[
-                    _field(t.name, f),
+                    _field(tool.name, f),
                   ],
                   const SizedBox(height: AppSpacing.sm),
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton(
-                        onPressed: () => _save(t.name),
-                        child: const Text('Save')),
+                        onPressed: () => _save(tool.name),
+                        child: Text(t(context, 'save'))),
                   ),
                 ],
               ),
@@ -789,7 +843,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
       child: DropdownButtonFormField<String>(
         initialValue: current == null ? null : '$current',
         items: [
-          const DropdownMenuItem(value: '', child: Text('None')),
+          DropdownMenuItem(value: '', child: Text(t(context, 'none'))),
           for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
         ],
         onChanged: onChanged,
