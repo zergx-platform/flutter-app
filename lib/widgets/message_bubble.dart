@@ -184,52 +184,100 @@ class MessageBubble extends StatelessWidget {
           if (!isStreaming && _hasText)
             _BubbleActions(
               isUser: isUser,
+              createdAt: msg.createdAt,
               onCopy: () => _copy(context),
-              onUndo: () => onUndo(msg.id),
+              onUndo: () => _undo(context),
             ),
         ],
       ),
     );
   }
+
+  /// Undo asks for confirmation before dispatching the request.
+  Future<void> _undo(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('撤销此消息？'),
+        content: const Text('将删除该消息，并撤销之后的所有消息。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: colorsOf(ctx).destructive,
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('撤销'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await onUndo(msg.id);
+    }
+  }
 }
 
 class _BubbleActions extends StatelessWidget {
   final bool isUser;
+  final String createdAt;
   final VoidCallback onCopy;
   final VoidCallback onUndo;
-  const _BubbleActions(
-      {required this.isUser, required this.onCopy, required this.onUndo});
+  const _BubbleActions({
+    required this.isUser,
+    required this.createdAt,
+    required this.onCopy,
+    required this.onUndo,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     final text = textOf(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
+    return Align(
+      // User bubbles: actions hug the right edge; assistant: the left edge.
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: Icon(Icons.copy_rounded, size: 14, color: colors.mutedForeground),
-            tooltip: 'Copy',
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            padding: EdgeInsets.zero,
-            onPressed: onCopy,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          IconButton(
-            icon: Icon(Icons.undo_rounded, size: 14, color: colors.mutedForeground),
-            tooltip: 'Undo',
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            padding: EdgeInsets.zero,
-            onPressed: onUndo,
-          ),
+          _tinyIcon(Icons.copy_rounded, 'Copy', onCopy, colors),
+          const SizedBox(width: 2),
+          _tinyIcon(Icons.undo_rounded, 'Undo', onUndo, colors),
           if (isUser) ...[
-            const SizedBox(width: AppSpacing.xs),
-            Text('you',
+            const SizedBox(width: 4),
+            // Show the message's persisted timestamp instead of "you".
+            Text(_fmtTime(createdAt),
                 style: text.micro.copyWith(color: colors.mutedForeground)),
           ],
         ],
+      ),
+    );
+  }
+
+  static String _fmtTime(String iso) {
+    final t = DateTime.tryParse(iso)?.toLocal();
+    if (t == null) return '';
+    final now = DateTime.now();
+    final d = now.difference(t);
+    if (d.inMinutes < 1) return '刚刚';
+    if (d.inMinutes < 60) return '${d.inMinutes}分钟前';
+    if (d.inHours < 24 && now.day == t.day) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    if (d.inHours < 24) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return '${t.month}/${t.day} ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Tight inline action — no App-wide icon-button chrome, no outer padding,
+  // so the row sits flush against the bubble side.
+  Widget _tinyIcon(IconData icon, String tooltip, VoidCallback onTap,
+      AppColors colors) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.rSm,
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Icon(icon, size: 14, color: colors.mutedForeground),
       ),
     );
   }

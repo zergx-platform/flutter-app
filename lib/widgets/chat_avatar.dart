@@ -4,17 +4,16 @@ import '../theme/app_theme.dart';
 
 /// WeChat-style two-tone chat avatar.
 ///
-/// The circle is split horizontally:
-///   - top half   = the org's color
-///   - bottom half = the repo's color
-/// with the bookmark (branch) name's first letters shown uppercase in the
-/// middle. Falls back down the org/repo/'?' ladder when a part is empty.
+/// The circle is split horizontally: top half = org's color, bottom half =
+/// repo's color, with the bookmark name's first letters shown uppercase in
+/// the middle (falls back down the org/repo/'?' ladder when a part is empty).
 ///
-/// Color assignment is a **guaranteed-unique** registry: every distinct org
-/// gets a distinct palette slot (and every distinct repo likewise, using a
-/// second palette) until the palette is exhausted, then it cycles. Org and
-/// repo use *different* palettes so the two halves never read as the same
-/// color, even for a name shared by both roles.
+/// Color assignment is **purely deterministic** (hash of the name, no mutable
+/// registry), so it always renders a color and is stable across rebuilds and
+/// across the web build. Org and repo use complementary hue rotations — repo
+/// is shifted +170° from org — so the two halves are always visibly distinct
+/// even when a name string happens to share a raw hash. Saturation/lightness
+/// are pinned high so small icons stay vivid in both themes.
 class ChatAvatar extends StatelessWidget {
   final String org;
   final String repo;
@@ -32,8 +31,10 @@ class ChatAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = textOf(context);
-    final orgColor = _AvatarColors.org(org.isNotEmpty ? org : (repo.isNotEmpty ? repo : branch));
-    final repoColor = _AvatarColors.repo(repo.isNotEmpty ? repo : branch);
+    final orgColor = _color(org.isNotEmpty ? org : (repo.isNotEmpty ? repo : branch), 0);
+    // Repo hue is rotated ~170° away from the org hue so the two halves never
+    // read as the same colour, regardless of the name content.
+    final repoColor = _color(repo.isNotEmpty ? repo : branch, 170);
     final label = _label(branch, org, repo);
     return ClipOval(
       child: SizedBox(
@@ -54,8 +55,10 @@ class ChatAvatar extends StatelessWidget {
                 style: text.body.copyWith(
                   fontSize: radius * 0.72,
                   fontWeight: FontWeight.w700,
+                  // White over a fixed-hue mid-lightness background; shadow
+                  // keeps it legible on the lighter repo half too.
                   color: Colors.white,
-                  shadows: const [Shadow(color: Colors.black26, blurRadius: 2)],
+                  shadows: const [Shadow(color: Colors.black38, blurRadius: 2)],
                 ),
               ),
             ),
@@ -63,6 +66,25 @@ class ChatAvatar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Deterministic vivid color for a role+deltahue. A 3-length rolling hash
+  /// spreads nearby names across the wheel; the fixed saturation/lightness
+  /// guarantee a saturated, theme-independent fill.
+  static Color _color(String source, double hueShift) {
+    var s = source;
+    if (s.isEmpty) {
+      // A neutral slate for the empty fallback — still a colour, not white.
+      return const Color(0xFF7f8c94);
+    }
+    var hash = 0x811c9dc5;
+    for (final cu in s.codeUnits) {
+      hash ^= cu;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    final hue = ((hash % 360) + hueShift) % 360;
+    // Saturation 0.6, lightness 0.5 → mid, vivid, distinct halves.
+    return HSLColor.fromAHSL(1, hue, 0.60, 0.50).toColor();
   }
 
   /// First few letters of the bookmark name, uppercase. 2 letters reads best
@@ -76,58 +98,5 @@ class ChatAvatar extends StatelessWidget {
                 ? repo
                 : '?';
     return source.characters.take(2).join().toUpperCase();
-  }
-}
-
-/// Guaranteed-unique per-role color registry (lazy, in-memory).
-///
-/// `putIfAbsent` assigns `length % palette.length` — the next free slot — so
-/// every distinct key maps to a distinct color until the palette is exhausted
-/// (then round-robins). Because org and repo use separate palettes, the same
-/// name never yields the same color for both roles.
-class _AvatarColors {
-  static const int _size = 12;
-
-  static final List<Color> _orgPalette = const [
-    Color(0xFF4a6fa5), // steel blue
-    Color(0xFF3f7d5f), // forest green
-    Color(0xFF6b5b95), // violet
-    Color(0xFF2f7f8f), // teal
-    Color(0xFF8a5a44), // sienna
-    Color(0xFF32638a), // indigo blue
-    Color(0xFF5a7d4f), // moss
-    Color(0xFF7a4f6d), // plum
-    Color(0xFF40597e), // navy
-    Color(0xFF4f7a63), // sea green
-    Color(0xFF6d5a8a), // slate purple
-    Color(0xFF3a6e75), // petrol
-  ];
-
-  static final List<Color> _repoPalette = const [
-    Color(0xFFc0584d), // coral red
-    Color(0xFFd19a3a), // amber
-    Color(0xFFb06f9e), // orchid
-    Color(0xFFc07a4b), // terracotta
-    Color(0xFFb3556f), // raspberry
-    Color(0xFFc98a2f), // gold
-    Color(0xFFd06a6a), // blush
-    Color(0xFFa35f5f), // maroon
-    Color(0xFFbd7b55), // bronze
-    Color(0xFFc9644d), // flame
-    Color(0xFFdb923b), // honey
-    Color(0xFFa86f8e), // mauve
-  ];
-
-  static final Map<String, int> _orgIndex = {};
-  static final Map<String, int> _repoIndex = {};
-
-  static Color org(String key) {
-    final idx = _orgIndex.putIfAbsent(key, () => _orgIndex.length % _size);
-    return _orgPalette[idx];
-  }
-
-  static Color repo(String key) {
-    final idx = _repoIndex.putIfAbsent(key, () => _repoIndex.length % _size);
-    return _repoPalette[idx];
   }
 }

@@ -147,43 +147,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _inputFocus.requestFocus();
   }
 
-  Future<void> _switchModel(String modelId) async {
-    final sid = store.activeSessionId;
-    if (sid == null) return;
-    try {
-      final updated = await store.api.settings(sid, {'model': modelId});
-      _applySession(updated);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
-  }
-
-  Future<void> _switchPreset(String presetId) async {
-    final sid = store.activeSessionId;
-    if (sid == null) return;
-    try {
-      final updated = await store.api.settings(sid, {'preset': presetId});
-      _applySession(updated);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
-  }
-
   void _applySession(Session updated) {
     store.sessions =
         store.sessions.map((s) => s.id == updated.id ? updated : s).toList();
     store.notifyObservers();
-  }
-
-  String get _modelName {
-    final s = store.activeSession;
-    final matches = _models.where((m) => m.id == s?.model);
-    final m = matches.isEmpty ? null : matches.first;
-    return m?.name ?? s?.model ?? 'Select model';
   }
 
   @override
@@ -418,6 +385,7 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
+          String model = store.activeSession?.model ?? '';
           String preset = store.activeSession?.preset ?? '';
           return AlertDialog(
             title: const Text('Session Settings'),
@@ -425,6 +393,18 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Model is the session's current model; the picker lists
+                  // registered provider models.
+                  DropdownButtonFormField<String>(
+                    initialValue: model.isEmpty ? null : model,
+                    items: [
+                      for (final mo in _models)
+                        DropdownMenuItem(value: mo.id, child: Text(mo.id)),
+                    ],
+                    onChanged: (v) => setState(() => model = v ?? ''),
+                    decoration: const InputDecoration(labelText: 'Model'),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     initialValue: preset.isEmpty ? null : preset,
                     items: [
@@ -458,6 +438,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onPressed: () async {
                   Navigator.pop(ctx);
                   final updates = <String, dynamic>{};
+                  if (model.isNotEmpty) updates['model'] = model;
                   if (preset.isNotEmpty) updates['preset'] = preset;
                   if (maxTurns.text.isNotEmpty) {
                     updates['max_turns'] = int.tryParse(maxTurns.text);
@@ -515,7 +496,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _composer(BuildContext context) {
     final m = _msg;
     final colors = colorsOf(context);
+    final text = textOf(context);
     final sending = m?.sending ?? false;
+    final totalTokens = store.activeSession?.totalTokens ?? 0;
     return Container(
       decoration: BoxDecoration(
           color: colors.card,
@@ -562,36 +545,30 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                height: 32,
-                child: Row(
-                  children: [
-                    _Dropdown(
-                      label: _modelName,
-                      items: [for (final m in _models) m.id],
-                      onSelect: _switchModel,
-                      maxWidth: 200,
+              const SizedBox(height: 4),
+              // Footer: right-aligned context token total (last turn's
+              // request context), shown as e.g. "上下文 13.2K".
+              Row(
+                children: [
+                  const Spacer(),
+                  if (totalTokens > 0)
+                    Text(
+                      '上下文 ${_k(totalTokens)}',
+                      style: text.micro.copyWith(
+                          color: colors.mutedForeground),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    _Dropdown(
-                      label: store.activeSession?.preset ?? 'preset',
-                      items: [for (final p in _presets) p.id],
-                      onSelect: _switchPreset,
-                      maxWidth: 160,
-                    ),
-                    const Spacer(),
-                    if (sending)
-                      Icon(Icons.brightness_1,
-                          size: 8, color: colors.warning),
-                  ],
-                ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  static String _k(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return '$n';
   }
 
   Widget _overlayPanel(BuildContext context) {
@@ -847,50 +824,3 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
   }
 }
 
-class _Dropdown extends StatelessWidget {
-  final String label;
-  final List<String> items;
-  final void Function(String) onSelect;
-  final double maxWidth;
-  const _Dropdown({
-    required this.label,
-    required this.items,
-    required this.onSelect,
-    required this.maxWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    return PopupMenuButton<String>(
-      onSelected: onSelect,
-      constraints: const BoxConstraints(maxWidth: 320),
-      child: Container(
-        height: Touch.min,
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        decoration: BoxDecoration(
-          color: colors.muted,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-                child: Text(label,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.meta)),
-            Icon(Icons.expand_more_rounded,
-                size: 15, color: colors.mutedForeground),
-          ],
-        ),
-      ),
-      itemBuilder: (context) => [
-        for (final i in items)
-          PopupMenuItem(value: i, child: Text(i, style: text.meta)),
-      ],
-    );
-  }
-}
