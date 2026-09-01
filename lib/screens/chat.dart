@@ -498,7 +498,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final colors = colorsOf(context);
     final text = textOf(context);
     final sending = m?.sending ?? false;
-    final totalTokens = store.activeSession?.totalTokens ?? 0;
+    final last = ((store.activeSession?.lastInputTokens ?? 0) +
+        (store.activeSession?.lastOutputTokens ?? 0));
     return Container(
       decoration: BoxDecoration(
           color: colors.card,
@@ -551,9 +552,9 @@ class _ChatScreenState extends State<ChatScreen> {
               Row(
                 children: [
                   const Spacer(),
-                  if (totalTokens > 0)
+                  if (last > 0)
                     Text(
-                      '上下文 ${_k(totalTokens)}',
+                      '上下文 ${_k(last)}',
                       style: text.micro.copyWith(
                           color: colors.mutedForeground),
                     ),

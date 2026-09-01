@@ -31,6 +31,8 @@ class Session {
   final int? inputTokens;
   final int? outputTokens;
   final int? totalTokens;
+  final int? lastInputTokens;
+  final int? lastOutputTokens;
   final String createdAt;
   final String updatedAt;
   final int? unreadCount;
@@ -50,6 +52,8 @@ class Session {
     this.inputTokens,
     this.outputTokens,
     this.totalTokens,
+    this.lastInputTokens,
+    this.lastOutputTokens,
     this.createdAt = '',
     this.updatedAt = '',
     this.unreadCount,
@@ -70,6 +74,8 @@ class Session {
         inputTokens: j['input_tokens'] as int?,
         outputTokens: j['output_tokens'] as int?,
         totalTokens: j['total_tokens'] as int?,
+        lastInputTokens: j['last_input_tokens'] as int?,
+        lastOutputTokens: j['last_output_tokens'] as int?,
         createdAt: j['created_at'] as String? ?? '',
         updatedAt: j['updated_at'] as String? ?? '',
         unreadCount: j['unread_count'] as int?,
@@ -100,6 +106,8 @@ class Session {
         inputTokens: inputTokens,
         outputTokens: outputTokens,
         totalTokens: totalTokens,
+        lastInputTokens: lastInputTokens,
+        lastOutputTokens: lastOutputTokens,
         createdAt: createdAt,
         updatedAt: updatedAt,
         unreadCount: unreadCount ?? this.unreadCount,
