@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -63,19 +65,18 @@ class _ContainerOverlayState extends State<ContainerOverlay> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_sandbox == null && sessionWorkerId.isEmpty) {
-      return const Center(child: Text('No session'));
+      return Center(child: Text(t(context, 'noSession')));
     }
     if (_sandbox == null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('No worker container yet — it starts automatically when the agent runs bash.',
-                textAlign: TextAlign.center),
+            Text(t(context, 'noWorker'), textAlign: TextAlign.center),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: _create,
-              child: const Text('Create container now'),
+              child: Text(t(context, 'createContainerNow')),
             ),
           ],
         ),
@@ -104,8 +105,11 @@ class ContainerWorkspace extends StatelessWidget {
         children: [
           TabBar(
             tabs: [
-              const Tab(text: 'Terminal'),
-              Tab(text: containerName.isEmpty ? 'Jobs' : '$containerName · Jobs'),
+              Tab(text: t(context, 'terminalTab')),
+              Tab(
+                  text: containerName.isEmpty
+                      ? t(context, 'jobsTab')
+                      : '$containerName · ${t(context, 'jobsTab')}'),
             ],
           ),
           Expanded(
@@ -134,9 +138,34 @@ class _Terminal extends StatefulWidget {
 
 class _TerminalState extends State<_Terminal> {
   final TextEditingController _cmd = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+  final FocusNode _cmdFocus = FocusNode();
   final List<String> _history = [];
   final List<String> _cmdHistory = [];
+  int _histIndex = -1;
   bool _running = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cmdFocus.requestFocus();
+  }
+
+  @override
+  void dispose() {
+    _cmd.dispose();
+    _scroll.dispose();
+    _cmdFocus.dispose();
+    super.dispose();
+  }
+
+  /// Keep the newest output visible: follow the bottom like a real terminal.
+  void _autoScroll() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
 
   bool _isIncomplete(String s) {
     var trailing = 0;
@@ -157,6 +186,37 @@ class _TerminalState extends State<_Terminal> {
     return inSingle || inDouble;
   }
 
+  /// ↑/↓ walk the executed-command history (only when the caret is in the
+  /// command field).
+  KeyEventResult _onKey(FocusNode node, KeyEvent ev) {
+    if (ev is KeyUpEvent) return KeyEventResult.ignored;
+    if (_cmdHistory.isEmpty) return KeyEventResult.ignored;
+    if (ev.physicalKey == PhysicalKeyboardKey.arrowUp) {
+      setState(() {
+        _histIndex = (_histIndex + 1).clamp(0, _cmdHistory.length - 1);
+        _cmd.text = _cmdHistory[_histIndex];
+        _cmd.selection =
+            TextSelection.collapsed(offset: _cmd.text.length);
+      });
+      return KeyEventResult.handled;
+    }
+    if (ev.physicalKey == PhysicalKeyboardKey.arrowDown) {
+      setState(() {
+        if (_histIndex <= 0) {
+          _histIndex = -1;
+          _cmd.clear();
+        } else {
+          _histIndex--;
+          _cmd.text = _cmdHistory[_histIndex];
+          _cmd.selection =
+              TextSelection.collapsed(offset: _cmd.text.length);
+        }
+      });
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   Future<void> _execute() async {
     final cmd = _cmd.text.trim();
     if (cmd.isEmpty) return;
@@ -165,14 +225,16 @@ class _TerminalState extends State<_Terminal> {
       _history.addAll([for (var i = 0; i < lines.length; i++) '${i == 0 ? '\$' : '>'} ${lines[i]}']);
       _cmdHistory.insert(0, cmd);
       if (_cmdHistory.length > 200) _cmdHistory.removeLast();
+      _histIndex = -1;
       _running = true;
     });
+    _autoScroll();
     try {
       final r = await widget.store.api.exec(widget.session, cmd);
       if (r.error != null) {
         _history.add('[error] ${r.error}');
       } else if (r.backgrounded && r.jobId != null) {
-        _history.add('[${r.jobId}] backgrounded (see Jobs tab)');
+        _history.add(Texts.tr('backgrounded', [r.jobId!]));
       } else if (r.exitCode != null) {
         if (r.output != null && r.output!.isNotEmpty) _history.add(r.output!);
         if (r.exitCode != 0) _history.add('[exit: ${r.exitCode}]');
@@ -184,6 +246,7 @@ class _TerminalState extends State<_Terminal> {
       _running = false;
       _cmd.clear();
     });
+    _autoScroll();
   }
 
   @override
@@ -196,6 +259,7 @@ class _TerminalState extends State<_Terminal> {
           child: Container(
             color: colors.background,
             child: ListView.builder(
+              controller: _scroll,
               padding: const EdgeInsets.all(AppSpacing.sm),
               itemCount: _history.length,
               itemBuilder: (_, i) {
@@ -220,18 +284,22 @@ class _TerminalState extends State<_Terminal> {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _cmd,
-                  enabled: !_running,
-                  style: text.mono.copyWith(fontSize: 12),
-                  decoration: const InputDecoration(
-                    hintText: 'command...',
-                    filled: false,
-                    border: InputBorder.none,
+                child: Focus(
+                  focusNode: _cmdFocus,
+                  onKeyEvent: _onKey,
+                  child: TextField(
+                    controller: _cmd,
+                    enabled: !_running,
+                    style: text.mono.copyWith(fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: t(context, 'commandHint'),
+                      filled: false,
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) {
+                      if (!_isIncomplete(_cmd.text)) _execute();
+                    },
                   ),
-                  onSubmitted: (_) {
-                    if (!_isIncomplete(_cmd.text)) _execute();
-                  },
                 ),
               ),
               IconButton(
@@ -283,7 +351,9 @@ class _JobsState extends State<_Jobs> {
     final colors = colorsOf(context);
     final text = textOf(context);
     if (_jobs.isEmpty) {
-      return Center(child: Text('No jobs', style: TextStyle(color: colors.mutedForeground)));
+      return Center(
+          child: Text(t(context, 'noJobs'),
+              style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.builder(
       itemCount: _jobs.length,
@@ -318,12 +388,14 @@ class _JobsState extends State<_Jobs> {
           width: double.maxFinite,
           height: 300,
           child: SingleChildScrollView(
-            child: SelectableText(j.stdout ?? 'No output',
+            child: SelectableText(j.stdout ?? t(ctx, 'noOutput'),
                 style: textOf(ctx).mono.copyWith(fontSize: 11)),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t(ctx, 'close'))),
         ],
       ),
     );

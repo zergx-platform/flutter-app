@@ -44,6 +44,10 @@ class AppStore extends ChangeNotifier {
 
   int sessionRevision = 0;
 
+  /// Last sessions-list load error ('' when healthy). Surfaced as a banner
+  /// instead of silently showing an empty list.
+  String sessionError = '';
+
   Session? get activeSession {
     for (final s in sessions) {
       if (s.id == activeSessionId) return s;
@@ -63,8 +67,13 @@ class AppStore extends ChangeNotifier {
   Future<void> refreshSessions() async {
     try {
       sessions = await api.listSessions();
-      notifyListeners();
-    } catch (_) {}
+      sessionError = '';
+    } catch (e) {
+      // Keep the stale list but surface the failure so the UI can show a
+      // banner instead of a misleading "empty" state.
+      sessionError = '$e';
+    }
+    notifyListeners();
   }
 
   Future<void> refreshRepos() async {
@@ -199,6 +208,22 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Close an open file-diff view back to history/file content.
+  void closeFileDiff() {
+    activeDiffChangeId = null;
+    showFileHistory = false;
+    notifyListeners();
+  }
+
+  /// Clear the whole file view (back to the tree root).
+  void clearFileView() {
+    selectedFilePath = null;
+    fileContent = '';
+    showFileHistory = false;
+    activeDiffChangeId = null;
+    notifyListeners();
+  }
+
   List<String> get existingBookmarks =>
       sessions.map((s) => s.branch).toList();
 
@@ -243,8 +268,12 @@ class AppStore extends ChangeNotifier {
     activeSessionId = id;
     sessionOverlay = null;
     diffChangeId = null;
-    // Optimistically clear the local badge; the platform records the read
-    // watermark server-side.
+    markSessionRead(id);
+  }
+
+  /// Optimistically clear the local badge; the platform records the read
+  /// watermark server-side.
+  void markSessionRead(String id) {
     sessions = sessions
         .map((s) => s.id == id ? s.copyWith(unreadCount: 0) : s)
         .toList();
@@ -261,6 +290,12 @@ class AppStore extends ChangeNotifier {
   void openChange(String changeId) {
     sessionOverlay = SessionOverlay.timeline;
     diffChangeId = changeId;
+    notifyListeners();
+  }
+
+  /// Leave the timeline diff drill-in, back to the change list.
+  void closeDiff() {
+    diffChangeId = null;
     notifyListeners();
   }
 

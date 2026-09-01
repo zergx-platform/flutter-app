@@ -39,7 +39,10 @@ class Texts {
     'gatewayUrl': (zh: '网关地址', en: 'Gateway URL'),
     'tokenLabel': (zh: '令牌', en: 'Token'),
     'connect': (zh: '连接', en: 'Connect'),
-    'searchHint': (zh: '搜索 org / repo / bookmark', en: 'Search org / repo / bookmark'),
+    'connecting': (zh: '连接中…', en: 'Connecting...'),
+    'search': (zh: '搜索', en: 'Search'),
+    'searchHint': (zh: '搜索会话 / org / repo / 分支',
+        en: 'Search sessions / org / repo / branch'),
     'createNewOrg': (zh: '新建组织', en: 'New organization'),
     'createNewRepo': (zh: '新建仓库…', en: 'New repo…'),
     'createCloneRepo': (zh: '克隆仓库…', en: 'Clone repo…'),
@@ -51,15 +54,17 @@ class Texts {
         en: 'No repositories. Create a session first.'),
     'me': (zh: '我', en: 'me'),
 
-    // Session list
-    'contextTokens': (zh: '上下文', en: 'Context'),
-
     // Nav tabs
     'tabChat': (zh: '会话', en: 'Chat'),
     'tabCode': (zh: '代码', en: 'Code'),
     'tabContainers': (zh: '容器', en: 'Containers'),
     'tabPackages': (zh: '包', en: 'Packages'),
     'tabConfig': (zh: '设置', en: 'Config'),
+
+    // Session list
+    'contextTokens': (zh: '上下文', en: 'Context'),
+    'loadError': (zh: '加载失败：\$1', en: 'Load failed: \$1'),
+    'markRead': (zh: '标记已读', en: 'Mark as read'),
 
     // Chat screen
     'typeMessage': (zh: '输入消息…', en: 'Type a message...'),
@@ -81,6 +86,8 @@ class Texts {
     'loadEarlier': (zh: '加载更早的消息', en: 'Load earlier'),
     'noChanges': (zh: '无变更', en: 'No changes'),
     'thinking': (zh: '思考中…', en: 'thinking...'),
+    'running': (zh: '运行中…', en: 'running...'),
+    'sendFailed': (zh: '发送失败: \$1', en: 'Send failed: \$1'),
 
     // Chat topbar menu
     'sessionSettings': (zh: '会话设置', en: 'Session settings'),
@@ -142,6 +149,9 @@ class Texts {
     'workspace': (zh: '工作区', en: 'Workspace'),
     'tools': (zh: '工具', en: 'Tools'),
     'language': (zh: '语言 / Language', en: 'Language'),
+    'logout': (zh: '退出登录', en: 'Log out'),
+    'logoutBody': (zh: '将清除已保存的网关地址与令牌，并返回登录页。',
+        en: 'This clears the saved gateway URL and token and returns to the login screen.'),
 
     // Providers detail
     'noProviders': (zh: '暂无提供方，添加一个开始使用。',
@@ -163,11 +173,17 @@ class Texts {
     'noConfig': (zh: '无配置', en: 'no config'),
     'configured': (zh: '已配置', en: 'configured'),
     'needsConfig': (zh: '需配置', en: 'needs config'),
+
     // Presets detail
     'newPreset': (zh: '新建预设', en: 'New preset'),
     'presetId': (zh: '预设 ID…', en: 'Preset id...'),
     'create': (zh: '创建', en: 'Create'),
     'noPresets': (zh: '暂无预设。', en: 'No presets.'),
+    'deletePreset': (zh: '删除预设', en: 'Delete preset'),
+    'deletePresetBody': (zh: '删除预设 \$1？', en: 'Delete preset \$1?'),
+    'presetSummary': (zh: '最大 \$1 轮 · \$2 个工具', en: '\$1 turns · \$2 tools'),
+    'systemPrompt': (zh: '系统提示', en: 'System Prompt'),
+    'maxTurns': (zh: '最大轮数', en: 'Max turns'),
 
     // Containers
     'containersTitle': (zh: '容器', en: 'Containers'),
@@ -178,27 +194,30 @@ class Texts {
     'deployService': (zh: '部署服务', en: 'Deploy service'),
     'terminal': (zh: '终端', en: 'Terminal'),
     'ready': (zh: '\$1/\$2 就绪', en: '\$1/\$2 ready'),
+    'deleteDeploymentTitle': (zh: '删除部署', en: 'Delete deployment'),
+    'deleteDeploymentBody': (zh: '删除部署 \$1？', en: 'Delete deployment \$1?'),
+    'deleteSandboxTitle': (zh: '删除沙箱', en: 'Delete sandbox'),
+    'deleteSandboxBody': (zh: '删除沙箱 \$1？其中运行的任务将被终止。',
+        en: 'Delete sandbox \$1? Its running jobs will be killed.'),
+
+    // Container workspace
+    'terminalTab': (zh: '终端', en: 'Terminal'),
+    'jobsTab': (zh: '任务', en: 'Jobs'),
+    'commandHint': (zh: '输入命令…', en: 'command...'),
+    'close': (zh: '关闭', en: 'Close'),
+    'noOutput': (zh: '无输出', en: 'No output'),
+    'noSession': (zh: '无会话', en: 'No session'),
+    'noJobs': (zh: '暂无任务', en: 'No jobs'),
+    'noWorker': (zh: '还没有 worker 容器 — agent 运行 bash 等工具时自动创建。',
+        en: 'No worker container yet — it starts automatically when the agent runs bash.'),
+    'createContainerNow': (zh: '立即创建容器', en: 'Create container now'),
+    'backgrounded': (zh: '[\$1] 已转入后台（见任务页）',
+        en: '[\$1] backgrounded (see Jobs)'),
 
     // Packages
     'packagesTitle': (zh: '包', en: 'Packages'),
     'registries': (zh: '注册表', en: 'Registries'),
     'packagesTab': (zh: '包', en: 'Packages'),
-
-    // Overlay / files
-    'selectFile': (zh: '选择一个文件查看', en: 'Select a file to view'),
-    'selectBranch': (zh: '选择分支浏览文件', en: 'Select a branch to browse files'),
-    'noCommits': (zh: '暂无提交', en: 'No commits'),
-    'noHistory': (zh: '该文件暂无历史。', en: 'No history for this file.'),
-    'noChangesYet': (zh: '暂无变更', en: 'No changes yet'),
-    'noMessages': (zh: '暂无消息', en: 'No messages'),
-    'noTodosYet': (zh: '暂无待办 — agent 通过 todowrite 在此跟踪计划。',
-        en: 'No todos yet — the agent tracks its plan here via todowrite.'),
-    'noWorker': (zh: '还没有 worker 容器 — agent 运行 bash 等工具时自动创建。',
-        en: 'No worker container yet — it starts automatically when the agent runs bash.'),
-    'createContainerNow': (zh: '立即创建容器', en: 'Create container now'),
-    'noJobs': (zh: '暂无任务', en: 'No jobs'),
-
-    // Packages
     'filterEcosystems': (zh: '过滤生态…', en: 'Filter ecosystems...'),
     'proxyRegistries': (zh: '代理注册表（\$1）', en: 'Proxy Registries (\$1)'),
     'endpointCopied': (zh: '端点已复制', en: 'Endpoint copied'),
@@ -213,21 +232,35 @@ class Texts {
     'deletePackageBody': (zh: '删除包 \$1（\$2）？', en: 'Delete package \$1 (\$2)?'),
     'noVersions': (zh: '暂无版本。', en: 'No versions found.'),
     'downloads': (zh: '\$1 次下载', en: '\$1 downloads'),
+    'noPackagesYet': (zh: '暂无已发布的包。', en: 'No packages registered yet.'),
+    'versionsCount': (zh: '\$1 个版本', en: '\$1 versions'),
 
-    // Containers detail
+    // Deploy dialog
     'nameLabel': (zh: '名称', en: 'Name'),
     'imageLabel': (zh: '镜像', en: 'Image'),
     'replicasLabel': (zh: '副本数', en: 'Replicas'),
     'portLabel': (zh: '端口', en: 'Port'),
     'sessionOptLabel': (zh: '会话（可选）', en: 'Session (optional)'),
 
-    // Config detail
+    // Code / files
     'repositories': (zh: '仓库', en: 'Repositories'),
     'history': (zh: '历史', en: 'History'),
     'none': (zh: '无', en: 'None'),
-        'download': (zh: '下载', en: 'Download'),
+    'download': (zh: '下载', en: 'Download'),
+    'selectFile': (zh: '选择一个文件查看', en: 'Select a file to view'),
+    'selectBranch': (zh: '选择分支浏览文件', en: 'Select a branch to browse files'),
+    'noCommits': (zh: '暂无提交', en: 'No commits'),
+    'noHistory': (zh: '该文件暂无历史。', en: 'No history for this file.'),
+    'noChangesYet': (zh: '暂无变更', en: 'No changes yet'),
+    'noMessages': (zh: '暂无消息', en: 'No messages'),
+    'noTodosYet': (zh: '暂无待办 — agent 通过 todowrite 在此跟踪计划。',
+        en: 'No todos yet — the agent tracks its plan here via todowrite.'),
+    'noDescription': (zh: '（无描述）', en: '(no description)'),
 
-    // Time
+    // Mailbox
+    'consumed': (zh: '已消费', en: 'consumed'),
+    'pending': (zh: '待处理', en: 'pending'),
+
     // Time
     'timeJustNow': (zh: '刚刚', en: 'just now'),
     'timeMinAgo': (zh: '\$1 分钟前', en: '\$1 min ago'),
@@ -235,8 +268,11 @@ class Texts {
     'timeDay': (zh: '\$1 天前', en: '\$1 d ago'),
   };
 
+  static String t(BuildContext context, String key, [List<String>? args]) =>
+      tr(key, args);
 
-  static String t(BuildContext context, String key, [List<String>? args]) {
+  /// Context-free lookup for non-widget code (controllers, helpers).
+  static String tr(String key, [List<String>? args]) {
     final e = _m[key];
     if (e == null) return key;
     final isZh = I18n.isZh;

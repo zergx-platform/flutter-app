@@ -53,6 +53,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canLogout = widget.onLogout != null;
     return Scaffold(
       appBar: AppBar(
         leading: _stack.isNotEmpty
@@ -63,10 +64,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
             ? _titleOf(_stack.last)
             : t(context, 'settings')),
         actions: [
-          if (widget.onLogout != null)
-            TextButton(
-                onPressed: widget.onLogout,
-                child: Text(t(context, 'confirm'))),
+          if (canLogout)
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, size: 20),
+              tooltip: t(context, 'logout'),
+              onPressed: () => _confirmLogout(),
+            ),
         ],
       ),
       body: _loading
@@ -77,16 +80,26 @@ class _ConfigScreenState extends State<ConfigScreen> {
     );
   }
 
+  Future<void> _confirmLogout() async {
+    final ok = await confirmDialog(
+      context,
+      title: t(context, 'logout'),
+      description: t(context, 'logoutBody'),
+      confirmText: t(context, 'logout'),
+    );
+    if (ok) widget.onLogout?.call();
+  }
+
   String _titleOf(String id) {
     switch (id) {
       case 'providers':
-        return 'LLM Providers';
+        return t(context, 'llmProviders');
       case 'presets':
-        return 'Presets';
+        return t(context, 'presets');
       case 'appearance':
-        return 'Appearance';
+        return t(context, 'appearance');
       case 'tools':
-        return 'Tools';
+        return t(context, 'tools');
       default:
         return id;
     }
@@ -471,6 +484,11 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   bool _showNew = false;
   final _newId = TextEditingController();
 
+  // Persistent editors for the expanded preset so keystrokes never rebuild
+  // the TextFields (which would reset the cursor / leak controllers).
+  final _sysPromptCtrl = TextEditingController();
+  final _maxTurnsCtrl = TextEditingController();
+
   static const _seedPresetIds = {'default', 'build', 'plan'};
 
   @override
@@ -482,6 +500,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   @override
   void dispose() {
     _newId.dispose();
+    _sysPromptCtrl.dispose();
+    _maxTurnsCtrl.dispose();
     super.dispose();
   }
 
@@ -508,7 +528,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
 
   Future<void> _delete(Preset p) async {
     final ok = await confirmDialog(context,
-        title: 'Delete preset', description: 'Delete preset ${p.id}?');
+        title: t(context, 'deletePreset'),
+        description: t(context, 'deletePresetBody', [p.id]));
     if (ok) {
       await widget.api.deletePreset(p.id);
       await _load();
@@ -516,6 +537,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   }
 
   void _open(Preset p) {
+    _sysPromptCtrl.text = p.systemPrompt;
+    _maxTurnsCtrl.text = '${p.maxTurns}';
     setState(() {
       _editingId = p.id;
       _edit = Preset(
@@ -577,7 +600,12 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             child: Column(
               children: [
                 ListTile(
-                  title: Text('${p.id} (turns:${p.maxTurns}, tools:${p.tools.length})'),
+                  title: Text(p.id),
+                  subtitle: Text(t(
+                      context, 'presetSummary', [
+                        '${p.maxTurns}',
+                        '${p.tools.length}'
+                      ])),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -601,8 +629,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                     child: Column(
                       children: [
                         TextField(
-                          controller:
-                              TextEditingController(text: _edit.systemPrompt),
+                          controller: _sysPromptCtrl,
                           maxLines: 3,
                           decoration: InputDecoration(
                               labelText: t(context, 'systemPrompt')),
@@ -613,8 +640,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                               maxTurns: _edit.maxTurns),
                         ),
                         TextField(
-                          controller: TextEditingController(
-                              text: '${_edit.maxTurns}'),
+                          controller: _maxTurnsCtrl,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                               labelText: t(context, 'maxTurns')),
@@ -688,10 +714,29 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   String? _expanded;
   bool _loading = true;
 
+  // Persistent text controllers per "tool.key" field so editing never
+  /// rebuilds a TextField with a fresh controller (cursor jump / leak).
+  final Map<String, TextEditingController> _ctrls = {};
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _ctrls.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  TextEditingController _ctrl(String tool, String key, String initial) {
+    return _ctrls.putIfAbsent('$tool.$key', () {
+      final c = TextEditingController(text: initial);
+      return c;
+    });
   }
 
   Future<void> _load() async {
@@ -818,7 +863,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: TextField(
-        controller: TextEditingController(text: current == null ? '' : '$current'),
+        controller: _ctrl(toolName, f.key, current == null ? '' : '$current'),
         keyboardType: f.type == 'number' ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(labelText: f.label),
         onChanged: (v) => _set(toolName, f.key,

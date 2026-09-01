@@ -249,7 +249,7 @@ class _BubbleActions extends StatelessWidget {
           if (isUser) ...[
             const SizedBox(width: 4),
             // Show the message's persisted timestamp instead of "you".
-            Text(_fmtTime(createdAt),
+            Text(_fmtTime(context, createdAt),
                 style: text.micro.copyWith(color: colors.mutedForeground)),
           ],
         ],
@@ -257,16 +257,19 @@ class _BubbleActions extends StatelessWidget {
     );
   }
 
-  static String _fmtTime(String iso) {
-    final t = DateTime.tryParse(iso)?.toLocal();
-    if (t == null) return '';
+  static String _fmtTime(BuildContext context, String iso) {
+    final dt = DateTime.tryParse(iso)?.toLocal();
+    if (dt == null) return '';
     final now = DateTime.now();
-    final d = now.difference(t);
-    if (d.inMinutes < 1) return '刚刚';
-    if (d.inMinutes < 60) return '${d.inMinutes}分钟前';
-    if (d.inHours < 24 && now.day == t.day) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    if (d.inHours < 24) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    return '${t.month}/${t.day} ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    final d = now.difference(dt);
+    final hm =
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (d.inMinutes < 1) return t(context, 'timeJustNow');
+    if (d.inMinutes < 60) {
+      return t(context, 'timeMinAgo', ['${d.inMinutes}']);
+    }
+    if (d.inHours < 24) return hm;
+    return '${dt.month}/${dt.day} $hm';
   }
 
   // Tight inline action — no App-wide icon-button chrome, no outer padding,

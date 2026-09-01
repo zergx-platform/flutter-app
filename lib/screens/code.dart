@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api.dart';
 import '../i18n.dart';
 
 import '../models.dart';
@@ -86,7 +87,7 @@ class _CodeScreenState extends State<CodeScreen> {
             ? store.selectedFilePath!
             : store.codeRepo.isNotEmpty
                 ? '${store.codeOrg}/${store.codeRepo}'
-                : 'Code'),
+                : t(context, 'tabCode')),
       ),
       body: showFile ? _contentMobile(context) : _treeOrCommits(context),
     );
@@ -175,7 +176,7 @@ class _CodeScreenState extends State<CodeScreen> {
                 child: Text(
                   store.codeRepo.isNotEmpty
                       ? '${store.codeOrg}/${store.codeRepo}'
-                      : 'Files',
+                      : t(context, 'files'),
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(fontWeight: FontWeight.w600),
                 ),
@@ -239,11 +240,7 @@ class _CodeScreenState extends State<CodeScreen> {
           ),
         for (final c in _commits)
           InkWell(
-            onTap: () {
-              setState(() => _showCommits = false);
-              store.selectedFilePath = null;
-              store.fileContent = '';
-            },
+            onTap: () => _openCommitDiff(c),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -274,6 +271,17 @@ class _CodeScreenState extends State<CodeScreen> {
     );
   }
 
+  /// Open the full diff of a repository commit in a dedicated page.
+  void _openCommitDiff(FileCommit c) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _CommitDiffPage(
+          api: store.api,
+          org: store.codeOrg,
+          repo: store.codeRepo,
+          commit: c),
+    ));
+  }
+
   Widget _content(BuildContext context) {
     final colors = colorsOf(context);
     final text = textOf(context);
@@ -282,8 +290,8 @@ class _CodeScreenState extends State<CodeScreen> {
       return Center(
         child: Text(
           store.codeRepo.isNotEmpty
-              ? 'Select a file to view'
-              : 'Select a branch to browse files',
+              ? t(context, 'selectFile')
+              : t(context, 'selectBranch'),
           style: TextStyle(color: colors.mutedForeground),
         ),
       );
@@ -305,10 +313,7 @@ class _CodeScreenState extends State<CodeScreen> {
               if (store.activeDiffChangeId != null)
                 IconButton(
                     icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () {
-                      store.activeDiffChangeId = null;
-                      store.showFileHistory = false;
-                    })
+                    onPressed: () => store.closeFileDiff())
               else ...[
                 IconButton(
                     icon: Icon(
@@ -318,19 +323,14 @@ class _CodeScreenState extends State<CodeScreen> {
                         size: 16),
                     onPressed: () {
                       if (store.showFileHistory) {
-                        store.showFileHistory = false;
+                        setState(() => store.showFileHistory = false);
                       } else {
                         store.loadFileHistory();
                       }
                     }),
                 IconButton(
                     icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () {
-                      store.selectedFilePath = null;
-                      store.fileContent = '';
-                      store.showFileHistory = false;
-                      store.activeDiffChangeId = null;
-                    }),
+                    onPressed: () => store.clearFileView()),
               ],
             ],
           ),
@@ -417,6 +417,92 @@ class _CodeScreenState extends State<CodeScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Full-diff viewer for a single repository commit (Code tab commits list).
+class _CommitDiffPage extends StatefulWidget {
+  final ZergxApi api;
+  final String org;
+  final String repo;
+  final FileCommit commit;
+  const _CommitDiffPage(
+      {required this.api,
+      required this.org,
+      required this.repo,
+      required this.commit});
+
+  @override
+  State<_CommitDiffPage> createState() => _CommitDiffPageState();
+}
+
+class _CommitDiffPageState extends State<_CommitDiffPage> {
+  List<DiffFile> _files = [];
+  String _error = '';
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final f =
+          await widget.api.diffChange(widget.org, widget.repo, widget.commit.changeId);
+      if (!mounted) return;
+      setState(() {
+        _files = f;
+        if (f.isEmpty) _error = t(context, 'noChanges');
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final c = widget.commit;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          c.message.isNotEmpty ? c.message : c.commitId.substring(0, 8),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error.isNotEmpty
+              ? Center(
+                  child: Text(_error,
+                      style: TextStyle(color: colors.mutedForeground)))
+              : ListView.builder(
+                  itemCount: _files.length,
+                  itemBuilder: (_, i) {
+                    final f = _files[i];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm),
+                          child: Text(f.path,
+                              style: text.mono.copyWith(
+                                  fontSize: 12, color: colors.primary)),
+                        ),
+                        if (f.diffText != null && f.diffText!.isNotEmpty)
+                          DiffView(diffText: f.diffText!),
+                        Divider(height: 1, color: colors.border),
+                      ],
+                    );
+                  },
+                ),
     );
   }
 }

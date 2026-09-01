@@ -29,6 +29,15 @@ class Prefs {
     await p.setString(_kToken, token);
   }
 
+  /// Log out: forget the saved gateway + token (locale & dark mode stay).
+  static Future<void> clear() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kBase);
+      await p.remove(_kToken);
+    } catch (_) {}
+  }
+
   static Future<void> saveDarkMode(bool dark) async {
     try {
       final p = await SharedPreferences.getInstance();

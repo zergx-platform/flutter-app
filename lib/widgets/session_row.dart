@@ -6,15 +6,17 @@ import '../theme/app_theme.dart';
 import 'chat_avatar.dart';
 
 /// WeChat-style relative timestamp (locale-aware).
-String wechatTime(String iso) {
-  final t = DateTime.tryParse(iso);
-  if (t == null) return '';
-  final d = DateTime.now().difference(t);
-  if (d.inMinutes < 1) return I18n.isZh ? '' : 'just now';
-  if (d.inMinutes < 60) return I18n.isZh ? '${d.inMinutes}分钟前' : '${d.inMinutes}m ago';
-  if (d.inHours < 24) return I18n.isZh ? '${d.inHours}小时前' : '${d.inHours}h ago';
-  if (d.inDays < 7) return I18n.isZh ? '${d.inDays}天前' : '${d.inDays}d ago';
-  return '${t.month}/${t.day}';
+String wechatTime(BuildContext context, String iso) {
+  final dt = DateTime.tryParse(iso);
+  if (dt == null) return '';
+  final d = DateTime.now().difference(dt);
+  if (d.inMinutes < 1) return I18n.isZh ? '' : t(context, 'timeJustNow');
+  if (d.inMinutes < 60) {
+    return t(context, 'timeMinAgo', ['${d.inMinutes}']);
+  }
+  if (d.inHours < 24) return t(context, 'timeHour', ['${d.inHours}']);
+  if (d.inDays < 7) return t(context, 'timeDay', ['${d.inDays}']);
+  return '${dt.month}/${dt.day}';
 }
 
 /// WeChat-style chat-list row: avatar | name + relative time | preview +
@@ -40,8 +42,8 @@ class SessionRow extends StatelessWidget {
     final text = textOf(context);
     final s = session;
     final unread = s.unreadCount ?? 0;
-    final stamp = wechatTime(
-        s.lastMessageAt.isNotEmpty ? s.lastMessageAt : s.updatedAt);
+    final stamp =
+        wechatTime(context, s.lastMessageAt.isNotEmpty ? s.lastMessageAt : s.updatedAt);
     return Material(
       color: isActive ? colors.primary.withValues(alpha: 0.10) : Colors.transparent,
       child: InkWell(

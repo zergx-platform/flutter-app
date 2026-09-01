@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'api.dart';
+import 'i18n.dart';
 import 'models.dart';
 
 /// Mirrors hooks/useMessages.svelte.ts + message-utils.ts.
@@ -378,7 +379,9 @@ class MessagesController extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      _addError(e is ApiException ? e.toString() : 'Send failed: $e');
+      _addError(e is ApiException
+          ? e.toString()
+          : Texts.tr('sendFailed', ['$e']));
       sending = false;
       notifyListeners();
     }

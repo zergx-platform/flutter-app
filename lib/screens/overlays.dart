@@ -156,7 +156,7 @@ class _MailboxOverlayState extends State<MailboxOverlay> {
                             color: colors.primary)),
                     const Spacer(),
                     Text(
-                      consumed ? 'consumed' : 'pending',
+                      consumed ? t(context, 'consumed') : t(context, 'pending'),
                       style: text.micro.copyWith(
                           color: consumed ? colors.success : colors.mutedForeground),
                     ),

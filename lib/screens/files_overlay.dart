@@ -86,7 +86,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
           context,
           label: store.codeRepo.isNotEmpty
               ? '${store.codeOrg}/${store.codeRepo}'
-              : 'Files',
+              : t(context, 'files'),
           // Root level: no back arrow (drill-in only), matching FilesPage.
           showBack: false,
         ),
@@ -130,7 +130,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                        c.message.isNotEmpty ? c.message : '(no description)',
+                        c.message.isNotEmpty ? c.message : t(context, 'noDescription'),
                         overflow: TextOverflow.ellipsis,
                         style: text.meta),
                   ),

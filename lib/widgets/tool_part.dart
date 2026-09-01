@@ -246,7 +246,7 @@ class _ToolPartViewState extends State<ToolPartView> {
     } else if (widget.isStreaming && status == 'running') {
       children.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Text(I18n.isZh ? '运行中…' : 'running...',
+        child: Text(t(context, 'running'),
             style: text.micro.copyWith(
                 color: colors.mutedForeground,
                 fontStyle: FontStyle.italic)),

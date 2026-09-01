@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../i18n.dart';
@@ -23,6 +25,8 @@ const _treeIndent = <double>[16, 32, 48];
 
 class _ChatSidebarState extends State<ChatSidebar> {
   AppStore get store => widget.store;
+  Timer? _poll;
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +34,21 @@ class _ChatSidebarState extends State<ChatSidebar> {
       store.refreshSessions();
       store.refreshRepos();
     });
+    // Keep previews / unread badges fresh while the list is visible.
+    _poll = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) store.refreshSessions();
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    await store.refreshSessions();
+    await store.refreshRepos();
   }
 
   List<Session> get _recent {
@@ -69,24 +88,39 @@ class _ChatSidebarState extends State<ChatSidebar> {
   @override
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
-    return ListView(
-      // WeChat-style: remove the flat "New organization" button (creation is
-      // the AppBar "+" now); the tree sits flush without side padding.
-      padding: EdgeInsets.zero,
-      children: [
-        if (_recent.isNotEmpty) ...[
-          _HeaderKey('recent'),
-          for (final s in _recent) _sessionRow(s),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        // WeChat-style: remove the flat "New organization" button (creation is
+        // the AppBar "+" now); the tree sits flush without side padding.
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        children: [
+          if (store.sessionError.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+              child: Text(
+                t(context, 'loadError', [store.sessionError]),
+                style: textOf(context)
+                    .micro
+                    .copyWith(color: colors.destructive),
+              ),
+            ),
+          if (_recent.isNotEmpty) ...[
+            _HeaderKey('recent'),
+            for (final s in _recent) _sessionRow(s),
+          ],
+          _HeaderKey('allRepos'),
+          for (final org in store.orgs) _orgNode(org),
+          if (store.orgs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Text(t(context, 'noRepos'),
+                  style: TextStyle(color: colors.mutedForeground)),
+            ),
         ],
-        _HeaderKey('allRepos'),
-        for (final org in store.orgs) _orgNode(org),
-        if (store.orgs.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Text(t(context, 'noRepos'),
-                style: TextStyle(color: colors.mutedForeground)),
-          ),
-      ],
+      ),
     );
   }
 
@@ -100,7 +134,61 @@ class _ChatSidebarState extends State<ChatSidebar> {
       isActive: isActive,
       subtitle: preview,
       onTap: () => store.pickSession(s.id),
+      onLongPress: () => _sessionActions(s),
     );
+  }
+
+  /// Long-press bottom sheet: mark-as-read / delete.
+  void _sessionActions(Session s) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if ((s.unreadCount ?? 0) > 0)
+              ListTile(
+                leading: const Icon(Icons.done_all_rounded),
+                title: Text(t(ctx, 'markRead')),
+                onTap: () {
+                  store.markSessionRead(s.id);
+                  Navigator.pop(ctx);
+                },
+              ),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded,
+                  color: colorsOf(ctx).destructive),
+              title: Text(t(ctx, 'deleteSession'),
+                  style: TextStyle(color: colorsOf(ctx).destructive)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _deleteSessionFlow(s);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteSessionFlow(Session s) async {
+    final label = s.org.isNotEmpty
+        ? '${s.org}/${s.repo}/${s.branch}'
+        : s.id;
+    final ok = await confirmDialog(context,
+        title: t(context, 'deleteSessionTitle'),
+        description: t(context, 'deleteSessionBody', [label]));
+    if (ok != true) return;
+    try {
+      if (s.org.isNotEmpty) {
+        await store.deleteBookmark(s.org, s.repo, s.branch);
+      } else {
+        await store.deleteSession(s.id);
+      }
+    } catch (_) {
+      await store.deleteSession(s.id);
+    }
   }
 
   Widget _orgNode(OrgNode org) {
@@ -122,9 +210,9 @@ class _ChatSidebarState extends State<ChatSidebar> {
             tooltip: t(context, 'deleteOrgTitle'),
             onPressed: () async {
               final ok = await confirmDialog(context,
-                  title: 'Delete organization',
+                  title: t(context, 'deleteOrgTitle'),
                   description:
-                      'Delete organization ${org.org}? This removes all its repos and sessions.');
+                      t(context, 'deleteOrgBody', [org.org]));
               if (ok) await store.deleteOrg(org.org);
             },
           ),
@@ -154,9 +242,9 @@ class _ChatSidebarState extends State<ChatSidebar> {
             tooltip: t(context, 'deleteRepoTitle'),
             onPressed: () async {
               final ok = await confirmDialog(context,
-                  title: 'Delete repo',
+                  title: t(context, 'deleteRepoTitle'),
                   description:
-                      'Delete repo ${org.org}/${repo.repo}? This removes all its sessions.');
+                      t(context, 'deleteRepoBody', [org.org, repo.repo]));
               if (ok) await store.deleteRepo(org.org, repo.repo);
             },
           ),

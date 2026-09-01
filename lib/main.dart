@@ -59,6 +59,16 @@ class _ZergxAppState extends State<ZergxApp> {
     Prefs.saveDarkMode(dark);
   }
 
+  Future<void> _logout() async {
+    await Prefs.clear();
+    if (mounted) {
+      setState(() {
+        _token = '';
+        _store = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Locale>(
@@ -100,7 +110,10 @@ class _ZergxAppState extends State<ZergxApp> {
     }
     if (_store != null) {
       return _Shell(
-          store: _store!, darkMode: _dark, onDarkMode: _setDarkMode);
+          store: _store!,
+          darkMode: _dark,
+          onDarkMode: _setDarkMode,
+          onLogout: _logout);
     }
     return FutureBuilder<AppStore>(
       future: _buildStore(),
@@ -110,7 +123,10 @@ class _ZergxAppState extends State<ZergxApp> {
               body: Center(child: CircularProgressIndicator()));
         }
         return _Shell(
-            store: snap.data!, darkMode: _dark, onDarkMode: _setDarkMode);
+            store: snap.data!,
+            darkMode: _dark,
+            onDarkMode: _setDarkMode,
+            onLogout: _logout);
       },
     );
   }
@@ -128,15 +144,19 @@ class _Shell extends StatelessWidget {
   final AppStore store;
   final bool darkMode;
   final ValueChanged<bool> onDarkMode;
-  const _Shell(
-      {required this.store, required this.darkMode, required this.onDarkMode});
+  final VoidCallback? onLogout;
+  const _Shell({
+      required this.store,
+      required this.darkMode,
+      required this.onDarkMode,
+      this.onLogout});
 
   static const _navItems = <(SiderTab, IconData, String)>[
-    (SiderTab.chat, Icons.chat_bubble_outline, 'Chat'),
-    (SiderTab.code, Icons.folder_copy_outlined, 'Code'),
-    (SiderTab.containers, Icons.inventory_2_outlined, 'Containers'),
-    (SiderTab.packages, Icons.all_inbox_outlined, 'Packages'),
-    (SiderTab.config, Icons.settings_outlined, 'Config'),
+    (SiderTab.chat, Icons.chat_bubble_outline, 'tabChat'),
+    (SiderTab.code, Icons.folder_copy_outlined, 'tabCode'),
+    (SiderTab.containers, Icons.inventory_2_outlined, 'tabContainers'),
+    (SiderTab.packages, Icons.all_inbox_outlined, 'tabPackages'),
+    (SiderTab.config, Icons.settings_outlined, 'tabConfig'),
   ];
 
   @override
@@ -158,6 +178,7 @@ class _Shell extends StatelessWidget {
               store: store,
               darkMode: darkMode,
               onDarkMode: onDarkMode,
+              onLogout: onLogout,
             ),
           SiderTab.containers => ContainersScreen(store: store),
           SiderTab.packages => PackagesScreen(store: store),
@@ -170,7 +191,7 @@ class _Shell extends StatelessWidget {
                     _NavRail(
                       tab: tab,
                       items: _navItems,
-                      onTap: (t) => store.switchTab(t),
+                      onTap: (tb) => store.switchTab(tb),
                     ),
                     Expanded(child: body),
                   ],
@@ -179,7 +200,7 @@ class _Shell extends StatelessWidget {
               ? _BottomBar(
                   tab: tab,
                   items: _navItems,
-                  onTap: (t) => store.switchTab(t),
+                  onTap: (tb) => store.switchTab(tb),
                 )
               : null,
         );
@@ -209,12 +230,12 @@ class _NavRail extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: AppSpacing.md),
-          for (final (t, icon, label) in items)
+          for (final (tb, icon, labelKey) in items)
             _RailItem(
               icon: icon,
-              label: label,
-              selected: tab == t,
-              onTap: () => onTap(t),
+              label: t(context, labelKey),
+              selected: tab == tb,
+              onTap: () => onTap(tb),
             ),
         ],
       ),
@@ -228,10 +249,10 @@ class _RailItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   const _RailItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
+      required this.icon,
+      required this.label,
+      required this.selected,
+      required this.onTap,
   });
 
   @override
@@ -293,23 +314,23 @@ class _BottomBar extends StatelessWidget {
           height: 56,
           child: Row(
             children: [
-              for (final (t, icon, label) in items)
+              for (final (tb, icon, labelKey) in items)
                 Expanded(
                   child: InkWell(
-                    onTap: () => onTap(t),
+                    onTap: () => onTap(tb),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(icon,
                             size: 22,
-                            color: selected(t, tab)
+                            color: selected(tb, tab)
                                 ? colors.primary
                                 : colors.mutedForeground),
                         const SizedBox(height: 2),
                         Text(
-                          label,
+                          t(context, labelKey),
                           style: text.micro.copyWith(
-                            color: selected(t, tab)
+                            color: selected(tb, tab)
                                 ? colors.primary
                                 : colors.mutedForeground,
                           ),
@@ -325,7 +346,7 @@ class _BottomBar extends StatelessWidget {
     );
   }
 
-  static bool selected(SiderTab t, SiderTab current) => t == current;
+  static bool selected(SiderTab tb, SiderTab current) => tb == current;
 }
 
 /// Sessions list home — shown when no conversation is open. WeChat-style:
@@ -342,7 +363,7 @@ class _SessionsHome extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.search_rounded, color: colorsOf(context).primary),
-            tooltip: '搜索',
+            tooltip: t(context, 'search'),
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => SessionSearchPage(store: store),
@@ -369,19 +390,39 @@ class _SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<_SetupScreen> {
   late final TextEditingController _base =
       TextEditingController(text: widget.initialBaseUrl);
-  late final TextEditingController _token =
-      TextEditingController(text: _defaultToken);
+  late final TextEditingController _token = TextEditingController();
 
-  /// The current valid gateway token, prefilled so the user can connect
-  /// with a single tap.
-  static const _defaultToken =
-      '5H7q_K940ySbgXng7H3nNWTTweGcjhGmFSJwJnTAQRw';
+  bool _busy = false;
+  bool _showToken = false;
 
   @override
   void dispose() {
     _base.dispose();
     _token.dispose();
     super.dispose();
+  }
+
+  bool get _canConnect =>
+      _base.text.trim().isNotEmpty && _token.text.trim().isNotEmpty && !_busy;
+
+  /// Verify the gateway + token before saving so a typo can't land the user
+  /// in a silently-empty app.
+  Future<void> _connect() async {
+    final base = _base.text.trim();
+    final token = _token.text.trim();
+    if (base.isEmpty || token.isEmpty) return;
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final api = await ZergxApi.create(baseUrl: base, token: token);
+      await api.listSessions();
+      if (!mounted) return;
+      await widget.onSave(base, token);
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(Texts.tr('loadError', ['$e']))));
+    }
+    if (mounted) setState(() => _busy = false);
   }
 
   @override
@@ -403,25 +444,32 @@ class _SetupScreenState extends State<_SetupScreen> {
                     const SizedBox(height: AppSpacing.xl),
                     TextField(
                       controller: _base,
+                      enabled: !_busy,
                       decoration: InputDecoration(
                           labelText: t(context, 'gatewayUrl')),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: _token,
-                      obscureText: true,
+                      obscureText: !_showToken,
+                      enabled: !_busy,
                       decoration: InputDecoration(
-                          labelText: t(context, 'tokenLabel')),
+                        labelText: t(context, 'tokenLabel'),
+                        suffixIcon: IconButton(
+                          icon: Icon(_showToken
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: () =>
+                              setState(() => _showToken = !_showToken),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     FilledButton(
-                      onPressed: () {
-                        if (_base.text.isNotEmpty && _token.text.isNotEmpty) {
-                          widget.onSave(
-                              _base.text.trim(), _token.text.trim());
-                        }
-                      },
-                      child: Text(t(context, 'connect')),
+                      onPressed: _canConnect ? _connect : null,
+                      child: Text(_busy
+                          ? t(context, 'connecting')
+                          : t(context, 'connect')),
                     ),
                   ],
                 ),

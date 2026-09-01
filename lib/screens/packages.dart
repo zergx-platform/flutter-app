@@ -319,7 +319,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
           child: _pkgs.isEmpty
               ? Center(
                   child: Text(
-                      _pkgError.isNotEmpty ? _pkgError : 'No packages registered yet.',
+                      _pkgError.isNotEmpty
+                          ? _pkgError
+                          : t(context, 'noPackagesYet'),
                       style:
                           TextStyle(color: colors.mutedForeground)))
               : ListView.builder(
@@ -382,7 +384,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
               color: colors.mutedForeground),
           title: Text(p.name, style: text.mono.copyWith(fontSize: 13)),
           subtitle: Text(
-              '${p.type}${p.latestVersion != null ? ' · v${p.latestVersion}' : ''} · ${p.versions} versions',
+              '${p.type}${p.latestVersion != null ? ' · v${p.latestVersion}' : ''} · ${t(context, 'versionsCount', ['${p.versions}'])}',
               style: text.micro.copyWith(color: colors.mutedForeground)),
           trailing: IconButton(
             icon: Icon(Icons.delete_outline_rounded,

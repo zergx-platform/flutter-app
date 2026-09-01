@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -6,7 +8,9 @@ import '../theme/app_theme.dart';
 ///
 /// Simple deterministic layout:
 ///   - background = a vivid color derived from the ORG name
-///   - text color = a vivid color derived from the REPO name
+///   - text color = pure white or near-black, picked by measuring the
+///     background's relative luminance (WCAG) so the label is ALWAYS
+///     clearly readable — never a same-brightness clash
 ///   - label      = first 2 letters of the bookmark (branch) name,
 ///                  first uppercase + second lowercase
 /// Falls back down the ladder (branch → org → repo → '?') for empty parts.
@@ -30,7 +34,7 @@ class ChatAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = textOf(context);
     final bg = _color(org.isNotEmpty ? org : (repo.isNotEmpty ? repo : branch));
-    final fg = _color(repo.isNotEmpty ? repo : branch, 180);
+    final fg = _contrastForeground(bg);
     final label = _label(branch, org, repo);
     return ClipOval(
       child: SizedBox(
@@ -65,6 +69,21 @@ class ChatAvatar extends StatelessWidget {
     }
     final hue = ((hash % 360) + hueShift) % 360;
     return HSLColor.fromAHSL(1, hue, 0.60, 0.48).toColor();
+  }
+
+  /// Pick white or near-black text by WCAG relative luminance so the label
+  /// always has strong contrast against the background.
+  static Color _contrastForeground(Color bg) {
+    double channel(double c) =>
+        c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4).toDouble();
+
+    final lum = 0.2126 * channel(bg.r) +
+        0.7152 * channel(bg.g) +
+        0.0722 * channel(bg.b);
+    // L_white=1.0 vs L_black≈0.0127; pick whichever yields the larger ratio.
+    final whiteRatio = (1.0 + 0.05) / (lum + 0.05);
+    final darkRatio = (lum + 0.05) / (0.0127 + 0.05);
+    return whiteRatio >= darkRatio ? Colors.white : const Color(0xFF17181C);
   }
 
   /// First two letters of the bookmark name: first uppercase, second

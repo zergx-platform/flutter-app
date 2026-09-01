@@ -6,6 +6,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
 import 'container_overlay.dart';
+import '../widgets/dialogs.dart';
 
 /// Recreates ContainersPage.svelte (sandboxes + deployments; terminal
 /// drill-in reuses the container workspace UI).
@@ -45,6 +46,10 @@ class _ContainersScreenState extends State<ContainersScreen> {
   }
 
   Future<void> _destroySandbox(Sandbox s) async {
+    final ok = await confirmDialog(context,
+        title: t(context, 'deleteSandboxTitle'),
+        description: t(context, 'deleteSandboxBody', [s.podName]));
+    if (!ok) return;
     try {
       await store.api.destroySandbox(s.session);
     } catch (e) {
@@ -55,6 +60,10 @@ class _ContainersScreenState extends State<ContainersScreen> {
   }
 
   Future<void> _destroyDeployment(Deployment d) async {
+    final ok = await confirmDialog(context,
+        title: t(context, 'deleteDeploymentTitle'),
+        description: t(context, 'deleteDeploymentBody', [d.name]));
+    if (!ok) return;
     try {
       await store.api.destroyDeployment(d.name);
     } catch (e) {
@@ -205,8 +214,10 @@ class _ContainersScreenState extends State<ContainersScreen> {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
         appBar: AppBar(
-            title: Text(s.session, style: textOf(context).mono)),
-        body: ContainerWorkspace(store: store, session: s.session),
+            title: Text(s.podName.isNotEmpty ? s.podName : s.session,
+                style: textOf(context).mono)),
+        body: ContainerWorkspace(
+            store: store, session: s.session, containerName: s.podName),
       ),
     ));
   }

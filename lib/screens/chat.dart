@@ -158,33 +158,46 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     final wide = MediaQuery.sizeOf(context).width >= 1024;
-    return Scaffold(
-      body: Column(
-        children: [
-          _topBar(context),
-          Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
-          Expanded(
-            child: Row(
-              children: [
-                if (wide)
-                  SizedBox(
-                    width: 260,
-                    child: _sidebar(context),
+    return PopScope(
+      // System back inside a conversation returns to the session list (or
+      // closes the desktop overlay panel) instead of backgrounding the app.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (store.sessionOverlay != null) {
+          store.closeOverlay();
+        } else {
+          store.closeSession();
+        }
+      },
+      child: Scaffold(
+        body: Column(
+          children: [
+            _topBar(context),
+            Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
+            Expanded(
+              child: Row(
+                children: [
+                  if (wide)
+                    SizedBox(
+                      width: 260,
+                      child: _sidebar(context),
+                    ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(child: _messageList()),
+                        _composer(context),
+                      ],
+                    ),
                   ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Expanded(child: _messageList()),
-                      _composer(context),
-                    ],
-                  ),
-                ),
-                if (store.sessionOverlay != null && wide)
-                  SizedBox(width: 440, child: _overlayPanel(context)),
-              ],
+                  if (store.sessionOverlay != null && wide)
+                    SizedBox(width: 440, child: _overlayPanel(context)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -204,11 +217,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = textOf(context);
     final s = store.activeSession;
     final overlayTitle = switch (store.sessionOverlay) {
-      SessionOverlay.timeline => 'Timeline',
-      SessionOverlay.files => 'Files',
-      SessionOverlay.mailbox => 'Mailbox',
-      SessionOverlay.container => 'Container',
-      SessionOverlay.todos => 'Todos',
+      SessionOverlay.timeline => t(context, 'timeline'),
+      SessionOverlay.files => t(context, 'files'),
+      SessionOverlay.mailbox => t(context, 'mailbox'),
+      SessionOverlay.container => t(context, 'container'),
+      SessionOverlay.todos => t(context, 'todos'),
       null => '',
     };
     return SafeArea(
@@ -245,7 +258,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   s != null
                       ? '${s.org}/${s.repo}'
                           '${overlayTitle.isNotEmpty ? ' · $overlayTitle' : ''}'
-                      : 'Chat',
+                      : t(context, 'chatTitle'),
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(
                       fontWeight: FontWeight.w600,
@@ -389,6 +402,17 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (ctx, setState) {
           String model = store.activeSession?.model ?? '';
           String preset = store.activeSession?.preset ?? '';
+          // Include the session's current value even if it is not among the
+          // registered options, otherwise the dropdown asserts.
+          final modelOptions = [
+            ..._models.map((m) => m.id),
+            if (model.isNotEmpty && !_models.any((m) => m.id == model)) model,
+          ];
+          final presetOptions = [
+            ..._presets.map((p) => p.id),
+            if (preset.isNotEmpty && !_presets.any((p) => p.id == preset))
+              preset,
+          ];
           return AlertDialog(
             title: Text(t(ctx, 'settingsTitle')),
             content: SingleChildScrollView(
@@ -400,8 +424,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: model.isEmpty ? null : model,
                     items: [
-                      for (final mo in _models)
-                        DropdownMenuItem(value: mo.id, child: Text(mo.id)),
+                      for (final id in modelOptions)
+                        DropdownMenuItem(value: id, child: Text(id)),
                     ],
                     onChanged: (v) => setState(() => model = v ?? ''),
                     decoration: InputDecoration(labelText: t(ctx, 'modelLabel')),
@@ -410,8 +434,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: preset.isEmpty ? null : preset,
                     items: [
-                      for (final p in _presets)
-                        DropdownMenuItem(value: p.id, child: Text(p.id)),
+                      for (final id in presetOptions)
+                        DropdownMenuItem(value: id, child: Text(id)),
                     ],
                     onChanged: (v) => setState(() => preset = v ?? ''),
                     decoration: InputDecoration(labelText: t(ctx, 'presetLabel')),
@@ -480,7 +504,9 @@ class _ChatScreenState extends State<ChatScreen> {
           return Center(
             child: TextButton(
               onPressed: m.loading ? null : () => m.loadMore(),
-              child: Text(m.loading ? 'Loading...' : 'Load earlier'),
+              child: Text(m.loading
+                  ? t(context, 'loading')
+                  : t(context, 'loadEarlier')),
             ),
           );
         }
@@ -522,7 +548,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: TextField(
                       controller: _input,
                       focusNode: _inputFocus,
-                      enabled: !sending,
+                      // Keep typing while the agent works (IM convention);
+                      // only the send button becomes a stop button.
                       minLines: 1,
                       maxLines: 6,
                       textInputAction: TextInputAction.newline,
@@ -550,13 +577,13 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 4),
               // Footer: right-aligned context token total (last turn's
-              // request context), shown as e.g. "上下文 13.2K".
+              // request context), shown as e.g. "上下文 13.2K / Context 13.2K".
               Row(
                 children: [
                   const Spacer(),
                   if (last > 0)
                     Text(
-                      '上下文 ${_k(last)}',
+                      '${t(context, 'contextTokens')} ${_k(last)}',
                       style: text.micro.copyWith(
                           color: colors.mutedForeground),
                     ),
@@ -616,18 +643,18 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  String _overlayLabel(SessionOverlay t) {
-    switch (t) {
+  String _overlayLabel(SessionOverlay ov) {
+    switch (ov) {
       case SessionOverlay.timeline:
-        return 'Timeline';
+        return t(context, 'timeline');
       case SessionOverlay.files:
-        return 'Files';
+        return t(context, 'files');
       case SessionOverlay.mailbox:
-        return 'Mailbox';
+        return t(context, 'mailbox');
       case SessionOverlay.container:
-        return 'Container';
+        return t(context, 'container');
       case SessionOverlay.todos:
-        return 'Todos';
+        return t(context, 'todos');
     }
   }
 
@@ -688,7 +715,9 @@ class _OverlayTab extends StatelessWidget {
 }
 
 /// Full-screen host for a session overlay on phones. Back button closes the
-/// overlay state so the side panel (wide screens) stays in sync.
+/// overlay state so the side panel (wide screens) stays in sync. The body
+/// listens to the store so switching between the list and a diff inside the
+/// page (e.g. tapping a change, then "Back") rebuilds correctly.
 class _OverlayPage extends StatelessWidget {
   final AppStore store;
   final SessionOverlay overlay;
@@ -696,44 +725,55 @@ class _OverlayPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget body;
+    return PopScope(
+      // Sync store state when the system back pops this route.
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) store.closeOverlay();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              store.closeOverlay();
+              Navigator.of(context).pop();
+            },
+          ),
+          title: Text(t(context, switch (overlay) {
+            SessionOverlay.timeline => 'timeline',
+            SessionOverlay.files => 'files',
+            SessionOverlay.mailbox => 'mailbox',
+            SessionOverlay.container => 'container',
+            SessionOverlay.todos => 'todos',
+          })),
+        ),
+        body: ListenableBuilder(
+          listenable: store,
+          builder: (context, _) => _buildBody(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
     switch (overlay) {
       case SessionOverlay.timeline:
         if (store.diffChangeId != null) {
-          body = TimelineDiffScreen(
+          return TimelineDiffScreen(
               store: store, changeId: store.diffChangeId!);
-        } else {
-          body = TimelineOverlay(
-              store: store, onSelectDiff: (id) => store.openChange(id));
         }
+        return TimelineOverlay(
+            store: store, onSelectDiff: (id) => store.openChange(id));
       case SessionOverlay.files:
-        body = FilesOverlay(store: store);
+        return FilesOverlay(store: store);
       case SessionOverlay.mailbox:
-        body = MailboxOverlay(store: store);
+        return MailboxOverlay(store: store);
       case SessionOverlay.container:
-        body = ContainerOverlay(store: store);
+        return ContainerOverlay(store: store);
       case SessionOverlay.todos:
-        body = TodosOverlay(store: store);
+        return TodosOverlay(store: store);
     }
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            store.closeOverlay();
-            Navigator.of(context).pop();
-          },
-        ),
-        title: Text(switch (overlay) {
-          SessionOverlay.timeline => t(context, 'timeline'),
-          SessionOverlay.files => t(context, 'files'),
-          SessionOverlay.mailbox => t(context, 'mailbox'),
-          SessionOverlay.container => t(context, 'container'),
-          SessionOverlay.todos => t(context, 'todos'),
-        }),
-      ),
-      body: body,
-    );
   }
 }
 
@@ -765,7 +805,7 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
       final f = await widget.store.api.diffChange(s.org, s.repo, widget.changeId);
       setState(() {
         _files = f;
-        if (f.isEmpty) _error = 'No changes found';
+        if (f.isEmpty) _error = t(context, 'noChanges');
       });
     } catch (e) {
       setState(() => _error = '$e');
@@ -782,13 +822,9 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
           title: Text('Diff: ${widget.changeId.substring(0, 12)}',
               style: textOf(context).mono),
           trailing: TextButton(
-              onPressed: () {
-                if (store.diffChangeId != null) {
-                  store.diffChangeId = null;
-                } else {
-                  store.sessionOverlay = SessionOverlay.timeline;
-                }
-              },
+              // Go back to the change list (notifies the store so both the
+              // desktop panel and the mobile overlay page rebuild).
+              onPressed: () => store.closeDiff(),
               child: Text(t(context, 'back')),
               ),
         ),

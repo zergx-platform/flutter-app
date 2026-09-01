@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../i18n.dart';
 
-/// Shared confirm dialog.
+/// Shared confirm dialog. [confirmText] defaults to the localized 'Delete'.
 Future<bool> confirmDialog(BuildContext context,
     {required String title,
     required String description,
-    String confirmText = 'Delete'}) async {
+    String? confirmText}) async {
   final r = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -20,7 +20,7 @@ Future<bool> confirmDialog(BuildContext context,
           style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error),
           onPressed: () => Navigator.pop(ctx, true),
-          child: Text(confirmText),
+          child: Text(confirmText ?? t(ctx, 'delete')),
         ),
       ],
     ),
@@ -28,11 +28,12 @@ Future<bool> confirmDialog(BuildContext context,
   return r ?? false;
 }
 
-/// Small text-input dialog (recreates NewItemDialog).
+/// Small text-input dialog (recreates NewItemDialog). [confirmText]
+/// defaults to the localized 'Create'.
 Future<String?> promptDialog(BuildContext context,
     {required String title,
     String label = '',
-    String confirmText = 'Create'}) async {
+    String? confirmText}) async {
   final ctrl = TextEditingController();
   final r = await showDialog<String>(
     context: context,
@@ -50,7 +51,7 @@ Future<String?> promptDialog(BuildContext context,
             child: Text(t(ctx, 'cancel'))),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, ctrl.text),
-          child: Text(confirmText),
+          child: Text(confirmText ?? t(ctx, 'create')),
         ),
       ],
     ),
