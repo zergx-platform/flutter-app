@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 import '../widgets/dialogs.dart';
 
 /// Recreates ChatSidebar.svelte: recent sessions + org/repo/bookmark tree.
@@ -54,11 +55,12 @@ class _ChatSidebarState extends State<ChatSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: OutlinedButton.icon(
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
@@ -73,7 +75,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
                 }
               }
             },
-            icon: const Icon(Icons.add, size: 16),
+            icon: const Icon(Icons.add_rounded, size: 16),
             label: const Text('New organization'),
           ),
         ),
@@ -85,9 +87,9 @@ class _ChatSidebarState extends State<ChatSidebar> {
         for (final org in store.orgs) _orgNode(org),
         if (store.orgs.isEmpty)
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Text('No repositories. Create a session first.',
-                style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+                style: TextStyle(color: colors.mutedForeground)),
           ),
       ],
     );
@@ -95,37 +97,38 @@ class _ChatSidebarState extends State<ChatSidebar> {
 
   Widget _sessionRow(Session s) {
     final isActive = store.activeSessionId == s.id;
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return ListTile(
-      dense: true,
       selected: isActive,
-      leading: const Icon(Icons.history, size: 16),
+      selectedTileColor: colors.primary.withValues(alpha: 0.10),
+      leading: Icon(Icons.history_rounded,
+          size: 16,
+          color: isActive ? colors.primary : colors.mutedForeground),
       title: Text(
         s.org.isNotEmpty ? '${s.org}/${s.repo}/${s.branch}' : s.id,
-        style: const TextStyle(fontSize: 12),
+        style: text.meta.copyWith(
+            color: isActive ? colors.primary : null,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
       ),
-      trailing: (s.unread ?? 0) > 0 && !isActive
-          ? CircleAvatar(
-              radius: 9,
-              backgroundColor: Colors.red,
-              child: Text('${s.unread}', style: const TextStyle(fontSize: 10)),
-            )
-          : null,
       onTap: () => store.pickSession(s.id),
     );
   }
 
   Widget _orgNode(OrgNode org) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
-          dense: true,
-          leading: const Icon(Icons.business, size: 16),
+          leading: Icon(Icons.business_rounded, size: 16, color: colors.accent),
           title: Text(org.org,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              style: text.meta.copyWith(fontWeight: FontWeight.w600)),
           trailing: org.repos.isEmpty
               ? IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 16),
+                  icon: Icon(Icons.delete_outline_rounded,
+                      size: 16, color: colors.mutedForeground),
                   onPressed: () async {
                     final ok = await confirmDialog(context,
                         title: 'Delete organization',
@@ -142,21 +145,22 @@ class _ChatSidebarState extends State<ChatSidebar> {
   }
 
   Widget _repoNode(OrgNode org, RepoNode repo) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
-          dense: true,
-          contentPadding: const EdgeInsets.only(left: 24, right: 8),
-          leading: const Icon(Icons.folder_copy_outlined,
-              size: 16, color: Colors.lightBlue),
-          title: Text(repo.repo, style: const TextStyle(fontSize: 12)),
+          contentPadding:
+              const EdgeInsets.only(left: AppSpacing.xl, right: AppSpacing.sm),
+          leading:
+              Icon(Icons.folder_copy_outlined, size: 16, color: colors.primary),
+          title: Text(repo.repo, style: text.meta),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.add, size: 14),
+                icon: const Icon(Icons.add_rounded, size: 15),
                 tooltip: 'New repo',
                 onPressed: () async {
                   final name = await promptDialog(context,
@@ -169,14 +173,13 @@ class _ChatSidebarState extends State<ChatSidebar> {
                 },
               ),
               IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.download, size: 14),
+                icon: const Icon(Icons.download_rounded, size: 15),
                 tooltip: 'Clone repo',
                 onPressed: () => _cloneDialog(org.org),
               ),
               IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.delete_outline, size: 14),
+                icon: Icon(Icons.delete_outline_rounded,
+                    size: 15, color: colors.mutedForeground),
                 tooltip: 'Delete repo',
                 onPressed: () async {
                   final ok = await confirmDialog(context,
@@ -191,28 +194,24 @@ class _ChatSidebarState extends State<ChatSidebar> {
         ),
         for (final bm in repo.bookmarks)
           ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.only(left: 40, right: 8),
+            contentPadding:
+                const EdgeInsets.only(left: 40, right: AppSpacing.sm),
             leading: Container(
               width: 8,
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: bm.session != null
-                    ? Colors.green
-                    : Theme.of(context).colorScheme.outline,
+                    ? colors.success
+                    : colors.mutedForeground,
               ),
             ),
             title: Text(bm.branch,
-                style: TextStyle(
-                    fontSize: 12,
-                    color: bm.session == null
-                        ? Theme.of(context).colorScheme.outline
-                        : null)),
+                style: text.meta.copyWith(
+                    color: bm.session == null ? colors.mutedForeground : null)),
             trailing: bm.session != null
                 ? IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.call_split, size: 14),
+                    icon: const Icon(Icons.call_split_rounded, size: 15),
                     tooltip: 'Fork',
                     onPressed: () => _forkDialog(bm.session!.sessionId),
                   )
@@ -240,20 +239,27 @@ class _ChatSidebarState extends State<ChatSidebar> {
               TextField(
                   controller: urlCtrl,
                   decoration: const InputDecoration(labelText: 'Git URL')),
+              const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: nameCtrl,
                   decoration: const InputDecoration(labelText: 'Repo name')),
+              const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: tokenCtrl,
-                  decoration: const InputDecoration(labelText: 'Access token (optional)')),
+                  decoration:
+                      const InputDecoration(labelText: 'Access token (optional)')),
+              const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: revCtrl,
-                  decoration: const InputDecoration(labelText: 'Branch / tag / commit (optional)')),
+                  decoration: const InputDecoration(
+                      labelText: 'Branch / tag / commit (optional)')),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Clone'),
@@ -296,8 +302,12 @@ class _ChatSidebarState extends State<ChatSidebar> {
           decoration: const InputDecoration(labelText: 'Branch name'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Fork')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text),
+              child: const Text('Fork')),
         ],
       ),
     );
@@ -321,13 +331,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
       child: Text(text.toUpperCase(),
-          style: TextStyle(
-              fontSize: 10,
+          style: textOf(context).micro.copyWith(
               fontWeight: FontWeight.w600,
               letterSpacing: 1,
-              color: Theme.of(context).colorScheme.outline)),
+              color: colorsOf(context).mutedForeground)),
     );
   }
 }

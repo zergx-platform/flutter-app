@@ -48,3 +48,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# APK server payload: rebuilt per release from build/app/outputs/flutter-apk/
+# (see apk-server/Dockerfile) — do not commit the 55MB binary.
+apk-server/zergx-app-release.apk

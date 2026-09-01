@@ -32,8 +32,6 @@ class Session {
   final String? containerId;
   final int? maxTurns;
   final String? systemPrompt;
-  final String? baseImage;
-  final int? unread;
   final int? inputTokens;
   final int? outputTokens;
   final int? totalTokens;
@@ -54,8 +52,6 @@ class Session {
     this.containerId,
     this.maxTurns,
     this.systemPrompt,
-    this.baseImage,
-    this.unread,
     this.inputTokens,
     this.outputTokens,
     this.totalTokens,
@@ -77,8 +73,6 @@ class Session {
         containerId: j['container_id'] as String?,
         maxTurns: j['max_turns'] as int?,
         systemPrompt: j['system_prompt'] as String?,
-        baseImage: j['base_image'] as String?,
-        unread: j['unread'] as int?,
         inputTokens: j['input_tokens'] as int?,
         outputTokens: j['output_tokens'] as int?,
         totalTokens: j['total_tokens'] as int?,
@@ -90,12 +84,10 @@ class Session {
       org.isNotEmpty ? '$org:$repo:$branch' : id;
 
   Session copyWith({
-    int? unread,
     String? model,
     String? preset,
     int? maxTurns,
     String? systemPrompt,
-    String? baseImage,
   }) =>
       Session(
         id: id,
@@ -111,8 +103,6 @@ class Session {
         containerId: containerId,
         maxTurns: maxTurns ?? this.maxTurns,
         systemPrompt: systemPrompt ?? this.systemPrompt,
-        baseImage: baseImage ?? this.baseImage,
-        unread: unread ?? this.unread,
         inputTokens: inputTokens,
         outputTokens: outputTokens,
         totalTokens: totalTokens,
@@ -213,6 +203,29 @@ class ToolState {
     this.additions,
     this.deletions,
   });
+
+  ToolState copyWith({
+    String? status,
+    String? title,
+    String? error,
+    Map<String, dynamic>? input,
+    String? output,
+    String? changeId,
+    String? diff,
+    int? additions,
+    int? deletions,
+  }) =>
+      ToolState(
+        status: status ?? this.status,
+        title: title ?? this.title,
+        error: error ?? this.error,
+        input: input ?? this.input,
+        output: output ?? this.output,
+        changeId: changeId ?? this.changeId,
+        diff: diff ?? this.diff,
+        additions: additions ?? this.additions,
+        deletions: deletions ?? this.deletions,
+      );
 
   factory ToolState.fromJson(Map<String, dynamic> j) => ToolState(
         status: j['status'] as String?,

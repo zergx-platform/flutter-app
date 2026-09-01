@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 
 const _typeLabels = {
   'cargo': 'Cargo (Rust)',
@@ -141,7 +142,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
           ),
           actions: [
             IconButton(
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh_rounded),
                 onPressed: () => _tab == 0 ? _loadAll() : _loadPackages()),
           ],
         ),
@@ -151,6 +152,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
   }
 
   Widget _registries(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final filtered = _query.trim().isEmpty
         ? _types
         : _types.where((t) {
@@ -161,28 +164,36 @@ class _PackagesScreenState extends State<PackagesScreen> {
     return _loading && _types.isEmpty
         ? const Center(child: CircularProgressIndicator())
         : ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               if (_error.isNotEmpty)
-                Text(_error, style: const TextStyle(color: Colors.red)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Text(_error,
+                      style: text.meta.copyWith(color: colors.destructive)),
+                ),
               TextField(
                 decoration: const InputDecoration(
-                    hintText: 'Filter ecosystems...',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(), isDense: true),
+                  hintText: 'Filter ecosystems...',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
                 onChanged: (v) => setState(() => _query = v),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               Text('Proxy Registries (${filtered.length})',
-                  style: Theme.of(context).textTheme.titleSmall),
+                  style: text.meta
+                      .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(height: AppSpacing.sm),
               for (final t in filtered)
                 Card(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ListTile(
                     title: Text(t.type,
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+                        style: text.mono.copyWith(fontSize: 13)),
                     subtitle: Text(
                         '${_typeLabels[t.type] ?? t.type}\n${t.upstream.isEmpty ? 'no upstream (local only)' : t.upstream}${t.upstream.isEmpty ? '' : '\n${_endpointFor(t.type)}'}',
-                        style: const TextStyle(fontSize: 11)),
+                        style: text.micro
+                            .copyWith(color: colors.mutedForeground)),
                     onLongPress: () {
                       Clipboard.setData(
                           ClipboardData(text: _endpointFor(t.type)));
@@ -191,47 +202,56 @@ class _PackagesScreenState extends State<PackagesScreen> {
                     },
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               Text('OCI Image Catalog (${_repositories.length})',
-                  style: Theme.of(context).textTheme.titleSmall),
+                  style: text.meta
+                      .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
               if (_repositories.isEmpty)
-                const Padding(
-                    padding: EdgeInsets.all(8), child: Text('No images stored.'))
+                Padding(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    child: Text('No images stored.',
+                        style: text.meta
+                            .copyWith(color: colors.mutedForeground)))
               else
                 for (final repo in _repositories)
                   ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.inventory_2_outlined, size: 16),
-                    title: Text(repo, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                    leading: Icon(Icons.inventory_2_outlined,
+                        size: 16, color: colors.mutedForeground),
+                    title: Text(repo, style: text.mono.copyWith(fontSize: 12)),
                   ),
               if (_zergxCfg != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text('Registry Backend Config (read-only)',
-                    style: Theme.of(context).textTheme.titleSmall),
+                    style: text.meta
+                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                     'self_base: ${_zergxCfg!['self_base'] ?? '—'}\nhttp_proxy: ${_zergxCfg!['http_proxy'] ?? '—'}',
-                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                    style: text.mono.copyWith(
+                        fontSize: 12, color: colors.mutedForeground)),
               ],
             ],
           );
   }
 
   Widget _packages(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (_pkgLoading && _pkgs.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
                   decoration: const InputDecoration(
-                      hintText: 'Search packages...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(), isDense: true),
+                    hintText: 'Search packages...',
+                    prefixIcon: Icon(Icons.search_rounded),
+                  ),
                   onChanged: (v) => _pkgQuery = v,
                   onSubmitted: (_) {
                     _offset = 0;
@@ -239,10 +259,11 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               DropdownButton<String>(
                 value: _typeFilter.isEmpty ? null : _typeFilter,
-                hint: const Text('Type'),
+                hint: Text('Type', style: text.meta),
+                underline: const SizedBox.shrink(),
                 items: [
                   for (final t in _types.where((t) => t.type.isNotEmpty))
                     DropdownMenuItem(value: t.type, child: Text(t.type)),
@@ -254,7 +275,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 },
               ),
               IconButton(
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.search_rounded),
                   onPressed: () {
                     _offset = 0;
                     _loadPackages();
@@ -265,19 +286,23 @@ class _PackagesScreenState extends State<PackagesScreen> {
         Expanded(
           child: _pkgs.isEmpty
               ? Center(
-                  child: Text(_pkgError.isNotEmpty ? _pkgError : 'No packages registered yet.'))
+                  child: Text(
+                      _pkgError.isNotEmpty ? _pkgError : 'No packages registered yet.',
+                      style:
+                          TextStyle(color: colors.mutedForeground)))
               : ListView.builder(
                   itemCount: _pkgs.length,
                   itemBuilder: (_, i) => _pkgRow(_pkgs[i]),
                 ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('${_offset + 1}–${_offset + _pkgs.length} of $_total',
-                  style: const TextStyle(fontSize: 11)),
+                  style: text.micro.copyWith(color: colors.mutedForeground)),
               Row(
                 children: [
                   TextButton(
@@ -308,18 +333,26 @@ class _PackagesScreenState extends State<PackagesScreen> {
   }
 
   Widget _pkgRow(UnifiedPackageEntry p) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final key = '${p.type}/${p.name}';
     final expanded = _expandedKey == key;
     return Column(
       children: [
         ListTile(
-          dense: true,
-          leading: Icon(expanded ? Icons.expand_more : Icons.chevron_right, size: 18),
-          title: Text(p.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
-          subtitle: Text('${p.type}${p.latestVersion != null ? ' · v${p.latestVersion}' : ''} · ${p.versions} versions',
-              style: const TextStyle(fontSize: 10)),
+          leading: Icon(
+              expanded
+                  ? Icons.keyboard_arrow_down_rounded
+                  : Icons.chevron_right_rounded,
+              size: 18,
+              color: colors.mutedForeground),
+          title: Text(p.name, style: text.mono.copyWith(fontSize: 13)),
+          subtitle: Text(
+              '${p.type}${p.latestVersion != null ? ' · v${p.latestVersion}' : ''} · ${p.versions} versions',
+              style: text.micro.copyWith(color: colors.mutedForeground)),
           trailing: IconButton(
-            icon: const Icon(Icons.delete_outline, size: 18),
+            icon: Icon(Icons.delete_outline_rounded,
+                size: 18, color: colors.mutedForeground),
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
@@ -347,49 +380,54 @@ class _PackagesScreenState extends State<PackagesScreen> {
         ),
         if (expanded)
           Padding(
-            padding: const EdgeInsets.only(left: 32, bottom: 8),
+            padding: const EdgeInsets.only(
+                left: 32, bottom: AppSpacing.sm, right: AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final v in _versionDetail)
-                  _versionRow(p, v),
+                for (final v in _versionDetail) _versionRow(p, v),
                 if (_versionDetail.isEmpty)
-                  const Text('No versions found.',
-                      style: TextStyle(fontSize: 11)),
+                  Text('No versions found.',
+                      style: text.micro.copyWith(color: colors.mutedForeground)),
               ],
             ),
           ),
-        const Divider(height: 1),
+        Divider(height: 1, color: colors.border.withValues(alpha: 0.4)),
       ],
     );
   }
 
   Widget _versionRow(UnifiedPackageEntry p, PackageVersion v) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(v.version, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
-              const SizedBox(width: 8),
+              Text(v.version, style: text.mono.copyWith(fontSize: 12)),
+              const SizedBox(width: AppSpacing.sm),
               Text('${v.downloadCount} downloads',
-                  style: const TextStyle(fontSize: 10)),
+                  style: text.micro.copyWith(color: colors.mutedForeground)),
             ],
           ),
           for (final f in v.files)
             Padding(
-              padding: const EdgeInsets.only(left: 8, top: 2),
+              padding: const EdgeInsets.only(left: AppSpacing.sm, top: 2),
               child: Row(
                 children: [
-                  const Icon(Icons.insert_drive_file_outlined, size: 12),
-                  const SizedBox(width: 4),
+                  Icon(Icons.insert_drive_file_outlined,
+                      size: 12, color: colors.mutedForeground),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                       child: Text(f.name,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 11))),
-                  Text(_fmtSize(f.size), style: const TextStyle(fontSize: 10)),
+                          style: text.mono.copyWith(fontSize: 11))),
+                  Text(_fmtSize(f.size),
+                      style:
+                          text.micro.copyWith(color: colors.mutedForeground)),
                 ],
               ),
             ),

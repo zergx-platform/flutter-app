@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../api.dart';
-import '../prefs.dart';
-import '../store.dart';
-import '../screens/chat.dart';
-import '../screens/chat_sidebar.dart';
-import '../screens/code.dart';
-import '../screens/config.dart';
-import '../screens/containers.dart';
-import '../screens/packages.dart';
+import 'api.dart';
+import 'prefs.dart';
+import 'store.dart';
+import 'theme/app_theme.dart';
+import 'screens/chat.dart';
+import 'screens/chat_sidebar.dart';
+import 'screens/code.dart';
+import 'screens/config.dart';
+import 'screens/containers.dart';
+import 'screens/packages.dart';
 
 const defaultBaseUrl = 'https://gateway.zergx.10.199.64.20.nip.io';
 
@@ -57,18 +58,8 @@ class _ZergxAppState extends State<ZergxApp> {
     return MaterialApp(
       title: 'ZergX',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        useMaterial3: true,
-        brightness: Brightness.light,
-        fontFamilyFallback: const ['NotoSansSC'],
-      ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        fontFamilyFallback: const ['NotoSansSC'],
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
       home: _buildHome(),
     );
@@ -91,11 +82,32 @@ class _ZergxAppState extends State<ZergxApp> {
         },
       );
     }
-    _store ??= AppStore(ZergxApi(baseUrl: _baseUrl!, token: _token!));
-    return _Shell(store: _store!, darkMode: _dark, onDarkMode: _setDarkMode);
+    if (_store != null) {
+      return _Shell(
+          store: _store!, darkMode: _dark, onDarkMode: _setDarkMode);
+    }
+    return FutureBuilder<AppStore>(
+      future: _buildStore(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        return _Shell(
+            store: snap.data!, darkMode: _dark, onDarkMode: _setDarkMode);
+      },
+    );
+  }
+
+  Future<AppStore> _buildStore() async {
+    final api = await ZergxApi.create(baseUrl: _baseUrl!, token: _token!);
+    if (mounted) _store = AppStore(api);
+    return _store!;
   }
 }
 
+/// App shell. Phones get a bottom navigation bar (IM-app style); tablets and
+/// desktop get a compact navigation rail.
 class _Shell extends StatelessWidget {
   final AppStore store;
   final bool darkMode;
@@ -103,43 +115,57 @@ class _Shell extends StatelessWidget {
   const _Shell(
       {required this.store, required this.darkMode, required this.onDarkMode});
 
+  static const _navItems = <(SiderTab, IconData, String)>[
+    (SiderTab.chat, Icons.chat_bubble_outline, 'Chat'),
+    (SiderTab.code, Icons.folder_copy_outlined, 'Code'),
+    (SiderTab.containers, Icons.inventory_2_outlined, 'Containers'),
+    (SiderTab.packages, Icons.all_inbox_outlined, 'Packages'),
+    (SiderTab.config, Icons.settings_outlined, 'Config'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
         final tab = store.siderTab;
-        Widget body;
-        switch (tab) {
-          case SiderTab.chat:
-            body = store.activeSessionId == null
-                ? _SessionsHome(store: store)
-                : ChatScreen(store: store);
-            break;
-          case SiderTab.code:
-            body = CodeScreen(store: store);
-            break;
-          case SiderTab.config:
-            body = ConfigScreen(
+        final compact = MediaQuery.sizeOf(context).width < 900;
+        // Inside a conversation the bottom bar is hidden — the chat screen
+        // owns the full height, like a native IM app.
+        final hideTabBar = tab == SiderTab.chat && store.activeSessionId != null;
+        Widget body = switch (tab) {
+          SiderTab.chat => store.activeSessionId == null
+              ? _SessionsHome(store: store)
+              : ChatScreen(store: store),
+          SiderTab.code => CodeScreen(store: store),
+          SiderTab.config => ConfigScreen(
               store: store,
               darkMode: darkMode,
               onDarkMode: onDarkMode,
-            );
-            break;
-          case SiderTab.containers:
-            body = ContainersScreen(store: store);
-            break;
-          case SiderTab.packages:
-            body = PackagesScreen(store: store);
-            break;
-        }
+            ),
+          SiderTab.containers => ContainersScreen(store: store),
+          SiderTab.packages => PackagesScreen(store: store),
+        };
         return Scaffold(
-          body: Row(
-            children: [
-              _NavRail(tab: tab, onTap: (t) => store.switchTab(t)),
-              Expanded(child: body),
-            ],
-          ),
+          body: compact
+              ? body
+              : Row(
+                  children: [
+                    _NavRail(
+                      tab: tab,
+                      items: _navItems,
+                      onTap: (t) => store.switchTab(t),
+                    ),
+                    Expanded(child: body),
+                  ],
+                ),
+          bottomNavigationBar: compact && !hideTabBar
+              ? _BottomBar(
+                  tab: tab,
+                  items: _navItems,
+                  onTap: (t) => store.switchTab(t),
+                )
+              : null,
         );
       },
     );
@@ -148,42 +174,169 @@ class _Shell extends StatelessWidget {
 
 class _NavRail extends StatelessWidget {
   final SiderTab tab;
+  final List<(SiderTab, IconData, String)> items;
   final void Function(SiderTab) onTap;
-  const _NavRail({required this.tab, required this.onTap});
+  const _NavRail(
+      {required this.tab, required this.items, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final items = <(SiderTab, IconData, String)>[
-      (SiderTab.chat, Icons.chat_bubble_outline, 'Chat'),
-      (SiderTab.code, Icons.folder_copy_outlined, 'Code'),
-      (SiderTab.containers, Icons.inventory_2_outlined, 'Containers'),
-      (SiderTab.packages, Icons.all_inbox_outlined, 'Packages'),
-      (SiderTab.config, Icons.settings_outlined, 'Config'),
-    ];
-      return NavigationRail(
-      selectedIndex: tab.index,
-      labelType: MediaQuery.of(context).size.width < 900
-          ? NavigationRailLabelType.none
-          : NavigationRailLabelType.all,
-      onDestinationSelected: (i) => onTap(SiderTab.values[i]),
-      destinations: [
-        for (final (_, icon, label) in items)
-          NavigationRailDestination(
-              icon: Icon(icon), label: Text(label)),
-      ],
+    final colors = colorsOf(context);
+    return Container(
+      width: 56,
+      decoration: BoxDecoration(
+        color: colors.card,
+        border: Border(
+          right: BorderSide(color: colors.border.withValues(alpha: 0.5)),
+        ),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: AppSpacing.md),
+          for (final (t, icon, label) in items)
+            _RailItem(
+              icon: icon,
+              label: label,
+              selected: tab == t,
+              onTap: () => onTap(t),
+            ),
+        ],
+      ),
     );
   }
 }
 
+class _RailItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _RailItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.rSm,
+        child: SizedBox(
+          width: 48,
+          height: 44,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 20,
+                  color: selected ? colors.primary : colors.mutedForeground),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: text.micro.copyWith(
+                  color:
+                      selected ? colors.primary : colors.mutedForeground,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  final SiderTab tab;
+  final List<(SiderTab, IconData, String)> items;
+  final void Function(SiderTab) onTap;
+  const _BottomBar(
+      {required this.tab, required this.items, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.card,
+        border: Border(
+          top: BorderSide(color: colors.border.withValues(alpha: 0.5)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              for (final (t, icon, label) in items)
+                Expanded(
+                  child: InkWell(
+                    onTap: () => onTap(t),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon,
+                            size: 22,
+                            color: selected(t, tab)
+                                ? colors.primary
+                                : colors.mutedForeground),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: text.micro.copyWith(
+                            color: selected(t, tab)
+                                ? colors.primary
+                                : colors.mutedForeground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static bool selected(SiderTab t, SiderTab current) => t == current;
+}
+
+/// Sessions list home — shown when no conversation is open (IM-style).
 class _SessionsHome extends StatelessWidget {
   final AppStore store;
   const _SessionsHome({required this.store});
 
   @override
   Widget build(BuildContext context) {
+    final text = textOf(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Sessions')),
-      body: ChatSidebar(store: store),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.sm),
+            child: Text(
+              'Pick a repo & branch to start chatting',
+              style: text.meta.copyWith(
+                  color: colorsOf(context).mutedForeground),
+            ),
+          ),
+          Expanded(child: ChatSidebar(store: store)),
+        ],
+      ),
     );
   }
 }
@@ -200,46 +353,55 @@ class _SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<_SetupScreen> {
   late final TextEditingController _base =
       TextEditingController(text: widget.initialBaseUrl);
-  late final TextEditingController _token =
-      TextEditingController(text: '5H7q_K940ySbgXng7H3nNWTTweGcjhGmFSJwJnTAQRw');
+  final TextEditingController _token = TextEditingController();
+
+  @override
+  void dispose() {
+    _base.dispose();
+    _token.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('ZergX', style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: _base,
-                    decoration: const InputDecoration(
-                        labelText: 'Gateway URL', border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _token,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        labelText: 'Token', border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: () {
-                      if (_base.text.isNotEmpty && _token.text.isNotEmpty) {
-                        widget.onSave(_base.text.trim(), _token.text.trim());
-                      }
-                    },
-                    child: const Text('Connect'),
-                  ),
-                ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Center(
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('ZergX',
+                        style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: AppSpacing.xl),
+                    TextField(
+                      controller: _base,
+                      decoration: const InputDecoration(
+                          labelText: 'Gateway URL'),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: _token,
+                      obscureText: true,
+                      decoration: const InputDecoration(labelText: 'Token'),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    FilledButton(
+                      onPressed: () {
+                        if (_base.text.isNotEmpty && _token.text.isNotEmpty) {
+                          widget.onSave(
+                              _base.text.trim(), _token.text.trim());
+                        }
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

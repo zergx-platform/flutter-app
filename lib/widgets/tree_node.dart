@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 
 String formatSize(int bytes) {
   if (bytes < 1024) return '${bytes}B';
@@ -16,12 +17,13 @@ class TreeNode extends StatelessWidget {
   final String path;
   final int depth;
   final List<bool> ancestorsLast;
-  const TreeNode(
-      {super.key,
-      required this.store,
-      this.path = '',
-      this.depth = 0,
-      this.ancestorsLast = const []});
+  const TreeNode({
+    super.key,
+    required this.store,
+    this.path = '',
+    this.depth = 0,
+    this.ancestorsLast = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +47,8 @@ class TreeNode extends StatelessWidget {
   }
 
   Widget _entry(BuildContext context, FileEntry entry, int i, int total) {
-    final theme = Theme.of(context);
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final prefix = _prefix(i, total);
     if (entry.isDir) {
       final expanded = store.expandedDirs.contains(entry.path);
@@ -55,20 +58,21 @@ class TreeNode extends StatelessWidget {
           InkWell(
             onTap: () => store.toggleDir(entry.path),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 1),
+              padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
-                  Text(prefix,
-                      style: const TextStyle(
-                          fontFamily: 'monospace', fontSize: 11)),
-                  Icon(expanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
-                      size: 16, color: theme.colorScheme.outline),
-                  const Icon(Icons.folder, size: 15, color: Colors.lightBlue),
-                  const SizedBox(width: 4),
+                  Text(prefix, style: text.mono.copyWith(fontSize: 11)),
+                  Icon(
+                      expanded
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_right_rounded,
+                      size: 15,
+                      color: colors.mutedForeground),
+                  Icon(Icons.folder_rounded, size: 15, color: colors.primary),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(entry.name,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12)),
+                        overflow: TextOverflow.ellipsis, style: text.meta),
                   ),
                 ],
               ),
@@ -87,24 +91,24 @@ class TreeNode extends StatelessWidget {
     return InkWell(
       onTap: () => store.openFile(entry.path),
       child: Container(
-        color: selected ? theme.colorScheme.primary.withValues(alpha: 0.15) : null,
-        padding: const EdgeInsets.symmetric(vertical: 1),
+        color: selected ? colors.primary.withValues(alpha: 0.15) : null,
+        padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            Text(prefix, style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
-            const SizedBox(width: 16),
+            Text(prefix, style: text.mono.copyWith(fontSize: 11)),
+            const SizedBox(width: AppSpacing.lg),
             Icon(Icons.insert_drive_file_outlined,
-                size: 14, color: theme.colorScheme.outline),
-            const SizedBox(width: 4),
+                size: 14, color: colors.mutedForeground),
+            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(entry.name,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: selected ? theme.colorScheme.primary : null)),
+                  style: text.meta
+                      .copyWith(color: selected ? colors.primary : null)),
             ),
             if (entry.size > 0)
               Text(formatSize(entry.size),
-                  style: TextStyle(
-                      fontSize: 9, color: theme.colorScheme.outline)),
+                  style: text.micro.copyWith(color: colors.mutedForeground)),
           ],
         ),
       ),

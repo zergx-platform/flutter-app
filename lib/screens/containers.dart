@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 import 'container_overlay.dart';
 
 /// Recreates ContainersPage.svelte (sandboxes + deployments; terminal
@@ -63,13 +64,15 @@ class _ContainersScreenState extends State<ContainersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Containers'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
           IconButton(
-              icon: const Icon(Icons.public),
+              icon: const Icon(Icons.public_rounded),
               tooltip: 'Deploy service',
               onPressed: () => _deployDialog()),
         ],
@@ -77,27 +80,36 @@ class _ContainersScreenState extends State<ContainersScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 if (_error.isNotEmpty)
-                  Text(_error,
-                      style: const TextStyle(color: Colors.red, fontSize: 13)),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Text(_error,
+                        style: text.meta.copyWith(color: colors.destructive)),
+                  ),
                 Text('Deployments',
-                    style: Theme.of(context).textTheme.titleSmall),
+                    style: text.meta
+                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                 if (_deployments.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No deployments yet.'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Text('No deployments yet.',
+                        style: text.meta
+                            .copyWith(color: colors.mutedForeground)),
                   )
                 else
                   for (final d in _deployments) _deploymentCard(d),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 Text('Sandboxes',
-                    style: Theme.of(context).textTheme.titleSmall),
+                    style: text.meta
+                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                 if (_sandboxes.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No containers running.'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Text('No containers running.',
+                        style: text.meta
+                            .copyWith(color: colors.mutedForeground)),
                   )
                 else
                   for (final s in _sandboxes) _sandboxCard(s),
@@ -107,22 +119,35 @@ class _ContainersScreenState extends State<ContainersScreen> {
   }
 
   Widget _deploymentCard(Deployment d) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Card(
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: ListTile(
-        title: Text(d.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
-        subtitle: Text(d.image, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(d.name, style: text.mono.copyWith(fontSize: 13)),
+        subtitle: Text(d.image,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.micro.copyWith(color: colors.mutedForeground)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Chip(
-              visualDensity: VisualDensity.compact,
-              label: Text('${d.ready}/${d.replicas} ready',
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: d.ready > 0 ? Colors.green : Colors.red)),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: 2),
+              decoration: BoxDecoration(
+                color: d.ready > 0
+                    ? colors.success.withValues(alpha: 0.12)
+                    : colors.destructive.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text('${d.ready}/${d.replicas} ready',
+                  style: text.micro.copyWith(
+                      color: d.ready > 0 ? colors.success : colors.destructive)),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18),
+              icon: Icon(Icons.delete_outline_rounded,
+                  size: 18, color: colors.mutedForeground),
               onPressed: () => _destroyDeployment(d),
             ),
           ],
@@ -132,10 +157,16 @@ class _ContainersScreenState extends State<ContainersScreen> {
   }
 
   Widget _sandboxCard(Sandbox s) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Card(
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: ListTile(
-        title: Text(s.podName, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
-        subtitle: Text(s.session, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(s.podName, style: text.mono.copyWith(fontSize: 13)),
+        subtitle: Text(s.session,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.micro.copyWith(color: colors.mutedForeground)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -145,19 +176,21 @@ class _ContainersScreenState extends State<ContainersScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: s.status == 'running'
-                    ? Colors.green
+                    ? colors.success
                     : s.status == 'starting'
-                        ? Colors.amber
-                        : Colors.red,
+                        ? colors.warning
+                        : colors.destructive,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             TextButton(
-              onPressed: s.status != 'running' ? null : () => _openTerminal(s),
+              onPressed:
+                  s.status != 'running' ? null : () => _openTerminal(s),
               child: const Text('Terminal'),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18),
+              icon: Icon(Icons.delete_outline_rounded,
+                  size: 18, color: colors.mutedForeground),
               onPressed: () => _destroySandbox(s),
             ),
           ],
@@ -169,7 +202,8 @@ class _ContainersScreenState extends State<ContainersScreen> {
   void _openTerminal(Sandbox s) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
-        appBar: AppBar(title: Text(s.session, style: const TextStyle(fontFamily: 'monospace'))),
+        appBar: AppBar(
+            title: Text(s.session, style: textOf(context).mono)),
         body: ContainerWorkspace(store: store, session: s.session),
       ),
     ));
@@ -189,19 +223,39 @@ class _ContainersScreenState extends State<ContainersScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
-              TextField(controller: image, decoration: const InputDecoration(labelText: 'Image')),
-              TextField(controller: replicas, keyboardType: TextInputType.number,
+              TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Name')),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: image,
+                  decoration: const InputDecoration(labelText: 'Image')),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: replicas,
+                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Replicas')),
-              TextField(controller: port, keyboardType: TextInputType.number,
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: port,
+                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Port')),
-              TextField(controller: session, decoration: const InputDecoration(labelText: 'Session (optional)')),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: session,
+                  decoration:
+                      const InputDecoration(labelText: 'Session (optional)')),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Deploy')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Deploy'),
+          ),
         ],
       ),
     );

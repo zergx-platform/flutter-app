@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../theme/app_theme.dart';
 import 'tool_icon.dart';
 
 /// Recreates ToolPartView.svelte: a collapsible tool-call card.
@@ -8,11 +9,12 @@ class ToolPartView extends StatefulWidget {
   final ChatPart part;
   final bool isStreaming;
   final void Function(String changeId)? onOpenChange;
-  const ToolPartView(
-      {super.key,
-      required this.part,
-      this.isStreaming = false,
-      this.onOpenChange});
+  const ToolPartView({
+    super.key,
+    required this.part,
+    this.isStreaming = false,
+    this.onOpenChange,
+  });
 
   @override
   State<ToolPartView> createState() => _ToolPartViewState();
@@ -101,88 +103,121 @@ class _ToolPartViewState extends State<ToolPartView> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dot = status == 'running'
-        ? Colors.amber
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final dotColor = status == 'running'
+        ? colors.warning
         : status == 'pending'
-            ? Colors.orange
+            ? colors.warning
             : hasError
-                ? Colors.red
-                : Colors.green;
+                ? colors.destructive
+                : colors.success;
     return Container(
       decoration: BoxDecoration(
+        color: hasError
+            ? colors.destructive.withValues(alpha: 0.05)
+            : colors.background.withValues(alpha: 0.5),
         border: Border.all(
             color: hasError
-                ? theme.colorScheme.errorContainer
-                : theme.dividerColor),
-        borderRadius: BorderRadius.circular(4),
+                ? colors.destructive.withValues(alpha: 0.4)
+                : colors.border.withValues(alpha: 0.5)),
+        borderRadius: AppRadius.rSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
             onTap: () => setState(() => _open = !_open),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(AppRadius.sm),
+              bottom: _open ? Radius.zero : Radius.circular(AppRadius.sm),
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
               child: Row(
                 children: [
                   Container(
                       width: 6,
                       height: 6,
-                      decoration: BoxDecoration(
-                          color: dot, shape: BoxShape.circle)),
-                  const SizedBox(width: 6),
+                      decoration:
+                          BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+                  const SizedBox(width: AppSpacing.sm),
                   ToolIcon(tool),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(toolDisplayName(tool),
-                      style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500)),
+                      style: text.mono.copyWith(
+                          fontSize: 12, fontWeight: FontWeight.w500)),
                   if ((state?.title ?? '').isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(state!.title!,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: theme.colorScheme.outline,
+                          style: text.micro.copyWith(
+                              color: colors.mutedForeground,
                               fontStyle: FontStyle.italic)),
                     ),
                   ],
                   const Spacer(),
-                  if (changeId != null && widget.onOpenChange != null)
-                    TextButton.icon(
-                      icon: const Icon(Icons.commit, size: 14),
-                      label: Text(changeId!.substring(0, 8),
-                          style: const TextStyle(
-                              fontFamily: 'monospace', fontSize: 11)),
-                      onPressed: () => widget.onOpenChange!(changeId!),
+                  Icon(
+                    _open
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 14,
+                    color: colors.mutedForeground,
+                  ),
+                  if (changeId != null && widget.onOpenChange != null) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    InkWell(
+                      onTap: () => widget.onOpenChange!(changeId!),
+                      borderRadius: AppRadius.rSm,
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.commit_rounded,
+                                size: 13, color: colors.primary),
+                            const SizedBox(width: 2),
+                            Text(changeId!.substring(0, 8),
+                                style: text.mono.copyWith(
+                                    fontSize: 10, color: colors.primary)),
+                          ],
+                        ),
+                      ),
                     ),
+                  ],
                 ],
               ),
             ),
           ),
           if (_open)
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: _body(theme),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm, 0, AppSpacing.sm, AppSpacing.sm),
+              child: _body(context),
             ),
         ],
       ),
     );
   }
 
-  Widget _body(ThemeData theme) {
+  Widget _body(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final children = <Widget>[];
     if (state?.error != null) {
       children.add(Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(6),
-        color: theme.colorScheme.errorContainer,
-        child: Text(state!.error!,
-            style: TextStyle(
-                color: theme.colorScheme.onErrorContainer, fontSize: 11)),
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.destructive.withValues(alpha: 0.12),
+          borderRadius: AppRadius.rSm,
+        ),
+        child: SelectableText(state!.error!,
+            style: text.mono.copyWith(
+                fontSize: 11, color: colors.destructive)),
       ));
     }
     final summary = inputSummary(tool, input);
@@ -200,19 +235,20 @@ class _ToolPartViewState extends State<ToolPartView> {
     if (output != null && output.isNotEmpty) {
       children.add(Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(AppSpacing.xs),
         constraints: const BoxConstraints(maxHeight: 220),
         child: SingleChildScrollView(
           child: SelectableText(fmtOutput(output),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+              style: text.mono.copyWith(fontSize: 11)),
         ),
       ));
     } else if (widget.isStreaming && status == 'running') {
       children.add(Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Text('running...',
-            style: TextStyle(
-                color: theme.colorScheme.outline, fontStyle: FontStyle.italic)),
+            style: text.micro.copyWith(
+                color: colors.mutedForeground,
+                fontStyle: FontStyle.italic)),
       ));
     }
     return Column(
@@ -220,16 +256,17 @@ class _ToolPartViewState extends State<ToolPartView> {
   }
 
   Widget _code(BuildContext context, String text) {
+    final colors = colorsOf(context);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.all(6),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
+        color: colors.muted,
+        borderRadius: AppRadius.rSm,
       ),
-      child: Text(text,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+      child: SelectableText(text,
+          style: textOf(context).mono.copyWith(fontSize: 11)),
     );
   }
 }

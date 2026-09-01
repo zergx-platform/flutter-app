@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'net/http_client_factory.dart';
 
 class StreamEvent {
   final String event;
@@ -24,8 +25,18 @@ class TaskLogLine {
 class ZergxApi {
   final String baseUrl;
   final String token;
+  final http.Client client;
 
-  ZergxApi({required this.baseUrl, required this.token});
+  ZergxApi({required this.baseUrl, required this.token})
+      : client = http.Client();
+  ZergxApi.withClient(
+      {required this.baseUrl, required this.token, required this.client});
+
+  static Future<ZergxApi> create(
+      {required String baseUrl, required String token}) async {
+    return ZergxApi.withClient(
+        baseUrl: baseUrl, token: token, client: await platformHttpClient());
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -53,12 +64,12 @@ class ZergxApi {
   }
 
   Future<dynamic> _get(String path, [Map<String, dynamic>? query]) async {
-    final r = await http.get(_u(path, query), headers: _headers);
+    final r = await client.get(_u(path, query), headers: _headers);
     return _decode(r);
   }
 
   Future<dynamic> _post(String path, [Object? body]) async {
-    final r = await http.post(
+    final r = await client.post(
       _u(path),
       headers: _headers,
       body: body == null ? null : jsonEncode(body),
@@ -67,7 +78,7 @@ class ZergxApi {
   }
 
   Future<dynamic> _patch(String path, Object? body) async {
-    final r = await http.patch(
+    final r = await client.patch(
       _u(path),
       headers: _headers,
       body: body == null ? null : jsonEncode(body),
@@ -76,7 +87,7 @@ class ZergxApi {
   }
 
   Future<dynamic> _put(String path, Object? body) async {
-    final r = await http.put(
+    final r = await client.put(
       _u(path),
       headers: _headers,
       body: body == null ? null : jsonEncode(body),
@@ -85,7 +96,7 @@ class ZergxApi {
   }
 
   Future<dynamic> _del(String path) async {
-    final r = await http.delete(_u(path), headers: _headers);
+    final r = await client.delete(_u(path), headers: _headers);
     return _decode(r);
   }
 
@@ -196,7 +207,7 @@ class ZergxApi {
 
     final ctrl = StreamController<StreamEvent>();
     late final http.Client client;
-    client = http.Client();
+    client = this.client;
     client.send(req).then((resp) {
       if (resp.statusCode != 200) {
         ctrl.addError(ApiException(resp.statusCode, 'stream ${resp.statusCode}'));
@@ -236,7 +247,7 @@ class ZergxApi {
     final req = http.Request('GET', _u('/api/v1/builds/${_enc(buildId)}/stream'))
       ..headers.addAll(_headers);
     final ctrl = StreamController<dynamic>();
-    final client = http.Client();
+    final client = this.client;
     client.send(req).then((resp) {
       if (resp.statusCode != 200) {
         ctrl.addError(ApiException(resp.statusCode, 'stream ${resp.statusCode}'));
@@ -601,7 +612,7 @@ class ZergxApi {
       await _get('/api/v1/zergx-config') as Map<String, dynamic>;
 
   Future<List<String>> ociCatalog() async {
-    final j = await http.get(
+    final j = await client.get(
       Uri.parse('$baseUrl/v2/_catalog'),
       headers: _headers,
     );

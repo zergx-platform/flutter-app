@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
 import 'diff_parser.dart';
 
 enum DiffLayout { lineByLine, sideBySide }
@@ -20,20 +21,19 @@ class DiffView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = colorsOf(context);
     if (diffText.trim().isEmpty) {
       return Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text('No changes',
-            style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Text('No changes', style: TextStyle(color: colors.mutedForeground)),
       );
     }
     final files = parseDiff(diffText);
     if (files.isEmpty) {
-      return SelectableText(diffText,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12));
+      return SelectableText(diffText, style: textOf(context).mono);
     }
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [for (final f in files) _FileBlock(file: f, dark: dark)],
@@ -49,6 +49,8 @@ class _FileBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     var added = 0;
     var removed = 0;
     for (final h in file.hunks) {
@@ -61,40 +63,37 @@ class _FileBlock extends StatelessWidget {
       }
     }
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+        borderRadius: AppRadius.rSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             child: Row(
               children: [
                 Expanded(
                   child: Text(file.filename,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontFamily: 'monospace', fontSize: 11)),
+                      style: text.mono.copyWith(fontSize: 11)),
                 ),
                 Text('+$added ',
-                    style:
-                        const TextStyle(color: _addedBar, fontSize: 11)),
+                    style: text.micro.copyWith(color: _addedBar)),
                 Text('-$removed',
-                    style:
-                        const TextStyle(color: _removedBar, fontSize: 11)),
+                    style: text.micro.copyWith(color: _removedBar)),
               ],
             ),
           ),
           for (final h in file.hunks) ...[
             Container(
               color: dark ? const Color(0xff262b3a) : const Color(0xfff6f8fa),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Text(h.header,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              child: Text(h.header, style: text.mono.copyWith(fontSize: 11)),
             ),
             for (final l in h.lines) _row(context, l),
           ],
@@ -104,6 +103,7 @@ class _FileBlock extends StatelessWidget {
   }
 
   Widget _row(BuildContext context, DiffLine l) {
+    final text = textOf(context);
     Color? bg;
     Color bar = Colors.transparent;
     if (l.type == DiffLineType.removed) {
@@ -113,7 +113,7 @@ class _FileBlock extends StatelessWidget {
       bg = _addedBg(dark);
       bar = _addedBar;
     }
-    final numColor = Theme.of(context).colorScheme.outline;
+    final numColor = colorsOf(context).mutedForeground;
     Widget row = Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -121,21 +121,20 @@ class _FileBlock extends StatelessWidget {
           width: 44,
           child: Text('${l.oldLine ?? ''}',
               textAlign: TextAlign.right,
-              style: TextStyle(color: numColor, fontSize: 11, fontFamily: 'monospace')),
+              style: text.mono.copyWith(fontSize: 11, color: numColor)),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         SizedBox(
           width: 44,
           child: Text('${l.newLine ?? ''}',
               textAlign: TextAlign.right,
-              style: TextStyle(color: numColor, fontSize: 11, fontFamily: 'monospace')),
+              style: text.mono.copyWith(fontSize: 11, color: numColor)),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Container(width: 4, color: bar),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         Expanded(
-          child: Text(l.content,
-              style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+          child: Text(l.content, style: text.mono),
         ),
       ],
     );

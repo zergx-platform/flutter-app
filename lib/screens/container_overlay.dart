@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 
 class ContainerOverlay extends StatefulWidget {
   final AppStore store;
@@ -187,51 +188,58 @@ class _TerminalState extends State<_Terminal> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Column(
       children: [
         Expanded(
           child: Container(
-            color: Theme.of(context).colorScheme.surfaceContainerLowest,
+            color: colors.background,
             child: ListView.builder(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               itemCount: _history.length,
               itemBuilder: (_, i) {
                 final line = _history[i];
                 Color? color;
                 if (line.startsWith('[error]')) {
-                  color = Colors.redAccent;
+                  color = colors.destructive;
                 } else if (line.startsWith('\$') || line.startsWith('>')) {
-                  color = Theme.of(context).colorScheme.outline;
+                  color = colors.mutedForeground;
                 }
-                return Text(line,
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: color));
+                return SelectableText(line,
+                    style: text.mono.copyWith(fontSize: 12, color: color));
               },
             ),
           ),
         ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _cmd,
-                enabled: !_running,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                decoration: const InputDecoration(
-                  hintText: 'command...',
-                  isDense: true,
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border(
+                top: BorderSide(color: colors.border.withValues(alpha: 0.5))),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _cmd,
+                  enabled: !_running,
+                  style: text.mono.copyWith(fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: 'command...',
+                    filled: false,
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (_) {
+                    if (!_isIncomplete(_cmd.text)) _execute();
+                  },
                 ),
-                onSubmitted: (_) {
-                  if (!_isIncomplete(_cmd.text)) _execute();
-                },
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.send, size: 16),
-              onPressed: _running || _cmd.text.trim().isEmpty ? null : _execute,
-            ),
-          ],
+              IconButton(
+                icon: const Icon(Icons.send_rounded, size: 16),
+                onPressed: _running || _cmd.text.trim().isEmpty ? null : _execute,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -272,22 +280,28 @@ class _JobsState extends State<_Jobs> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (_jobs.isEmpty) {
-      return const Center(child: Text('No jobs'));
+      return Center(child: Text('No jobs', style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.builder(
       itemCount: _jobs.length,
       itemBuilder: (_, i) {
         final j = _jobs[i];
         return ListTile(
-          dense: true,
           title: Text(j.command,
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.meta),
           subtitle: Text('${j.id} · ${j.state}',
-              style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+              style: text.mono.copyWith(
+                  fontSize: 10, color: colors.mutedForeground)),
           trailing: j.state == 'running'
               ? IconButton(
-                  icon: const Icon(Icons.stop, size: 16), onPressed: () => _kill(j))
+                  icon: Icon(Icons.stop_rounded,
+                      size: 16, color: colors.destructive),
+                  onPressed: () => _kill(j))
               : null,
           onTap: () => _showOutput(j),
         );
@@ -305,7 +319,7 @@ class _JobsState extends State<_Jobs> {
           height: 300,
           child: SingleChildScrollView(
             child: SelectableText(j.stdout ?? 'No output',
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+                style: textOf(ctx).mono.copyWith(fontSize: 11)),
           ),
         ),
         actions: [

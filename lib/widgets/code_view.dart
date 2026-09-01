@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Line-numbered, syntax-free code viewer (recreates CodeView.svelte).
+import '../theme/app_theme.dart';
+
+/// Line-numbered code viewer (recreates CodeView.svelte). Uses a
+/// scrollable TextField-free layout: header gutter column + selectable
+/// code, both scrolling horizontally together.
 class CodeView extends StatelessWidget {
   final String code;
   final String filepath;
@@ -9,30 +13,41 @@ class CodeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lines = code.split('\n');
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final codeStyle = text.mono.copyWith(fontSize: 12);
+    return Scrollbar(
+      child: SingleChildScrollView(
+        padding:
+            const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (var i = 1; i <= lines.length; i++)
-                Text('$i',
-                    style: TextStyle(
-                        color: theme.colorScheme.outline,
-                        fontSize: 11,
-                        fontFamily: 'monospace')),
+              SizedBox(
+                width: 36,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (var i = 1; i <= lines.length; i++)
+                      Text('$i',
+                          style: codeStyle.copyWith(color: colors.mutedForeground)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                    minWidth: MediaQuery.sizeOf(context).width - 80),
+                child: SelectableText(
+                  code,
+                  style: codeStyle,
+                ),
+              ),
             ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: SelectableText(
-              code,
-              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

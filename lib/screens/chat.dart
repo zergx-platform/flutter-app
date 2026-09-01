@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../messages.dart';
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 import '../widgets/diff_view.dart';
 import '../widgets/message_bubble.dart';
 import 'chat_sidebar.dart';
@@ -12,7 +13,9 @@ import 'container_overlay.dart';
 import 'files_overlay.dart';
 import 'overlays.dart';
 
-/// Recreates ChatPage.svelte: main chat column + overlay side panel.
+/// IM-style chat screen. Mobile-first: full-height conversation, sticky
+/// composer with safe-area padding, long-press message actions. Wide
+/// screens keep the sidebar + overlay panel layout.
 class ChatScreen extends StatefulWidget {
   final AppStore store;
   const ChatScreen({super.key, required this.store});
@@ -25,6 +28,7 @@ class _ChatScreenState extends State<ChatScreen> {
   AppStore get store => widget.store;
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
+  final FocusNode _inputFocus = FocusNode();
   MessagesController? _msg;
   List<ModelInfo> _models = [];
   List<Preset> _presets = [];
@@ -78,7 +82,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final sid = store.activeSessionId;
     if (sid == null) return;
     _msg?.dispose();
-    final m = MessagesController(api: store.api, getSessionId: () => store.activeSessionId ?? sid);
+    final m = MessagesController(
+        api: store.api, getSessionId: () => store.activeSessionId ?? sid);
     m.onSessionEvent((event, params) {
       if (event == 'todos-updated' || event == 'turn-complete') {
         store.bumpSessionRevision();
@@ -89,12 +94,11 @@ class _ChatScreenState extends State<ChatScreen> {
       if (event == 'status' && params['type'] == 'busy') {
         store.bumpSessionRevision();
       }
-      if (event == 'turn-complete') {
-        store.bumpSessionRevision();
-      }
     });
     m.addListener(_onMsg);
     m.init();
+    // New conversation: reset scroll so it sticks to the latest message.
+    _initialScrollDone = false;
     setState(() => _msg = m);
   }
 
@@ -109,7 +113,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final m = _msg;
     if (m == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
+      if (!mounted || !_scroll.hasClients) return;
       if (!_initialScrollDone) {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
         _initialScrollDone = true;
@@ -129,6 +133,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _msg?.removeListener(_onMsg);
     _msg?.dispose();
     _input.dispose();
+    _inputFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -137,7 +142,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _input.text.trim();
     if (text.isEmpty) return;
     _input.clear();
+    setState(() {});
     await _msg?.send(text);
+    _inputFocus.requestFocus();
   }
 
   Future<void> _switchModel(String modelId) async {
@@ -181,47 +188,52 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = colorsOf(context);
+    final wide = MediaQuery.sizeOf(context).width >= 1024;
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          if (MediaQuery.of(context).size.width >= 1024)
-            SizedBox(
-              width: 260,
-              child: _sidebar(context),
-            ),
+          _topBar(context),
+          Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
           Expanded(
-            child: Column(
+            child: Row(
               children: [
-                _topBar(theme),
-                Expanded(child: _messageList()),
-                _composer(theme),
+                if (wide)
+                  SizedBox(
+                    width: 260,
+                    child: _sidebar(context),
+                  ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(child: _messageList()),
+                      _composer(context),
+                    ],
+                  ),
+                ),
+                if (store.sessionOverlay != null && wide)
+                  SizedBox(width: 440, child: _overlayPanel(context)),
               ],
             ),
           ),
-          if (store.sessionOverlay != null &&
-              MediaQuery.of(context).size.width >= 1024)
-            SizedBox(width: 440, child: _overlayPanel(theme)),
         ],
       ),
     );
   }
 
   Widget _sidebar(BuildContext context) {
-    return Container(
+    final colors = colorsOf(context);
+    return DecoratedBox(
       decoration: BoxDecoration(
-          border: Border(right: BorderSide(color: Theme.of(context).dividerColor))),
-      child: Column(
-        children: [
-          Expanded(
-            child: ChatSidebar(store: store),
-          ),
-        ],
-      ),
+          border: Border(
+              right: BorderSide(color: colors.border.withValues(alpha: 0.5)))),
+      child: ChatSidebar(store: store),
     );
   }
 
-  Widget _topBar(ThemeData theme) {
+  Widget _topBar(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final s = store.activeSession;
     final overlayTitle = switch (store.sessionOverlay) {
       SessionOverlay.timeline => 'Timeline',
@@ -231,57 +243,68 @@ class _ChatScreenState extends State<ChatScreen> {
       SessionOverlay.todos => 'Todos',
       null => '',
     };
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: theme.dividerColor))),
-      child: Row(
-        children: [
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.arrow_back, size: 20),
-            onPressed: () {
-              if (store.sessionOverlay != null) {
-                store.closeOverlay();
-              } else {
-                store.closeSession();
-              }
-            },
-          ),
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _msg?.sending == true ? Colors.amber : Colors.green,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              s != null
-                  ? '${s.org}/${s.repo}'
-                      '${overlayTitle.isNotEmpty ? ' · $overlayTitle' : ''}'
-                  : 'Chat',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) => _menuAction(v),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'settings', child: Text('Session settings')),
-              const PopupMenuItem(value: 'compact', child: Text('Compact history')),
-              const PopupMenuItem(value: 'timeline', child: Text('Timeline')),
-              const PopupMenuItem(value: 'files', child: Text('Files')),
-              const PopupMenuItem(value: 'mailbox', child: Text('Mailbox')),
-              const PopupMenuItem(value: 'container', child: Text('Container')),
-              const PopupMenuItem(value: 'todos', child: Text('Todos')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete session')),
+    return SafeArea(
+      bottom: false,
+      child: SizedBox(
+        height: 52,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, size: 22),
+                onPressed: () {
+                  if (store.sessionOverlay != null) {
+                    store.closeOverlay();
+                  } else {
+                    store.closeSession();
+                  }
+                },
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _msg?.sending == true
+                      ? colors.warning
+                      : colors.success,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  s != null
+                      ? '${s.org}/${s.repo}'
+                          '${overlayTitle.isNotEmpty ? ' · $overlayTitle' : ''}'
+                      : 'Chat',
+                  overflow: TextOverflow.ellipsis,
+                  style: text.meta.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colors.mutedForeground),
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (v) => _menuAction(v),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'settings', child: Text('Session settings')),
+                  const PopupMenuItem(value: 'compact', child: Text('Compact history')),
+                  const PopupMenuItem(value: 'timeline', child: Text('Timeline')),
+                  const PopupMenuItem(value: 'files', child: Text('Files')),
+                  const PopupMenuItem(value: 'mailbox', child: Text('Mailbox')),
+                  const PopupMenuItem(value: 'container', child: Text('Container')),
+                  const PopupMenuItem(value: 'todos', child: Text('Todos')),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete session',
+                        style: TextStyle(color: colors.destructive)),
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -290,28 +313,20 @@ class _ChatScreenState extends State<ChatScreen> {
     switch (v) {
       case 'settings':
         _showSettings();
-        break;
       case 'compact':
         _compact();
-        break;
       case 'timeline':
         store.openOverlay(SessionOverlay.timeline);
-        break;
       case 'files':
         store.openOverlay(SessionOverlay.files);
-        break;
       case 'mailbox':
         store.openOverlay(SessionOverlay.mailbox);
-        break;
       case 'container':
         store.openOverlay(SessionOverlay.container);
-        break;
       case 'todos':
         store.openOverlay(SessionOverlay.todos);
-        break;
       case 'delete':
         _deleteSession();
-        break;
     }
   }
 
@@ -333,7 +348,8 @@ class _ChatScreenState extends State<ChatScreen> {
               child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error),
+                backgroundColor: colorsOf(ctx).destructive,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
@@ -374,8 +390,6 @@ class _ChatScreenState extends State<ChatScreen> {
         text: store.activeSession?.maxTurns?.toString() ?? '');
     final sysPrompt = TextEditingController(
         text: store.activeSession?.systemPrompt ?? '');
-    final baseImage = TextEditingController(
-        text: store.activeSession?.baseImage ?? '');
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -396,25 +410,26 @@ class _ChatScreenState extends State<ChatScreen> {
                     onChanged: (v) => setState(() => preset = v ?? ''),
                     decoration: const InputDecoration(labelText: 'Preset'),
                   ),
+                  const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: maxTurns,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Max Turns'),
                   ),
+                  const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: sysPrompt,
                     maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'System Prompt (blank = inherit)'),
-                  ),
-                  TextField(
-                    controller: baseImage,
-                    decoration: const InputDecoration(labelText: 'Worker Base Image'),
+                    decoration: const InputDecoration(
+                        labelText: 'System Prompt (blank = inherit)'),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
               FilledButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
@@ -424,8 +439,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     updates['max_turns'] = int.tryParse(maxTurns.text);
                   }
                   updates['system_prompt'] = sysPrompt.text;
-                  updates['base_image'] =
-                      baseImage.text.trim().isEmpty ? null : baseImage.text.trim();
                   try {
                     final updated = await store.api.settings(sid, updates);
                     _applySession(updated);
@@ -452,7 +465,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     return ListView.builder(
       controller: _scroll,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.md),
       itemCount: m.sorted.length + (m.hasMore ? 1 : 0),
       itemBuilder: (context, i) {
         if (i == 0 && m.hasMore) {
@@ -465,6 +479,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         final msg = m.sorted[i - (m.hasMore ? 1 : 0)];
         return MessageBubble(
+          key: ValueKey(msg.id),
           msg: msg,
           onUndo: (id) => m.revert(id),
           onOpenChange: (changeId) => store.openChange(changeId),
@@ -473,136 +488,124 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _composer(ThemeData theme) {
+  Widget _composer(BuildContext context) {
     final m = _msg;
+    final colors = colorsOf(context);
     final sending = m?.sending ?? false;
     return Container(
       decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: theme.dividerColor))),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          color: colors.card,
+          border: Border(
+              top: BorderSide(color: colors.border.withValues(alpha: 0.5)))),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _input,
-                  enabled: !sending,
-                  minLines: 1,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a message...',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _input,
+                      focusNode: _inputFocus,
+                      enabled: !sending,
+                      minLines: 1,
+                      maxLines: 6,
+                      textInputAction: TextInputAction.newline,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message...',
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: AppSpacing.sm),
+                  sending
+                      ? IconButton.filled(
+                          style: IconButton.styleFrom(
+                            backgroundColor: colors.destructive,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.stop_rounded, size: 20),
+                          onPressed: () => m?.stop(),
+                        )
+                      : IconButton.filled(
+                          onPressed: _input.text.trim().isEmpty ? null : _send,
+                          icon: const Icon(Icons.send_rounded, size: 20),
+                        ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                height: 26,
+                child: Row(
+                  children: [
+                    _Dropdown(
+                      label: _modelName,
+                      items: [for (final m in _models) m.id],
+                      onSelect: _switchModel,
+                      maxWidth: 200,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _Dropdown(
+                      label: store.activeSession?.preset ?? 'preset',
+                      items: [for (final p in _presets) p.id],
+                      onSelect: _switchPreset,
+                      maxWidth: 160,
+                    ),
+                    const Spacer(),
+                    if (sending)
+                      Icon(Icons.brightness_1,
+                          size: 8, color: colors.warning),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              sending
-                  ? IconButton.filled(
-                      icon: const Icon(Icons.stop, size: 18),
-                      onPressed: () => m?.stop(),
-                    )
-                  : IconButton.filled(
-                      onPressed: _input.text.trim().isEmpty ? null : _send,
-                      icon: const Icon(Icons.send, size: 18),
-                    ),
             ],
           ),
-          SizedBox(
-            height: 32,
-            child: Row(
-              children: [
-                _pickerBox(
-                  label: _modelName,
-                  items: [for (final m in _models) m.id],
-                  onPick: _switchModel,
-                  maxWidth: 200,
-                ),
-                const SizedBox(width: 8),
-                _pickerBox(
-                  label: store.activeSession?.preset ?? 'preset',
-                  items: [for (final p in _presets) p.id],
-                  onPick: _switchPreset,
-                  maxWidth: 160,
-                ),
-                const Spacer(),
-                if (sending) ...[
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                        shape: BoxShape.circle, color: Colors.amber),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _pickerBox(
-      {required String label,
-      required List<String> items,
-      required void Function(String) onPick,
-      required double maxWidth}) {
-    return _Dropdown(
-        label: label,
-        items: items,
-        onSelect: onPick,
-        maxWidth: maxWidth);
-  }
-
-  Widget _overlayPanel(ThemeData theme) {
+  Widget _overlayPanel(BuildContext context) {
+    final colors = colorsOf(context);
     final overlay = store.sessionOverlay;
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: theme.dividerColor))),
+          border: Border(
+              left: BorderSide(color: colors.border.withValues(alpha: 0.5)))),
       child: Column(
         children: [
-          Container(
+          SizedBox(
             height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               children: [
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                     child: Row(
                       children: [
                         for (final t in SessionOverlay.values)
-                          TextButton(
-                            onPressed: () => store.openOverlay(t),
-                            style: TextButton.styleFrom(
-                              minimumSize: const Size(0, 30),
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            child: Text(_overlayLabel(t),
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: overlay == t
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.outline,
-                                    fontWeight: overlay == t
-                                        ? FontWeight.w600
-                                        : FontWeight.normal)),
+                          _OverlayTab(
+                            label: _overlayLabel(t),
+                            selected: overlay == t,
+                            onTap: () => store.openOverlay(t),
                           ),
                       ],
                     ),
                   ),
                 ),
                 IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.close, size: 16),
-                    onPressed: () => store.closeOverlay()),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  onPressed: () => store.closeOverlay()),
               ],
             ),
           ),
+          Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
           Expanded(child: _buildOverlay()),
         ],
       ),
@@ -646,6 +649,40 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+class _OverlayTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _OverlayTab(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.rSm,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 1),
+          decoration: BoxDecoration(
+            color: selected ? colors.muted : Colors.transparent,
+            borderRadius: AppRadius.rSm,
+          ),
+          child: Text(label,
+              style: text.micro.copyWith(
+                  color: selected ? colors.primary : colors.mutedForeground,
+                  fontWeight:
+                      selected ? FontWeight.w600 : FontWeight.normal)),
+        ),
+      ),
+    );
+  }
+}
+
 class TimelineDiffScreen extends StatefulWidget {
   final AppStore store;
   final String changeId;
@@ -683,29 +720,28 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
     return Column(
       children: [
         ListTile(
-          dense: true,
-          leading: const Icon(Icons.commit),
+          leading: const Icon(Icons.commit_rounded),
           title: Text('Diff: ${widget.changeId.substring(0, 12)}',
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+              style: textOf(context).mono),
           trailing: TextButton(
               onPressed: () {
-              if (store.diffChangeId != null) {
-                store.diffChangeId = null;
-              } else {
-                store.sessionOverlay = SessionOverlay.timeline;
-              }
-            },
+                if (store.diffChangeId != null) {
+                  store.diffChangeId = null;
+                } else {
+                  store.sessionOverlay = SessionOverlay.timeline;
+                }
+              },
               child: const Text('Back')),
         ),
         Expanded(
           child: _error.isNotEmpty
               ? Center(
                   child: Text(_error,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.outline)))
+                      style: TextStyle(color: colors.mutedForeground)))
               : ListView.builder(
                   itemCount: _files.length,
                   itemBuilder: (_, i) {
@@ -717,19 +753,16 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
                           onTap: () => widget.store.openFile(f.path),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                             child: Text(f.path,
-                                style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                    fontFamily: 'monospace',
-                                    fontSize: 12)),
+                                style: textOf(context)
+                                    .mono
+                                    .copyWith(color: colors.primary)),
                           ),
                         ),
                         if (f.diffText != null && f.diffText!.isNotEmpty)
                           DiffView(diffText: f.diffText!),
-                        const Divider(height: 1),
+                        Divider(height: 1, color: colors.border),
                       ],
                     );
                   },
@@ -745,22 +778,27 @@ class _Dropdown extends StatelessWidget {
   final List<String> items;
   final void Function(String) onSelect;
   final double maxWidth;
-  const _Dropdown(
-      {required this.label,
-      required this.items,
-      required this.onSelect,
-      required this.maxWidth});
+  const _Dropdown({
+    required this.label,
+    required this.items,
+    required this.onSelect,
+    required this.maxWidth,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return PopupMenuButton<String>(
       onSelected: onSelect,
+      constraints: BoxConstraints(maxWidth: 320),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
         constraints: BoxConstraints(maxWidth: maxWidth),
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(4),
+          color: colors.muted,
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -768,16 +806,16 @@ class _Dropdown extends StatelessWidget {
             Flexible(
                 child: Text(label,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12))),
-            const Icon(Icons.arrow_drop_down, size: 16),
+                    style: text.meta)),
+            Icon(Icons.expand_more_rounded,
+                size: 15, color: colors.mutedForeground),
           ],
         ),
       ),
       itemBuilder: (context) => [
         for (final i in items)
-          PopupMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 12))),
+          PopupMenuItem(value: i, child: Text(i, style: text.meta)),
       ],
     );
   }
 }
-

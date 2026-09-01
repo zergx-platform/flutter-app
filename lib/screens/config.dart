@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 import '../widgets/dialogs.dart';
 
 /// Recreates ConfigPage.svelte (simplified, without the external
@@ -33,6 +34,25 @@ class _ConfigScreenState extends State<ConfigScreen> {
   bool _loading = true;
 
   final List<String> _stack = [];
+  // Per-detail-page text field controllers, keyed by detail id. Created once
+  // (not in build) so editing survives rebuilds.
+  final Map<String, TextEditingController> _fieldControllers = {};
+
+  TextEditingController _controller(String key, String initial) {
+    return _fieldControllers.putIfAbsent(key, () {
+      final c = TextEditingController(text: initial);
+      c.addListener(() => _values[key] = c.text);
+      return c;
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final c in _fieldControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -198,15 +218,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Widget _modelDetail() {
     final current = _values['llm_model'] ?? '';
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         if (_models.isEmpty)
           TextField(
-            controller: TextEditingController(text: current),
+            controller: _controller('llm_model', current),
             decoration: const InputDecoration(
-                labelText: 'Model (e.g. deepseek-v4-pro)',
-                border: OutlineInputBorder()),
-            onChanged: (v) => _values['llm_model'] = v,
+                labelText: 'Model (e.g. deepseek-v4-pro)'),
           )
         else
           DropdownButtonFormField<String>(
@@ -221,47 +239,48 @@ class _ConfigScreenState extends State<ConfigScreen> {
             onChanged: (v) => setState(() => _values['llm_model'] = v ?? ''),
             decoration: const InputDecoration(labelText: 'Default Model'),
           ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }
 
   Widget _containerDetail() {
+    final text = textOf(context);
     final backend = _values['container_backend'] ?? 'kubernetes';
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         RadioGroup<String>(
           groupValue: backend,
           onChanged: (v) =>
               setState(() => _values['container_backend'] = v ?? 'kubernetes'),
           child: Column(
-            children: [
+            children: const [
               RadioListTile<String>(
-                title: const Text('Kubernetes'),
+                title: Text('Kubernetes'),
                 value: 'kubernetes',
               ),
               RadioListTile<String>(
-                title: const Text('Docker'),
+                title: Text('Docker'),
                 value: 'docker',
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         if (backend == 'kubernetes') ...[
           if (_k8s != null)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Namespace: ${_k8s!['namespace']}',
-                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                        style: text.mono.copyWith(fontSize: 12)),
                     Text('Worker Image: ${_k8s!['worker_image']}',
-                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                        style: text.mono.copyWith(fontSize: 12)),
                   ],
                 ),
               ),
@@ -272,7 +291,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
           _tf('worker_image', 'Worker Image'),
           _tf('docker_api_url', 'Docker API URL'),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
@@ -280,10 +299,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Widget _baseImageDetail() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         _tf('worker_base_image', 'Default Sandbox Base'),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
@@ -291,11 +310,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Widget _advancedDetail() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         _tf('repos_root', 'Repos Root'),
         _tf('server_url', 'Server URL'),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
@@ -303,11 +322,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Widget _tf(String key, String label) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: AppSpacing.md),
       child: TextField(
-        controller: TextEditingController(text: _values[key] ?? ''),
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
-        onChanged: (v) => _values[key] = v,
+        controller: _controller(key, _values[key] ?? ''),
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }
@@ -319,13 +337,13 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xs),
       child: Text(text.toUpperCase(),
-          style: TextStyle(
-              fontSize: 11,
+          style: textOf(context).micro.copyWith(
               fontWeight: FontWeight.w600,
               letterSpacing: 1,
-              color: Theme.of(context).colorScheme.outline)),
+              color: colorsOf(context).mutedForeground)),
     );
   }
 }
@@ -347,23 +365,29 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final entries = widget.providers.entries.toList();
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         for (final e in entries)
           Card(
+            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ListTile(
               title: Text('${e.key} (${e.value.apiType})'),
               subtitle: Text(e.value.baseUrl,
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.micro.copyWith(color: colors.mutedForeground)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('${e.value.models.length} models',
-                      style: const TextStyle(fontSize: 10)),
+                      style: text.micro.copyWith(color: colors.mutedForeground)),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18),
+                    icon: Icon(Icons.delete_outline_rounded,
+                        size: 18, color: colors.mutedForeground),
                     onPressed: () async {
                       final ok = await confirmDialog(context,
                           title: 'Delete provider',
@@ -379,11 +403,12 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
             ),
           ),
         if (widget.providers.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('No providers. Add one to get started.'),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Text('No providers. Add one to get started.',
+                style: TextStyle(color: colors.mutedForeground)),
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         if (_showAdd)
           _AddProviderForm(
             api: widget.api,
@@ -396,7 +421,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
         else
           OutlinedButton.icon(
             onPressed: () => setState(() => _showAdd = true),
-            icon: const Icon(Icons.add, size: 16),
+            icon: const Icon(Icons.add_rounded, size: 16),
             label: const Text('Add Provider'),
           ),
       ],
@@ -483,9 +508,11 @@ class _AddProviderFormState extends State<_AddProviderForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -514,7 +541,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                 controller: _models,
                 decoration: const InputDecoration(
                     labelText: 'Models (comma-separated IDs)')),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 OutlinedButton.icon(
@@ -522,20 +549,20 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                   icon: const Icon(Icons.science_outlined, size: 14),
                   label: Text(_testing ? 'Testing...' : 'Test'),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Flexible(
                   child: Text(_testMsg,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11)),
+                      style: text.micro.copyWith(color: colors.mutedForeground)),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(onPressed: widget.onCancel, child: const Text('Cancel')),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: (_id.text.isEmpty || _url.text.isEmpty || _registering)
                       ? null
@@ -632,8 +659,10 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         if (_showNew) ...[
           Row(
@@ -642,32 +671,32 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                 child: TextField(
                   controller: _newId,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                      labelText: 'Preset id...', isDense: true),
+                  decoration: const InputDecoration(labelText: 'Preset id...'),
                   onSubmitted: (_) => _create(),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               FilledButton(
                   onPressed: _newId.text.trim().isEmpty ? null : _create,
                   child: const Text('Create')),
               IconButton(
-                  icon: const Icon(Icons.close, size: 18),
+                  icon: const Icon(Icons.close_rounded, size: 18),
                   onPressed: () => setState(() => _showNew = false)),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
         ] else
           Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton.icon(
               onPressed: () => setState(() => _showNew = true),
-              icon: const Icon(Icons.add, size: 16),
+              icon: const Icon(Icons.add_rounded, size: 16),
               label: const Text('New preset'),
             ),
           ),
         for (final p in _presets)
           Card(
+            margin: const EdgeInsets.only(top: AppSpacing.sm),
             child: Column(
               children: [
                 ListTile(
@@ -678,10 +707,12 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                     children: [
                       if (!_seedPresetIds.contains(p.id))
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18),
+                          icon: Icon(Icons.delete_outline_rounded,
+                              size: 18, color: colors.mutedForeground),
                           onPressed: () => _delete(p),
                         ),
-                      const Icon(Icons.expand_more, size: 18),
+                      Icon(Icons.expand_more_rounded,
+                          size: 18, color: colors.mutedForeground),
                     ],
                   ),
                   onTap: () => _editingId == p.id
@@ -690,7 +721,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                 ),
                 if (_editingId == p.id)
                   Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       children: [
                         TextField(
@@ -717,15 +748,14 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                               tools: _edit.tools,
                               maxTurns: int.tryParse(v) ?? 30),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.sm),
                         Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
                           children: [
                             for (final t in _tools.map((t) => t.name).toList())
                               FilterChip(
-                                label:
-                                    Text(t, style: const TextStyle(fontSize: 11)),
+                                label: Text(t, style: text.micro),
                                 selected: _edit.tools.contains(t),
                                 onSelected: (sel) {
                                   final tools = [..._edit.tools];
@@ -743,7 +773,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                               ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.sm),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -758,8 +788,10 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             ),
           ),
         if (_presets.isEmpty)
-          const Padding(
-              padding: EdgeInsets.all(8), child: Text('No presets.')),
+          Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child:
+                  Text('No presets.', style: TextStyle(color: colors.mutedForeground))),
       ],
     );
   }
@@ -821,15 +853,14 @@ class _ToolsDetailState extends State<_ToolsDetail> {
       (cats[t.category.isNotEmpty ? t.category : 'other'] ??= []).add(t);
     }
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         for (final entry in cats.entries) ...[
           Text(entry.key.toUpperCase(),
-              style: TextStyle(
-                  fontSize: 11,
+              style: textOf(context).micro.copyWith(
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1,
-                  color: Theme.of(context).colorScheme.outline)),
+                  color: colorsOf(context).mutedForeground)),
           for (final t in entry.value) _toolCard(t),
         ],
       ],
@@ -837,35 +868,39 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   }
 
   Widget _toolCard(ToolInfo t) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final fields = t.configFields ?? [];
     final hasConfig = (_config[t.name] ?? {}).isNotEmpty;
     return Card(
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         children: [
           ListTile(
-            title: Text(t.name,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+            title: Text(t.name, style: text.mono.copyWith(fontSize: 12)),
             trailing: fields.isEmpty
-                ? const Text('no config', style: TextStyle(fontSize: 10))
+                ? Text('no config',
+                    style: text.micro.copyWith(color: colors.mutedForeground))
                 : Text(hasConfig ? 'configured' : 'needs config',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: hasConfig ? Colors.green : Colors.amber)),
+                    style: text.micro.copyWith(
+                        color: hasConfig ? colors.success : colors.warning)),
             onTap: () => setState(
                 () => _expanded = _expanded == t.name ? null : t.name),
           ),
           if (_expanded == t.name)
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (t.description.isNotEmpty)
-                    Text(t.description, style: const TextStyle(fontSize: 11)),
+                    Text(t.description,
+                        style: text.micro
+                            .copyWith(color: colors.mutedForeground)),
                   for (final f in fields) ...[
                     _field(t.name, f),
                   ],
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton(
@@ -902,11 +937,11 @@ class _ToolsDetailState extends State<_ToolsDetail> {
           (v) => _set(toolName, f.key, v));
     }
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: TextField(
         controller: TextEditingController(text: current == null ? '' : '$current'),
         keyboardType: f.type == 'number' ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(labelText: f.label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(labelText: f.label),
         onChanged: (v) => _set(toolName, f.key,
             f.type == 'number' ? (num.tryParse(v) ?? 0) : v),
       ),
@@ -925,7 +960,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   Widget _dropdown(String label, Object? current, List<String> options,
       void Function(String?) onChanged) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: DropdownButtonFormField<String>(
         initialValue: current == null ? null : '$current',
         items: [
@@ -933,7 +968,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
           for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
         ],
         onChanged: onChanged,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 import '../widgets/code_view.dart';
 import '../widgets/diff_view.dart';
 import '../widgets/tree_node.dart';
@@ -56,18 +57,19 @@ class _CodeScreenState extends State<CodeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.of(context).size.width >= 1024;
+    final wide = MediaQuery.sizeOf(context).width >= 1024;
     return wide ? _desktop(context) : _mobile(context);
   }
 
   Widget _desktop(BuildContext context) {
+    final colors = colorsOf(context);
     return Scaffold(
       body: Row(
         children: [
           SizedBox(width: 200, child: _repoSelector(context)),
-          Container(width: 1, color: Theme.of(context).dividerColor),
+          Container(width: 1, color: colors.border.withValues(alpha: 0.5)),
           SizedBox(width: 260, child: _treeOrCommits(context)),
-          Container(width: 1, color: Theme.of(context).dividerColor),
+          Container(width: 1, color: colors.border.withValues(alpha: 0.5)),
           Expanded(child: _content(context)),
         ],
       ),
@@ -89,61 +91,66 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _repoSelector(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Column(
       children: [
         Container(
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           alignment: Alignment.centerLeft,
-          child: const Text('Repositories',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text('Repositories',
+              style: text.meta.copyWith(fontWeight: FontWeight.w600)),
         ),
         Expanded(
           child: ListView(
             children: [
               for (final org in store.orgs) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, 2),
                   child: Text(org.org.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1)),
+                      style: text.micro.copyWith(
+                          fontWeight: FontWeight.w600, letterSpacing: 1)),
                 ),
                 for (final repo in org.repos) ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 12, 2),
+                    padding: const EdgeInsets.fromLTRB(
+                        20, AppSpacing.xs, AppSpacing.md, 2),
                     child: Row(
                       children: [
-                        const Icon(Icons.folder_copy_outlined,
-                            size: 12, color: Colors.lightBlue),
-                        const SizedBox(width: 4),
+                        Icon(Icons.folder_copy_outlined,
+                            size: 12, color: colors.primary),
+                        const SizedBox(width: AppSpacing.xs),
                         Expanded(
                             child: Text(repo.repo,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12))),
+                                style: text.meta)),
                       ],
                     ),
                   ),
                   for (final bm in repo.bookmarks)
                     ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.only(left: 32, right: 8),
                       selected: store.codeOrg == org.org &&
                           store.codeRepo == repo.repo &&
                           store.codeBranch == bm.branch,
-                      leading: const Icon(Icons.call_split, size: 14),
-                      title: Text(bm.branch, style: const TextStyle(fontSize: 12)),
-                      onTap: () => store.openRepo(org.org, repo.repo, bm.branch),
+                      selectedTileColor: colors.primary.withValues(alpha: 0.10),
+                      contentPadding: const EdgeInsets.only(
+                          left: 32, right: AppSpacing.sm),
+                      leading: Icon(Icons.call_split_rounded,
+                          size: 14,
+                          color: colors.mutedForeground),
+                      title: Text(bm.branch, style: text.meta),
+                      onTap: () =>
+                          store.openRepo(org.org, repo.repo, bm.branch),
                     ),
                 ],
               ],
               if (store.orgs.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Text('No repositories. Create a session first.',
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.outline)),
+                      style: TextStyle(color: colors.mutedForeground)),
                 ),
             ],
           ),
@@ -153,11 +160,13 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _treeOrCommits(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     return Column(
       children: [
         Container(
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: [
               Expanded(
@@ -166,13 +175,13 @@ class _CodeScreenState extends State<CodeScreen> {
                       ? '${store.codeOrg}/${store.codeRepo}'
                       : 'Files',
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: text.meta.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               if (store.codeRepo.isNotEmpty)
                 IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(_showCommits ? Icons.folder : Icons.history, size: 16),
+                  icon: Icon(_showCommits ? Icons.folder_rounded : Icons.history_rounded,
+                      size: 16),
                   onPressed: () {
                     if (_showCommits) {
                       setState(() => _showCommits = false);
@@ -188,14 +197,13 @@ class _CodeScreenState extends State<CodeScreen> {
           child: store.codeRepo.isEmpty
               ? Center(
                   child: Text('Select a repository',
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.outline)))
+                      style: TextStyle(color: colors.mutedForeground)))
               : _showCommits
                   ? _commitsList(context)
                   : store.codeLoading
                       ? const Center(child: CircularProgressIndicator())
                       : ListView(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(AppSpacing.xs),
                           children: [TreeNode(store: store, path: '')],
                         ),
         ),
@@ -204,6 +212,8 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _commitsList(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (_commitsLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -214,15 +224,13 @@ class _CodeScreenState extends State<CodeScreen> {
       children: [
         if (_tags.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Wrap(
-              spacing: 4,
+              spacing: AppSpacing.xs,
               children: [
                 for (final t in _tags)
                   Chip(
-                    label: Text(t.name,
-                        style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
-                    visualDensity: VisualDensity.compact,
+                    label: Text(t.name, style: text.mono.copyWith(fontSize: 10)),
                   ),
               ],
             ),
@@ -235,11 +243,13 @@ class _CodeScreenState extends State<CodeScreen> {
               store.fileContent = '';
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
                 children: [
-                  Icon(Icons.commit, size: 14, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
+                  Icon(Icons.commit_rounded,
+                      size: 14, color: colors.primary),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,9 +257,10 @@ class _CodeScreenState extends State<CodeScreen> {
                         Text(c.message,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12)),
+                            style: text.meta),
                         Text('${_short(c.commitId)} · ${c.author}',
-                            style: const TextStyle(fontSize: 10)),
+                            style: text.micro
+                                .copyWith(color: colors.mutedForeground)),
                       ],
                     ),
                   ),
@@ -262,12 +273,16 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _content(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final p = store.selectedFilePath;
     if (p == null) {
       return Center(
         child: Text(
-          store.codeRepo.isNotEmpty ? 'Select a file to view' : 'Select a branch to browse files',
-          style: TextStyle(color: Theme.of(context).colorScheme.outline),
+          store.codeRepo.isNotEmpty
+              ? 'Select a file to view'
+              : 'Select a branch to browse files',
+          style: TextStyle(color: colors.mutedForeground),
         ),
       );
     }
@@ -275,28 +290,29 @@ class _CodeScreenState extends State<CodeScreen> {
       children: [
         Container(
           height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: [
-              const Icon(Icons.insert_drive_file_outlined, size: 14),
-              const SizedBox(width: 6),
+              Icon(Icons.insert_drive_file_outlined,
+                  size: 14, color: colors.mutedForeground),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(p,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                    overflow: TextOverflow.ellipsis, style: text.mono),
               ),
               if (store.activeDiffChangeId != null)
                 IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.close, size: 16),
+                    icon: const Icon(Icons.close_rounded, size: 16),
                     onPressed: () {
                       store.activeDiffChangeId = null;
                       store.showFileHistory = false;
                     })
               else ...[
                 IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(store.showFileHistory ? Icons.description : Icons.history,
+                    icon: Icon(
+                        store.showFileHistory
+                            ? Icons.description_outlined
+                            : Icons.history_rounded,
                         size: 16),
                     onPressed: () {
                       if (store.showFileHistory) {
@@ -306,8 +322,7 @@ class _CodeScreenState extends State<CodeScreen> {
                       }
                     }),
                 IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.close, size: 16),
+                    icon: const Icon(Icons.close_rounded, size: 16),
                     onPressed: () {
                       store.selectedFilePath = null;
                       store.fileContent = '';
@@ -324,6 +339,8 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _contentBody(BuildContext context, String p) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (store.activeDiffChangeId != null) {
       return DiffView(diffText: store.fileDiffs[store.activeDiffChangeId] ?? '');
     }
@@ -340,19 +357,18 @@ class _CodeScreenState extends State<CodeScreen> {
             InkWell(
               onTap: () => store.toggleCommitDiff(c.changeId),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                 child: Row(
                   children: [
                     Text(_short(c.changeId),
-                        style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.primary)),
-                    const SizedBox(width: 8),
+                        style: text.mono.copyWith(
+                            fontSize: 11, color: colors.primary)),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                         child: Text(c.message,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12))),
+                            style: text.meta)),
                   ],
                 ),
               ),
@@ -385,18 +401,17 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _bar(BuildContext context, VoidCallback onBack, String label) {
+    final text = textOf(context);
     return SizedBox(
       height: 40,
       child: Row(
         children: [
           IconButton(
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.arrow_back, size: 18),
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
               onPressed: onBack),
           Expanded(
             child: Text(label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12)),
+                overflow: TextOverflow.ellipsis, style: text.meta),
           ),
         ],
       ),

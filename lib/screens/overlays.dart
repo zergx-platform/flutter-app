@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 
 class TimelineOverlay extends StatefulWidget {
   final AppStore store;
@@ -51,25 +52,29 @@ class _TimelineOverlayState extends State<TimelineOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     final changes = _changes ?? [];
     if (changes.isEmpty) {
       return Center(
           child: Text('No changes yet',
-              style:
-                  TextStyle(color: Theme.of(context).colorScheme.outline)));
+              style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.separated(
       itemCount: changes.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      separatorBuilder: (_, _) =>
+          Divider(height: 1, color: colors.border.withValues(alpha: 0.4)),
       itemBuilder: (_, i) {
         final c = changes[i];
         return ListTile(
-          dense: true,
-          leading: const Icon(Icons.call_split, size: 16),
+          leading: Icon(Icons.call_split_rounded,
+              size: 16, color: colors.primary),
           title: Text(c.message,
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.meta),
           subtitle: Text('${c.author} · ${c.changeId.substring(0, 16)}',
-              style: const TextStyle(fontSize: 10)),
+              style: text.micro.copyWith(color: colors.mutedForeground)),
           onTap: () => widget.onSelectDiff?.call(c.changeId),
         );
       },
@@ -121,45 +126,47 @@ class _MailboxOverlayState extends State<MailboxOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (_entries.isEmpty) {
       return Center(
           child: Text('No messages',
-              style: TextStyle(color: Theme.of(context).colorScheme.outline)));
+              style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       itemCount: _entries.length,
       itemBuilder: (_, i) {
         final e = _entries[i];
         final consumed = e.consumedAt != null;
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Text(e.msgType,
-                        style: TextStyle(
-                            fontSize: 12,
+                        style: text.meta.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary)),
+                            color: colors.primary)),
                     const Spacer(),
                     Text(
-                      consumed
-                          ? 'consumed'
-                          : 'pending',
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: consumed ? Colors.green : Colors.grey),
+                      consumed ? 'consumed' : 'pending',
+                      style: text.micro.copyWith(
+                          color: consumed ? colors.success : colors.mutedForeground),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(e.payload.length > 500 ? '${e.payload.substring(0, 500)}…' : e.payload,
-                    style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                const SizedBox(height: AppSpacing.xs),
+                SelectableText(
+                    e.payload.length > 500
+                        ? '${e.payload.substring(0, 500)}…'
+                        : e.payload,
+                    style: text.mono.copyWith(
+                        fontSize: 11, color: colors.mutedForeground)),
               ],
             ),
           ),

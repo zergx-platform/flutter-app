@@ -244,12 +244,7 @@ class AppStore extends ChangeNotifier {
     sessionOverlay = null;
     diffChangeId = null;
     notifyListeners();
-    api.markRead(id).then((_) {
-      final updated =
-          sessions.map((s) => s.id == id ? s.copyWith(unread: 0) : s).toList();
-      sessions = updated;
-      notifyListeners();
-    }).catchError((_) {});
+    api.markRead(id).catchError((_) {});
   }
 
   void openOverlay(SessionOverlay v) {

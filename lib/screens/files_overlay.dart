@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../theme/app_theme.dart';
 import '../widgets/code_view.dart';
 import '../widgets/diff_view.dart';
 import '../widgets/tree_node.dart';
@@ -40,7 +41,10 @@ class _FilesOverlayState extends State<FilesOverlay> {
             context,
             label: store.selectedFilePath!,
             trailing: IconButton(
-              icon: Icon(store.showFileHistory ? Icons.description : Icons.history,
+              icon: Icon(
+                  store.showFileHistory
+                      ? Icons.description_outlined
+                      : Icons.history_rounded,
                   size: 16),
               tooltip: 'History',
               onPressed: () {
@@ -72,7 +76,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
           child: store.codeLoading
               ? const Center(child: CircularProgressIndicator())
               : ListView(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
                   children: [TreeNode(store: store, path: '')],
                 ),
         ),
@@ -81,13 +85,15 @@ class _FilesOverlayState extends State<FilesOverlay> {
   }
 
   Widget _history(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (store.fileHistoryLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (store.fileHistory.isEmpty) {
       return Center(
           child: Text('No history for this file.',
-              style: TextStyle(color: Theme.of(context).colorScheme.outline)));
+              style: TextStyle(color: colors.mutedForeground)));
     }
     final commits = store.fileHistory;
     return ListView(
@@ -96,24 +102,22 @@ class _FilesOverlayState extends State<FilesOverlay> {
           InkWell(
             onTap: () => store.toggleCommitDiff(c.changeId),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
                 children: [
                   Text(c.changeId.substring(0, 10),
-                      style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.primary)),
-                  const SizedBox(width: 8),
+                      style: text.mono.copyWith(
+                          fontSize: 11, color: colors.primary)),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: Text(c.message.isNotEmpty ? c.message : '(no description)',
+                    child: Text(
+                        c.message.isNotEmpty ? c.message : '(no description)',
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12)),
+                        style: text.meta),
                   ),
                   Text(c.author,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: Theme.of(context).colorScheme.outline)),
+                      style: text.micro.copyWith(color: colors.mutedForeground)),
                 ],
               ),
             ),
@@ -124,19 +128,19 @@ class _FilesOverlayState extends State<FilesOverlay> {
 
   Widget _filesHeader(BuildContext context,
       {required String label, Widget? trailing}) {
+    final text = textOf(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       child: Row(
         children: [
           IconButton(
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.arrow_back, size: 18),
+            icon: const Icon(Icons.arrow_back_rounded, size: 18),
             onPressed: () => store.stepFileBack(),
           ),
           Expanded(
             child: Text(label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                overflow: TextOverflow.ellipsis, style: text.mono),
           ),
           ?trailing,
         ],
@@ -190,32 +194,41 @@ class _TodosOverlayState extends State<TodosOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
     if (_todos.isEmpty) {
       return Center(
           child: Text('No todos yet — the agent tracks its plan here via todowrite.',
-              style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 12)));
+              style: TextStyle(color: colors.mutedForeground, fontSize: 12)));
     }
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       children: [
         for (final t in _todos)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(_todoIcon(t.status), size: 14, color: _todoColor(t.status)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  t.content,
-                  style: TextStyle(
-                      fontSize: 12,
-                      decoration: (t.status == 'completed' ||
-                              t.status == 'cancelled')
-                          ? TextDecoration.lineThrough
-                          : null),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_todoIcon(t.status),
+                    size: 14, color: _todoColor(t.status, colors)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    t.content,
+                    style: text.meta.copyWith(
+                        decoration: (t.status == 'completed' ||
+                                t.status == 'cancelled')
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: (t.status == 'completed' ||
+                                t.status == 'cancelled')
+                            ? colors.mutedForeground
+                            : null),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
       ],
     );
@@ -224,26 +237,26 @@ class _TodosOverlayState extends State<TodosOverlay> {
   IconData _todoIcon(String status) {
     switch (status) {
       case 'completed':
-        return Icons.check_circle;
+        return Icons.check_circle_rounded;
       case 'in_progress':
-        return Icons.radio_button_checked;
+        return Icons.radio_button_checked_rounded;
       case 'cancelled':
-        return Icons.cancel;
+        return Icons.cancel_outlined;
       default:
-        return Icons.radio_button_unchecked;
+        return Icons.radio_button_unchecked_rounded;
     }
   }
 
-  Color _todoColor(String status) {
+  Color _todoColor(String status, AppColors colors) {
     switch (status) {
       case 'completed':
-        return Colors.green;
+        return colors.success;
       case 'in_progress':
-        return Colors.amber;
+        return colors.warning;
       case 'cancelled':
-        return Colors.grey;
+        return colors.mutedForeground;
       default:
-        return Colors.grey;
+        return colors.mutedForeground;
     }
   }
 }

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Recreates ToolIcon.svelte: picks an icon + color by tool name.
 class ToolIcon extends StatelessWidget {
   final String name;
@@ -9,43 +11,44 @@ class ToolIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = colorsOf(context);
     final n = name.toLowerCase();
     IconData icon;
     Color color;
     if (n.contains('sandbox-run') || n.contains('shell') || n.contains('exec')) {
       icon = Icons.terminal;
-      color = Colors.amber;
+      color = colors.warning;
     } else if (n.contains('read')) {
       icon = Icons.description_outlined;
-      color = Colors.lightBlue;
+      color = colors.primary;
     } else if (n.contains('grep')) {
       icon = Icons.manage_search;
-      color = Colors.lightBlue;
+      color = colors.primary;
     } else if (n.contains('glob') ||
         n.contains('ls') ||
         n.contains('explore')) {
       icon = Icons.folder_open;
-      color = Colors.lightBlue;
+      color = colors.primary;
     } else if (n.contains('write') || n.contains('edit')) {
       icon = Icons.edit_outlined;
-      color = Colors.green;
+      color = colors.success;
     } else if (n.contains('delete')) {
       icon = Icons.delete_outline;
-      color = Colors.redAccent;
+      color = colors.destructive;
     } else if (n.contains('web') || n.contains('fetch')) {
       icon = Icons.public;
-      color = Colors.purpleAccent;
+      color = colors.accent;
     } else if (n.contains('todo') || n.contains('job') || n.contains('task')) {
       icon = Icons.checklist;
-      color = Colors.pinkAccent;
+      color = colors.accent;
     } else if (n.contains('git') ||
         n.contains('diff') ||
         n.contains('commit')) {
       icon = Icons.code;
-      color = Colors.blueGrey;
+      color = colors.mutedForeground;
     } else {
       icon = Icons.build_outlined;
-      color = Colors.blueGrey;
+      color = colors.mutedForeground;
     }
     return Icon(icon, size: 14, color: color);
   }

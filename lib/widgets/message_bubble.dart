@@ -1,113 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../models.dart';
+import '../theme/app_theme.dart';
 import 'tool_part.dart';
 
-/// Recreates MessageBubble.svelte.
+/// Markdown body pre-styled with the shared type scale.
+class _Markdown extends StatelessWidget {
+  final String data;
+  final bool muted;
+  const _Markdown(this.data, {this.muted = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return MarkdownBody(
+      data: data,
+      selectable: true,
+      styleSheet: MarkdownStyleSheet(
+        p: muted
+            ? text.meta.copyWith(color: colors.mutedForeground)
+            : text.body,
+        h1: text.body.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+        h2: text.body.copyWith(fontSize: 16, fontWeight: FontWeight.w700),
+        h3: text.body.copyWith(fontWeight: FontWeight.w600),
+        code: text.mono.copyWith(
+            color: colors.foreground,
+            backgroundColor: colors.muted,
+            fontSize: 13),
+        codeblockDecoration: BoxDecoration(
+          color: colors.muted,
+          borderRadius: AppRadius.rSm,
+        ),
+        blockquote: text.meta.copyWith(color: colors.mutedForeground),
+        blockquoteDecoration: BoxDecoration(
+          border: Border(left: BorderSide(color: colors.border, width: 2)),
+        ),
+        listBullet: text.body,
+        tableHead: text.meta.copyWith(fontWeight: FontWeight.w600),
+        tableBody: text.meta,
+        blockSpacing: AppSpacing.sm,
+      ),
+    );
+  }
+}
+
+/// IM-style chat bubble mirroring MessageBubble.svelte. Long-press (mobile)
+/// or the hover/overflow affordance exposes copy / undo.
 class MessageBubble extends StatelessWidget {
   final ChatMessage msg;
   final Future<void> Function(String messageId) onUndo;
   final void Function(String changeId)? onOpenChange;
-  const MessageBubble(
-      {super.key,
-      required this.msg,
-      required this.onUndo,
-      this.onOpenChange});
+  const MessageBubble({
+    super.key,
+    required this.msg,
+    required this.onUndo,
+    this.onOpenChange,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUser = msg.role == 'user';
-    final isError = msg.role == 'error';
-    final isStreaming = msg.status == 'streaming';
-
-    final parts = <Widget>[];
-    for (final part in msg.parts) {
-      if (part.type == 'text') {
-        parts.add(MarkdownBody(data: part.text));
-      } else if (part.type == 'reasoning') {
-        parts.add(_reasoning(context, part.text, isStreaming));
-      } else if (part.type == 'tool' && part.state != null) {
-        parts.add(ToolPartView(
-          part: part,
-          isStreaming: isStreaming,
-          onOpenChange: onOpenChange,
-        ));
-      } else if (part.type == 'compaction') {
-        parts.add(_compaction(context, part.text));
-      }
-    }
-    if (isStreaming && parts.isEmpty) {
-      parts.add(Text('thinking...',
-          style: TextStyle(
-              color: theme.colorScheme.outline, fontStyle: FontStyle.italic)));
-    }
-
-    BoxDecoration decoration;
-    if (isError) {
-      decoration = BoxDecoration(
-        border: Border.all(color: theme.colorScheme.error),
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      );
-    } else if (isUser) {
-      decoration = BoxDecoration(
-        border: Border.all(color: theme.colorScheme.primary),
-        color: theme.colorScheme.primary.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
-      );
-    } else if (isStreaming) {
-      decoration = BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: theme.colorScheme.surfaceContainerHighest,
-      );
-    } else {
-      decoration = BoxDecoration(
-        border: Border.all(color: theme.dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          Container(
-            constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: decoration,
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: parts),
-          ),
-          if (!isStreaming)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.content_copy, size: 16),
-                  tooltip: 'Copy',
-                  onPressed: () => _copy(context),
-                ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.undo, size: 16),
-                  tooltip: 'Undo',
-                  onPressed: () => onUndo(msg.id),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
+  bool get _hasText =>
+      msg.parts.any((p) => p.type == 'text' || p.type == 'reasoning');
 
   void _copy(BuildContext context) {
     final text = msg.parts
@@ -119,53 +73,285 @@ class MessageBubble extends StatelessWidget {
         const SnackBar(content: Text('Copied'), duration: Duration(seconds: 1)));
   }
 
-  Widget _reasoning(BuildContext context, String text, bool streaming) {
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(dividerColor: Colors.transparent),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.only(left: 8),
-        decoration: BoxDecoration(
-          border: Border(
-              left: BorderSide(color: Colors.amber, width: 2)),
-        ),
-        child: ExpansionTile(
-          initiallyExpanded: true,
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: EdgeInsets.zero,
-          title: Text('Thinking${streaming ? '...' : ''}',
-              style: const TextStyle(color: Colors.amber, fontSize: 12)),
+  Future<void> _actions(BuildContext context) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Align(
-                alignment: Alignment.centerLeft,
-                child: MarkdownBody(data: text)),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Copy'),
+              onTap: () => Navigator.pop(ctx, 'copy'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.undo_rounded),
+              title: const Text('Undo until here'),
+              onTap: () => Navigator.pop(ctx, 'undo'),
+            ),
           ],
         ),
       ),
     );
+    if (!context.mounted) return;
+    switch (action) {
+      case 'copy':
+        _copy(context);
+      case 'undo':
+        onUndo(msg.id);
+    }
   }
 
-  Widget _compaction(BuildContext context, String text) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(8),
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final isUser = msg.role == 'user';
+    final isError = msg.role == 'error';
+    final isStreaming = msg.status == 'streaming';
+
+    final parts = <Widget>[];
+    for (final part in msg.parts) {
+      if (part.type == 'text') {
+        parts.add(_Markdown(part.text));
+      } else if (part.type == 'reasoning') {
+        parts.add(_ReasoningBlock(text: part.text, streaming: isStreaming));
+      } else if (part.type == 'tool' && part.state != null) {
+        parts.add(ToolPartView(
+          part: part,
+          isStreaming: isStreaming,
+          onOpenChange: onOpenChange,
+        ));
+      } else if (part.type == 'compaction') {
+        parts.add(_CompactionBlock(text: part.text));
+      }
+    }
+    if (isStreaming && parts.isEmpty) {
+      parts.add(Text('thinking...',
+          style: text.meta
+              .copyWith(color: colors.mutedForeground, fontStyle: FontStyle.italic)));
+    }
+    if (isError) {
+      parts.insert(
+        0,
+        Text('Error',
+            style: text.micro.copyWith(
+                color: colors.destructive, fontWeight: FontWeight.w600)),
+      );
+    }
+
+    Widget bubble = Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
       decoration: BoxDecoration(
-        border: Border.all(color: theme.dividerColor),
-        borderRadius: BorderRadius.circular(6),
+        color: isError
+            ? colors.destructive.withValues(alpha: 0.10)
+            : isUser
+                ? colors.primary.withValues(alpha: 0.12)
+                : colors.card,
+        border: Border.all(
+          color: isError
+              ? colors.destructive.withValues(alpha: 0.4)
+              : isUser
+                  ? colors.primary.withValues(alpha: 0.4)
+                  : colors.border.withValues(alpha: 0.5),
+        ),
+        borderRadius: AppRadius.rMd,
       ),
-      child: Theme(
-        data: theme.copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: EdgeInsets.zero,
-          title: Text('历史已压缩 · 查看摘要',
-              style: TextStyle(
-                  color: theme.colorScheme.outline, fontSize: 12)),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(text, style: const TextStyle(fontSize: 12)),
+            for (var i = 0; i < parts.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.sm),
+              parts[i],
+            ],
+          ]),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm + 4),
+      child: Column(
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onLongPress: () => _actions(context),
+            child: bubble,
+          ),
+          if (!isStreaming && _hasText)
+            _BubbleActions(
+              isUser: isUser,
+              onCopy: () => _copy(context),
+              onUndo: () => onUndo(msg.id),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BubbleActions extends StatelessWidget {
+  final bool isUser;
+  final VoidCallback onCopy;
+  final VoidCallback onUndo;
+  const _BubbleActions(
+      {required this.isUser, required this.onCopy, required this.onUndo});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.copy_rounded, size: 14, color: colors.mutedForeground),
+            tooltip: 'Copy',
+            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+            padding: EdgeInsets.zero,
+            onPressed: onCopy,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          IconButton(
+            icon: Icon(Icons.undo_rounded, size: 14, color: colors.mutedForeground),
+            tooltip: 'Undo',
+            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+            padding: EdgeInsets.zero,
+            onPressed: onUndo,
+          ),
+          if (isUser) ...[
+            const SizedBox(width: AppSpacing.xs),
+            Text('you',
+                style: text.micro.copyWith(color: colors.mutedForeground)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Collapsible reasoning block — matches the web `details` style:
+/// amber left border, no Material expansion chrome.
+class _ReasoningBlock extends StatelessWidget {
+  final String text;
+  final bool streaming;
+  const _ReasoningBlock({required this.text, required this.streaming});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text_ = textOf(context);
+    return _CollapseBlock(
+      label: 'Thinking${streaming ? '...' : ''}',
+      labelColor: colors.warning,
+      initiallyOpen: true,
+      textStyle: text_.micro
+          .copyWith(color: colors.warning, fontWeight: FontWeight.w600),
+      wrapper: (child) => Container(
+        decoration: BoxDecoration(
+          color: colors.warning.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(AppRadius.sm),
+            bottomRight: Radius.circular(AppRadius.sm),
+          ),
+          border: Border(left: BorderSide(color: colors.warning, width: 2)),
+        ),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.sm, AppSpacing.sm),
+        child: child,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
+        child: _Markdown(text, muted: true),
+      ),
+    );
+  }
+}
+
+class _CompactionBlock extends StatelessWidget {
+  final String text;
+  const _CompactionBlock({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    return _CollapseBlock(
+      label: '历史已压缩 · 查看摘要',
+      labelColor: colors.mutedForeground,
+      initiallyOpen: false,
+      textStyle: textOf(context).micro.copyWith(color: colors.mutedForeground),
+      wrapper: (child) => Container(
+        decoration: BoxDecoration(
+          color: colors.muted.withValues(alpha: 0.4),
+          borderRadius: AppRadius.rSm,
+          border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        ),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        child: child,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
+        child: SelectableText(text, style: textOf(context).meta),
+      ),
+    );
+  }
+}
+
+/// Minimal disclosure block without ExpansionTile chrome (no forced min
+/// heights, no icon defaults) so spacing stays tight inside bubbles.
+class _CollapseBlock extends StatefulWidget {
+  final String label;
+  final Color labelColor;
+  final TextStyle textStyle;
+  final bool initiallyOpen;
+  final Widget child;
+  final Widget Function(Widget child) wrapper;
+  const _CollapseBlock({
+    required this.label,
+    required this.labelColor,
+    required this.textStyle,
+    required this.initiallyOpen,
+    required this.wrapper,
+    required this.child,
+  });
+
+  @override
+  State<_CollapseBlock> createState() => _CollapseBlockState();
+}
+
+class _CollapseBlockState extends State<_CollapseBlock> {
+  late bool _open = widget.initiallyOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.wrapper(
+      InkWell(
+        onTap: () => setState(() => _open = !_open),
+        borderRadius: AppRadius.rSm,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _open
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.keyboard_arrow_right_rounded,
+                  size: 14,
+                  color: widget.labelColor,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(widget.label, style: widget.textStyle),
+              ],
+            ),
+            if (_open) widget.child,
           ],
         ),
       ),
