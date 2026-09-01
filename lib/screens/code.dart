@@ -96,7 +96,7 @@ class _CodeScreenState extends State<CodeScreen> {
     return Column(
       children: [
         Container(
-          height: 40,
+          height: AppBars.height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           alignment: Alignment.centerLeft,
           child: Text('Repositories',
@@ -165,7 +165,7 @@ class _CodeScreenState extends State<CodeScreen> {
     return Column(
       children: [
         Container(
-          height: 40,
+          height: AppBars.height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: [
@@ -289,7 +289,7 @@ class _CodeScreenState extends State<CodeScreen> {
     return Column(
       children: [
         Container(
-          height: 40,
+          height: AppBars.height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: [
@@ -403,7 +403,7 @@ class _CodeScreenState extends State<CodeScreen> {
   Widget _bar(BuildContext context, VoidCallback onBack, String label) {
     final text = textOf(context);
     return SizedBox(
-      height: 40,
+      height: AppBars.height,
       child: Row(
         children: [
           IconButton(

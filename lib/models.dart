@@ -37,6 +37,9 @@ class Session {
   final int? totalTokens;
   final String createdAt;
   final String updatedAt;
+  final int? unreadCount;
+  final String lastMessageAt;
+  final String lastMessagePreview;
 
   Session({
     required this.id,
@@ -57,6 +60,9 @@ class Session {
     this.totalTokens,
     this.createdAt = '',
     this.updatedAt = '',
+    this.unreadCount,
+    this.lastMessageAt = '',
+    this.lastMessagePreview = '',
   });
 
   factory Session.fromJson(Map<String, dynamic> j) => Session(
@@ -78,6 +84,9 @@ class Session {
         totalTokens: j['total_tokens'] as int?,
         createdAt: j['created_at'] as String? ?? '',
         updatedAt: j['updated_at'] as String? ?? '',
+        unreadCount: j['unread_count'] as int?,
+        lastMessageAt: j['last_message_at'] as String? ?? '',
+        lastMessagePreview: j['last_message_preview'] as String? ?? '',
       );
 
   String get sessionName =>
@@ -88,6 +97,7 @@ class Session {
     String? preset,
     int? maxTurns,
     String? systemPrompt,
+    int? unreadCount,
   }) =>
       Session(
         id: id,
@@ -108,6 +118,9 @@ class Session {
         totalTokens: totalTokens,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        unreadCount: unreadCount ?? this.unreadCount,
+        lastMessageAt: lastMessageAt,
+        lastMessagePreview: lastMessagePreview,
       );
 }
 

@@ -3,15 +3,31 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
+import '../widgets/chat_avatar.dart';
 import '../widgets/dialogs.dart';
 
-/// Recreates ChatSidebar.svelte: recent sessions + org/repo/bookmark tree.
+/// Recreates ChatSidebar.svelte: recent sessions (IM-style rows with
+/// avatars, relative time, preview, unread badge) + the org/repo tree.
 class ChatSidebar extends StatefulWidget {
   final AppStore store;
   const ChatSidebar({super.key, required this.store});
 
   @override
   State<ChatSidebar> createState() => _ChatSidebarState();
+}
+
+/// Indent ladder for the repo tree: org=0, repo=16, bookmark=32.
+const _treeIndent = <double>[0, 16, 32];
+
+String _relativeTime(String iso) {
+  final t = DateTime.tryParse(iso);
+  if (t == null) return '';
+  final d = DateTime.now().difference(t);
+  if (d.inMinutes < 1) return 'now';
+  if (d.inMinutes < 60) return '${d.inMinutes}m';
+  if (d.inHours < 24) return '${d.inHours}h';
+  if (d.inDays < 7) return '${d.inDays}d';
+  return '${t.month}/${t.day}';
 }
 
 class _ChatSidebarState extends State<ChatSidebar> {
@@ -28,8 +44,14 @@ class _ChatSidebarState extends State<ChatSidebar> {
   List<Session> get _recent {
     final s = [...store.sessions];
     s.sort((a, b) {
-      final at = DateTime.tryParse(a.updatedAt)?.millisecondsSinceEpoch ?? 0;
-      final bt = DateTime.tryParse(b.updatedAt)?.millisecondsSinceEpoch ?? 0;
+      final at =
+          DateTime.tryParse(a.lastMessageAt.isNotEmpty ? a.lastMessageAt : a.updatedAt)
+                  ?.millisecondsSinceEpoch ??
+              0;
+      final bt =
+          DateTime.tryParse(b.lastMessageAt.isNotEmpty ? b.lastMessageAt : b.updatedAt)
+                  ?.millisecondsSinceEpoch ??
+              0;
       return bt - at;
     });
     return s;
@@ -99,19 +121,82 @@ class _ChatSidebarState extends State<ChatSidebar> {
     final isActive = store.activeSessionId == s.id;
     final colors = colorsOf(context);
     final text = textOf(context);
-    return ListTile(
-      selected: isActive,
-      selectedTileColor: colors.primary.withValues(alpha: 0.10),
-      leading: Icon(Icons.history_rounded,
-          size: 16,
-          color: isActive ? colors.primary : colors.mutedForeground),
-      title: Text(
-        s.org.isNotEmpty ? '${s.org}/${s.repo}/${s.branch}' : s.id,
-        style: text.meta.copyWith(
-            color: isActive ? colors.primary : null,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal),
-      ),
+    final unread = s.unreadCount ?? 0;
+    final preview = s.lastMessagePreview.isNotEmpty
+        ? s.lastMessagePreview
+        : (s.org.isNotEmpty ? '${s.org}/${s.repo}/${s.branch}' : s.id);
+    final stamp = _relativeTime(
+        s.lastMessageAt.isNotEmpty ? s.lastMessageAt : s.updatedAt);
+    return InkWell(
       onTap: () => store.pickSession(s.id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        color: isActive ? colors.primary.withValues(alpha: 0.10) : null,
+        child: Row(
+          children: [
+            ChatAvatar(org: s.org, repo: s.repo, branch: s.branch),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.branch.isNotEmpty ? s.branch : s.id,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.meta.copyWith(
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: isActive ? colors.primary : null),
+                        ),
+                      ),
+                      if (stamp.isNotEmpty)
+                        Text(stamp,
+                            style: text.micro
+                                .copyWith(color: colors.mutedForeground)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(preview,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: text.micro.copyWith(
+                                color: colors.mutedForeground)),
+                      ),
+                      if (unread > 0 && !isActive) ...[
+                        const SizedBox(width: AppSpacing.xs),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          constraints: const BoxConstraints(minWidth: 16),
+                          decoration: BoxDecoration(
+                            color: colors.destructive,
+                            borderRadius:
+                                BorderRadius.circular(999),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text('$unread',
+                              style: text.micro.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -122,7 +207,10 @@ class _ChatSidebarState extends State<ChatSidebar> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
-          leading: Icon(Icons.business_rounded, size: 16, color: colors.accent),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          leading: ChatAvatar(
+              org: org.org, repo: '', branch: org.org, radius: 14),
           title: Text(org.org,
               style: text.meta.copyWith(fontWeight: FontWeight.w600)),
           trailing: org.repos.isEmpty
@@ -151,8 +239,8 @@ class _ChatSidebarState extends State<ChatSidebar> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
-          contentPadding:
-              const EdgeInsets.only(left: AppSpacing.xl, right: AppSpacing.sm),
+          contentPadding: EdgeInsets.only(
+              left: AppSpacing.md + _treeIndent[1], right: AppSpacing.sm),
           leading:
               Icon(Icons.folder_copy_outlined, size: 16, color: colors.primary),
           title: Text(repo.repo, style: text.meta),
@@ -194,8 +282,8 @@ class _ChatSidebarState extends State<ChatSidebar> {
         ),
         for (final bm in repo.bookmarks)
           ListTile(
-            contentPadding:
-                const EdgeInsets.only(left: 40, right: AppSpacing.sm),
+            contentPadding: EdgeInsets.only(
+                left: AppSpacing.md + _treeIndent[2], right: AppSpacing.sm),
             leading: Container(
               width: 8,
               height: 8,

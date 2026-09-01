@@ -128,25 +128,54 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Packages'),
-          bottom: TabBar(
-            tabs: const [Tab(text: 'Registries'), Tab(text: 'Packages')],
-            onTap: (i) {
-              setState(() => _tab = i);
-              if (i == 1 && _pkgs.isEmpty && !_pkgLoading) _loadPackages();
-            },
+    final colors = colorsOf(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Packages'),
+        actions: [
+          IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => _tab == 0 ? _loadAll() : _loadPackages()),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Mobile-conventional in-content segmented control instead of an
+          // AppBar TabBar — the two views are siblings, not pages.
+          Padding(
+            padding:
+                const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md,
+                    AppSpacing.lg, AppSpacing.sm),
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('Registries')),
+                ButtonSegment(value: 1, label: Text('Packages')),
+              ],
+              selected: {_tab},
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                side: WidgetStatePropertyAll(
+                    BorderSide(color: colors.border.withValues(alpha: 0.5))),
+                backgroundColor: WidgetStateProperty.resolveWith((states) =>
+                    states.contains(WidgetState.selected)
+                        ? colors.muted
+                        : Colors.transparent),
+                foregroundColor: WidgetStateProperty.resolveWith((states) =>
+                    states.contains(WidgetState.selected)
+                        ? colors.primary
+                        : colors.mutedForeground),
+              ),
+              onSelectionChanged: (sel) {
+                setState(() => _tab = sel.first);
+                if (_tab == 1 && _pkgs.isEmpty && !_pkgLoading) {
+                  _loadPackages();
+                }
+              },
+            ),
           ),
-          actions: [
-            IconButton(
-                icon: const Icon(Icons.refresh_rounded),
-                onPressed: () => _tab == 0 ? _loadAll() : _loadPackages()),
-          ],
-        ),
-        body: _tab == 0 ? _registries(context) : _packages(context),
+          Expanded(child: _tab == 0 ? _registries(context) : _packages(context)),
+        ],
       ),
     );
   }

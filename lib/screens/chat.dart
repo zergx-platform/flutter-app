@@ -246,7 +246,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return SafeArea(
       bottom: false,
       child: SizedBox(
-        height: 52,
+        height: AppBars.height,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: Row(
@@ -316,17 +316,29 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'compact':
         _compact();
       case 'timeline':
-        store.openOverlay(SessionOverlay.timeline);
+        _openOverlay(SessionOverlay.timeline);
       case 'files':
-        store.openOverlay(SessionOverlay.files);
+        _openOverlay(SessionOverlay.files);
       case 'mailbox':
-        store.openOverlay(SessionOverlay.mailbox);
+        _openOverlay(SessionOverlay.mailbox);
       case 'container':
-        store.openOverlay(SessionOverlay.container);
+        _openOverlay(SessionOverlay.container);
       case 'todos':
-        store.openOverlay(SessionOverlay.todos);
+        _openOverlay(SessionOverlay.todos);
       case 'delete':
         _deleteSession();
+    }
+  }
+
+  /// Open a session sub-page. Wide screens dock it as a right panel; phones
+  /// push a full-screen route (the side panel is width-gated at 1024px, so
+  /// without this the overlay would be set but never rendered on mobile).
+  void _openOverlay(SessionOverlay overlay) {
+    store.openOverlay(overlay);
+    if (MediaQuery.sizeOf(context).width < 1024) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _OverlayPage(store: store, overlay: overlay),
+      ));
     }
   }
 
@@ -540,7 +552,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               SizedBox(
-                height: 26,
+                height: 32,
                 child: Row(
                   children: [
                     _Dropdown(
@@ -580,7 +592,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         children: [
           SizedBox(
-            height: 36,
+            height: AppBars.height,
             child: Row(
               children: [
                 Expanded(
@@ -679,6 +691,56 @@ class _OverlayTab extends StatelessWidget {
                       selected ? FontWeight.w600 : FontWeight.normal)),
         ),
       ),
+    );
+  }
+}
+
+/// Full-screen host for a session overlay on phones. Back button closes the
+/// overlay state so the side panel (wide screens) stays in sync.
+class _OverlayPage extends StatelessWidget {
+  final AppStore store;
+  final SessionOverlay overlay;
+  const _OverlayPage({required this.store, required this.overlay});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget body;
+    switch (overlay) {
+      case SessionOverlay.timeline:
+        if (store.diffChangeId != null) {
+          body = TimelineDiffScreen(
+              store: store, changeId: store.diffChangeId!);
+        } else {
+          body = TimelineOverlay(
+              store: store, onSelectDiff: (id) => store.openChange(id));
+        }
+      case SessionOverlay.files:
+        body = FilesOverlay(store: store);
+      case SessionOverlay.mailbox:
+        body = MailboxOverlay(store: store);
+      case SessionOverlay.container:
+        body = ContainerOverlay(store: store);
+      case SessionOverlay.todos:
+        body = TodosOverlay(store: store);
+    }
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            store.closeOverlay();
+            Navigator.of(context).pop();
+          },
+        ),
+        title: Text(switch (overlay) {
+          SessionOverlay.timeline => 'Timeline',
+          SessionOverlay.files => 'Files',
+          SessionOverlay.mailbox => 'Mailbox',
+          SessionOverlay.container => 'Container',
+          SessionOverlay.todos => 'Todos',
+        }),
+      ),
+      body: body,
     );
   }
 }
@@ -791,10 +853,11 @@ class _Dropdown extends StatelessWidget {
     final text = textOf(context);
     return PopupMenuButton<String>(
       onSelected: onSelect,
-      constraints: BoxConstraints(maxWidth: 320),
+      constraints: const BoxConstraints(maxWidth: 320),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+        height: Touch.min,
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         constraints: BoxConstraints(maxWidth: maxWidth),
         decoration: BoxDecoration(
           color: colors.muted,

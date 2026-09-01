@@ -243,6 +243,11 @@ class AppStore extends ChangeNotifier {
     activeSessionId = id;
     sessionOverlay = null;
     diffChangeId = null;
+    // Optimistically clear the local badge; the platform records the read
+    // watermark server-side.
+    sessions = sessions
+        .map((s) => s.id == id ? s.copyWith(unreadCount: 0) : s)
+        .toList();
     notifyListeners();
     api.markRead(id).catchError((_) {});
   }

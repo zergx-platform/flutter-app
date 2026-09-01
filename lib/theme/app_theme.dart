@@ -11,6 +11,17 @@ abstract final class AppSpacing {
   static const double xl = 24;
 }
 
+/// Uniform self-drawn bar height across screens (chat top bar, code panel
+/// headers, overlay panel header). AppBar toolbar matches.
+abstract final class AppBars {
+  static const double height = 48;
+}
+
+/// Minimum interactive touch target (Material accessibility guidance).
+abstract final class Touch {
+  static const double min = 44;
+}
+
 abstract final class AppRadius {
   static const double sm = 6;
   static const double md = 8;
@@ -261,7 +272,7 @@ ThemeData buildAppTheme(Brightness brightness) {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: ty.body.copyWith(fontWeight: FontWeight.w600),
-      toolbarHeight: 52,
+      toolbarHeight: AppBars.height,
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: c.card,
@@ -345,8 +356,6 @@ ThemeData buildAppTheme(Brightness brightness) {
       ),
     ),
     listTileTheme: ListTileThemeData(
-      dense: true,
-      visualDensity: const VisualDensity(horizontal: -3, vertical: -2),
       iconColor: c.mutedForeground,
       titleTextStyle: ty.meta,
       subtitleTextStyle: ty.micro.copyWith(color: c.mutedForeground),
