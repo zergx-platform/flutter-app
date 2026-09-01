@@ -25,11 +25,7 @@ class Session {
   final String branch;
   final String model;
   final String preset;
-  final String? parentId;
   final String? tipId;
-  final String? forkAtMsgId;
-  final String? workerUrl;
-  final String? containerId;
   final int? maxTurns;
   final String? systemPrompt;
   final int? inputTokens;
@@ -48,11 +44,7 @@ class Session {
     this.branch = '',
     this.model = '',
     this.preset = '',
-    this.parentId,
     this.tipId,
-    this.forkAtMsgId,
-    this.workerUrl,
-    this.containerId,
     this.maxTurns,
     this.systemPrompt,
     this.inputTokens,
@@ -72,11 +64,7 @@ class Session {
         branch: j['branch'] as String? ?? '',
         model: j['model'] as String? ?? '',
         preset: j['preset'] as String? ?? '',
-        parentId: j['parent_id'] as String?,
         tipId: j['tip_id'] as String?,
-        forkAtMsgId: j['fork_at_msg_id'] as String?,
-        workerUrl: j['worker_url'] as String?,
-        containerId: j['container_id'] as String?,
         maxTurns: j['max_turns'] as int?,
         systemPrompt: j['system_prompt'] as String?,
         inputTokens: j['input_tokens'] as int?,
@@ -106,11 +94,7 @@ class Session {
         branch: branch,
         model: model ?? this.model,
         preset: preset ?? this.preset,
-        parentId: parentId,
         tipId: tipId,
-        forkAtMsgId: forkAtMsgId,
-        workerUrl: workerUrl,
-        containerId: containerId,
         maxTurns: maxTurns ?? this.maxTurns,
         systemPrompt: systemPrompt ?? this.systemPrompt,
         inputTokens: inputTokens,
@@ -131,7 +115,6 @@ class SessionInfo {
   final int? unread;
   final String model;
   final String preset;
-  final String? parentId;
 
   SessionInfo({
     required this.sessionId,
@@ -140,7 +123,6 @@ class SessionInfo {
     this.unread,
     this.model = '',
     this.preset = '',
-    this.parentId,
   });
 
   factory SessionInfo.fromJson(Map<String, dynamic> j) => SessionInfo(
@@ -150,7 +132,6 @@ class SessionInfo {
         unread: j['unread'] as int?,
         model: j['model'] as String? ?? '',
         preset: j['preset'] as String? ?? '',
-        parentId: j['parent_id'] as String?,
       );
 }
 
