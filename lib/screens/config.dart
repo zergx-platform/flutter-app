@@ -27,32 +27,10 @@ class ConfigScreen extends StatefulWidget {
 
 class _ConfigScreenState extends State<ConfigScreen> {
   AppStore get store => widget.store;
-  Map<String, String> _values = {};
   Map<String, ProviderInfo> _providers = {};
-  List<ModelInfo> _models = [];
-  Map<String, dynamic>? _k8s;
   bool _loading = true;
 
   final List<String> _stack = [];
-  // Per-detail-page text field controllers, keyed by detail id. Created once
-  // (not in build) so editing survives rebuilds.
-  final Map<String, TextEditingController> _fieldControllers = {};
-
-  TextEditingController _controller(String key, String initial) {
-    return _fieldControllers.putIfAbsent(key, () {
-      final c = TextEditingController(text: initial);
-      c.addListener(() => _values[key] = c.text);
-      return c;
-    });
-  }
-
-  @override
-  void dispose() {
-    for (final c in _fieldControllers.values) {
-      c.dispose();
-    }
-    super.dispose();
-  }
 
   @override
   void initState() {
@@ -63,29 +41,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      _values = await store.api.config();
-    } catch (_) {}
-    try {
       final p = await store.api.providers();
       if (mounted) _providers = p;
     } catch (_) {}
-    try {
-      final m = await store.api.models();
-      if (mounted) _models = m;
-    } catch (_) {}
-    try {
-      final k = await store.api.k8sConfig();
-      if (mounted) _k8s = k;
-    } catch (_) {}
     setState(() => _loading = false);
-  }
-
-  Future<void> _save() async {
-    await store.api.setConfig(_values);
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Saved')));
-    }
   }
 
   void _push(String id) => setState(() => _stack.add(id));
@@ -122,14 +81,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
         return 'Appearance';
       case 'tools':
         return 'Tools';
-      case 'model':
-        return 'Default Model';
-      case 'container':
-        return 'Container Backend';
-      case 'base-image':
-        return 'Worker Base Image';
-      case 'advanced':
-        return 'Advanced';
       default:
         return id;
     }
@@ -140,14 +91,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
       children: [
         const _SectionHeader('App'),
         _listTile(Icons.palette_outlined, 'Appearance', () => _push('appearance')),
+        const _SectionHeader('LlM'),
         _listTile(Icons.dns_outlined, 'LLM Providers', () => _push('providers')),
         _listTile(Icons.auto_awesome_outlined, 'Presets', () => _push('presets')),
         const _SectionHeader('Workspace'),
         _listTile(Icons.handyman_outlined, 'Tools', () => _push('tools')),
-        _listTile(Icons.memory, 'Default Model', () => _push('model')),
-        _listTile(Icons.inbox_outlined, 'Container Backend', () => _push('container')),
-        _listTile(Icons.image_outlined, 'Worker Base Image', () => _push('base-image')),
-        _listTile(Icons.tune, 'Advanced', () => _push('advanced')),
       ],
     );
   }
@@ -171,14 +119,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
         return _presetsDetail();
       case 'tools':
         return _toolsDetail();
-      case 'model':
-        return _modelDetail();
-      case 'container':
-        return _containerDetail();
-      case 'base-image':
-        return _baseImageDetail();
-      case 'advanced':
-        return _advancedDetail();
       default:
         return const SizedBox.shrink();
     }
@@ -213,121 +153,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Widget _toolsDetail() {
     return _ToolsDetail(api: store.api, providers: _providers);
-  }
-
-  Widget _modelDetail() {
-    final current = _values['llm_model'] ?? '';
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        if (_models.isEmpty)
-          TextField(
-            controller: _controller('llm_model', current),
-            decoration: const InputDecoration(
-                labelText: 'Model (e.g. deepseek-v4-pro)'),
-          )
-        else
-          DropdownButtonFormField<String>(
-            initialValue: current.isEmpty ? null : current,
-            items: [
-              for (final m in _models)
-                DropdownMenuItem(
-                    value: m.id,
-                    child: Text('${m.providerId}: ${m.name}',
-                        style: const TextStyle(fontSize: 13))),
-            ],
-            onChanged: (v) => setState(() => _values['llm_model'] = v ?? ''),
-            decoration: const InputDecoration(labelText: 'Default Model'),
-          ),
-        const SizedBox(height: AppSpacing.lg),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
-    );
-  }
-
-  Widget _containerDetail() {
-    final text = textOf(context);
-    final backend = _values['container_backend'] ?? 'kubernetes';
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        RadioGroup<String>(
-          groupValue: backend,
-          onChanged: (v) =>
-              setState(() => _values['container_backend'] = v ?? 'kubernetes'),
-          child: Column(
-            children: const [
-              RadioListTile<String>(
-                title: Text('Kubernetes'),
-                value: 'kubernetes',
-              ),
-              RadioListTile<String>(
-                title: Text('Docker'),
-                value: 'docker',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        if (backend == 'kubernetes') ...[
-          if (_k8s != null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Namespace: ${_k8s!['namespace']}',
-                        style: text.mono.copyWith(fontSize: 12)),
-                    Text('Worker Image: ${_k8s!['worker_image']}',
-                        style: text.mono.copyWith(fontSize: 12)),
-                  ],
-                ),
-              ),
-            ),
-          _tf('worker_base_image', 'Worker Image'),
-          _tf('k8s_namespace', 'Namespace'),
-        ] else ...[
-          _tf('worker_image', 'Worker Image'),
-          _tf('docker_api_url', 'Docker API URL'),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
-    );
-  }
-
-  Widget _baseImageDetail() {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        _tf('worker_base_image', 'Default Sandbox Base'),
-        const SizedBox(height: AppSpacing.lg),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
-    );
-  }
-
-  Widget _advancedDetail() {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        _tf('repos_root', 'Repos Root'),
-        _tf('server_url', 'Server URL'),
-        const SizedBox(height: AppSpacing.lg),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
-    );
-  }
-
-  Widget _tf(String key, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: TextField(
-        controller: _controller(key, _values[key] ?? ''),
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
   }
 }
 
