@@ -82,11 +82,14 @@ class MessageBubble extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.copy_rounded),
-              title: Text(t(ctx, 'copy')),
-              onTap: () => Navigator.pop(ctx, 'copy'),
-            ),
+            // Copy only makes sense for messages with text/reasoning
+            // content; pure tool-call messages have nothing to copy.
+            if (_hasText)
+              ListTile(
+                leading: const Icon(Icons.copy_rounded),
+                title: Text(t(ctx, 'copy')),
+                onTap: () => Navigator.pop(ctx, 'copy'),
+              ),
             ListTile(
               leading: const Icon(Icons.undo_rounded),
               title: Text(t(ctx, 'undo')),
@@ -182,9 +185,14 @@ class MessageBubble extends StatelessWidget {
             onLongPress: () => _actions(context),
             child: bubble,
           ),
-          if (!isStreaming && _hasText)
+          // The actions row shows for EVERY non-streaming message — the
+          // agent-ts /undo endpoint accepts any message in the session
+          // chain, so tool-call messages are revertible too. Copy is only
+          // offered when there is text to copy.
+          if (!isStreaming)
             _BubbleActions(
               isUser: isUser,
+              showCopy: _hasText,
               createdAt: msg.createdAt,
               onCopy: () => _copy(context),
               onUndo: () => _undo(context),
@@ -223,11 +231,13 @@ class MessageBubble extends StatelessWidget {
 
 class _BubbleActions extends StatelessWidget {
   final bool isUser;
+  final bool showCopy;
   final String createdAt;
   final VoidCallback onCopy;
   final VoidCallback onUndo;
   const _BubbleActions({
     required this.isUser,
+    required this.showCopy,
     required this.createdAt,
     required this.onCopy,
     required this.onUndo,
@@ -243,8 +253,10 @@ class _BubbleActions extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _tinyIcon(Icons.copy_rounded, t(context, 'copy'), onCopy, colors),
-          const SizedBox(width: 2),
+          if (showCopy) ...[
+            _tinyIcon(Icons.copy_rounded, t(context, 'copy'), onCopy, colors),
+            const SizedBox(width: 2),
+          ],
           _tinyIcon(Icons.undo_rounded, t(context, 'undo'), onUndo, colors),
           if (isUser) ...[
             const SizedBox(width: 4),
