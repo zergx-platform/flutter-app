@@ -610,9 +610,6 @@ class ZergxApi {
           String type, String name, String version) =>
       _del('/api/v1/packages/${_enc(type)}/${_enc(name)}/${_enc(version)}');
 
-  Future<Map<String, dynamic>> zergxConfig() async =>
-      await _get('/api/v1/zergx-config') as Map<String, dynamic>;
-
   Future<List<String>> ociCatalog() async {
     final j = await client.get(
       Uri.parse('$baseUrl/v2/_catalog'),

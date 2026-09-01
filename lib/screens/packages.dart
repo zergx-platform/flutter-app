@@ -39,7 +39,6 @@ class _PackagesScreenState extends State<PackagesScreen> {
   int _tab = 0;
   List<PackageTypeEntry> _types = [];
   List<String> _repositories = [];
-  Map<String, dynamic>? _zergxCfg;
   bool _loading = false;
   String _error = '';
   String _query = '';
@@ -72,10 +71,6 @@ class _PackagesScreenState extends State<PackagesScreen> {
     } catch (e) {
       _error = '$e';
     }
-    try {
-      final cfg = await store.api.zergxConfig();
-      if (mounted) _zergxCfg = cfg;
-    } catch (_) {}
     try {
       final repos = await store.api.ociCatalog();
       if (mounted) _repositories = repos;
@@ -127,6 +122,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
   String _endpointFor(String type) =>
       type == 'oci' ? '/v2/' : '/api/v1/packages/$type/';
+
+  /// Full URL for copy-paste (base gateway + endpoint path).
+  String _endpointUrl(String type) => '${store.api.baseUrl}${_endpointFor(type)}';
 
   @override
   Widget build(BuildContext context) {
@@ -187,10 +185,10 @@ class _PackagesScreenState extends State<PackagesScreen> {
     final text = textOf(context);
     final filtered = _query.trim().isEmpty
         ? _types
-        : _types.where((t) {
+        : _types.where((ty) {
             final l = _query.toLowerCase();
-            return t.type.toLowerCase().contains(l) ||
-                (_typeLabels[t.type] ?? '').toLowerCase().contains(l);
+            return ty.type.toLowerCase().contains(l) ||
+                (_typeLabels[ty.type] ?? '').toLowerCase().contains(l);
           }).toList();
     return _loading && _types.isEmpty
         ? const Center(child: CircularProgressIndicator())
@@ -215,21 +213,23 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   style: text.meta
                       .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
               const SizedBox(height: AppSpacing.sm),
-              for (final t in filtered)
+              for (final ty in filtered)
                 Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ListTile(
-                    title: Text(t.type,
+                    title: Text(ty.type,
                         style: text.mono.copyWith(fontSize: 13)),
                     subtitle: Text(
-                        '${_typeLabels[t.type] ?? t.type}\n${t.upstream.isEmpty ? (I18n.isZh ? '无上游（仅本地）' : 'no upstream (local only)') : t.upstream}${t.upstream.isEmpty ? '' : '\n${_endpointFor(t.type)}'}',
+                        '${_typeLabels[ty.type] ?? ty.type} · ${ty.upstream.isEmpty ? t(context, 'noUpstreamLocal') : ty.upstream}\n${t(context, 'cachedPackages', ['${ty.packages}'])}',
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
                     onLongPress: () {
                       Clipboard.setData(
-                          ClipboardData(text: _endpointFor(t.type)));
+                          ClipboardData(text: _endpointUrl(ty.type)));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(Texts.t(context, 'endpointCopied'))),
+                        SnackBar(
+                            content:
+                                Text(Texts.t(context, 'endpointCopied'))),
                       );
                     },
                   ),
@@ -251,17 +251,6 @@ class _PackagesScreenState extends State<PackagesScreen> {
                         size: 16, color: colors.mutedForeground),
                     title: Text(repo, style: text.mono.copyWith(fontSize: 12)),
                   ),
-              if (_zergxCfg != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text(t(context, 'registryConfig'),
-                    style: text.meta
-                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                    'self_base: ${_zergxCfg!['self_base'] ?? '—'}\nhttp_proxy: ${_zergxCfg!['http_proxy'] ?? '—'}',
-                    style: text.mono.copyWith(
-                        fontSize: 12, color: colors.mutedForeground)),
-              ],
             ],
           );
   }
@@ -297,8 +286,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 hint: Text(t(context, 'typeLabel'), style: text.meta),
                 underline: const SizedBox.shrink(),
                 items: [
-                  for (final t in _types.where((t) => t.type.isNotEmpty))
-                    DropdownMenuItem(value: t.type, child: Text(t.type)),
+                  for (final ty in _types.where((e) => e.type.isNotEmpty))
+                    DropdownMenuItem(value: ty.type, child: Text(ty.type)),
                 ],
                 onChanged: (v) {
                   _typeFilter = v ?? '';

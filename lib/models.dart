@@ -891,10 +891,14 @@ class OpsStatus {
 class PackageTypeEntry {
   final String type;
   final String upstream;
-  PackageTypeEntry({required this.type, required this.upstream});
-  factory PackageTypeEntry.fromJson(Map<String, dynamic> j) => PackageTypeEntry(
+  final int packages;
+  PackageTypeEntry(
+      {required this.type, required this.upstream, this.packages = 0});
+  factory PackageTypeEntry.fromJson(Map<String, dynamic> j) =>
+      PackageTypeEntry(
         type: j['type'] as String? ?? '',
         upstream: j['upstream'] as String? ?? '',
+        packages: j['packages'] as int? ?? 0,
       );
 }
 

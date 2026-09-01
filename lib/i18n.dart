@@ -223,7 +223,6 @@ class Texts {
     'endpointCopied': (zh: '端点已复制', en: 'Endpoint copied'),
     'ociCatalog': (zh: 'OCI 镜像目录（\$1）', en: 'OCI Image Catalog (\$1)'),
     'noImages': (zh: '暂无镜像。', en: 'No images stored.'),
-    'registryConfig': (zh: '注册表后端配置（只读）', en: 'Registry Backend Config (read-only)'),
     'searchPackages': (zh: '搜索包…', en: 'Search packages...'),
     'typeLabel': (zh: '类型', en: 'Type'),
     'prev': (zh: '上一页', en: 'Prev'),
@@ -234,6 +233,8 @@ class Texts {
     'downloads': (zh: '\$1 次下载', en: '\$1 downloads'),
     'noPackagesYet': (zh: '暂无已发布的包。', en: 'No packages registered yet.'),
     'versionsCount': (zh: '\$1 个版本', en: '\$1 versions'),
+    'cachedPackages': (zh: '\$1 个包', en: '\$1 packages'),
+    'noUpstreamLocal': (zh: '无上游（仅本地）', en: 'no upstream (local only)'),
 
     // Deploy dialog
     'nameLabel': (zh: '名称', en: 'Name'),
