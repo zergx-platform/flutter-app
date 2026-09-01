@@ -16,9 +16,12 @@ import 'package:flutter/material.dart';
 ///
 /// The geometry is the classic identicon recipe: a 5x5 grid where the left
 /// 3 columns come from hash bits and the right 2 mirror them, giving
-/// left-right symmetric figures. Degenerate grids (too empty / too full)
-/// are deterministically rehashed away. Falls back down the ladder
-/// (branch → org → repo) for empty parts.
+/// left-right symmetric figures. Rendering is circle-native: the pattern is
+/// drawn through a circular clip (rim cells end in a smooth arc) and cells
+/// outside the rim are dropped, so nothing is ever chopped by an outer
+/// mask. Degenerate grids (too empty / too full) are deterministically
+/// rehashed away. Falls back down the ladder (branch → org → repo) for
+/// empty parts.
 class ChatAvatar extends StatelessWidget {
   final String org;
   final String repo;
@@ -109,14 +112,18 @@ class ChatAvatar extends StatelessWidget {
   static double _hue(String source) => _fnv(source) % 360.toDouble();
 
   /// 25 mirrored cells (row-major, 5x5). The left 3 columns are hash bits;
-  /// columns 3/4 mirror columns 1/0. Rejects degenerate patterns by
-  /// deterministically rehashing.
+  /// columns 3/4 mirror columns 1/0.
+  ///
+  /// Degenerate patterns are deterministically rehashed away. The density
+  /// check counts only cells VISIBLE inside the circular mask — the four
+  /// grid corners always fall outside the circle (see [_IdenticonPainter]),
+  /// so a pattern whose "on" bits are all corners would render empty.
   static List<bool> identiconCells(String seed) {
     var h = _fnv(seed);
     for (var attempt = 0; attempt < 8; attempt++) {
       final left = List.generate(15, (i) => ((h >> i) & 1) == 1);
-      final on = left.where((c) => c).length;
-      if (on >= 4 && on <= 11) {
+      final visibleOn = _visibleOnCount(left);
+      if (visibleOn >= 4 && visibleOn <= 11) {
         return [
           for (var r = 0; r < 5; r++)
             for (var c = 0; c < 5; c++)
@@ -131,6 +138,18 @@ class ChatAvatar extends StatelessWidget {
       for (var r = 0; r < 5; r++)
         for (var c = 0; c < 5; c++) x(r, c <= 2 ? c : 4 - c),
     ];
+  }
+
+  /// Count 'on' cells that are visible inside the circle. The corner cells
+  /// (left-column indices 0 and 12) mirror into all four corners, whose
+  /// centers lie outside the inscribed circle — they never render.
+  static int _visibleOnCount(List<bool> left) {
+    var n = 0;
+    for (var i = 0; i < left.length; i++) {
+      if (i == 0 || i == 12) continue;
+      if (left[i]) n++;
+    }
+    return n;
   }
 
   // ---- WCAG contrast math ----
@@ -152,7 +171,11 @@ class ChatAvatar extends StatelessWidget {
   }
 }
 
-/// Paints the identicon: solid background + on-cells in the pattern color.
+/// Paints the identicon natively in the circle: the background fills the
+/// full circle, and on-cells are drawn through a circular clip so rim cells
+/// end in a smooth arc instead of being chopped by an outer mask. Cells
+/// whose center lies outside the circle (the four corners) are skipped
+/// entirely — no dangling slivers.
 class _IdenticonPainter extends CustomPainter {
   final Color bg;
   final Color fg;
@@ -162,17 +185,24 @@ class _IdenticonPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = bg);
+    final rect = Offset.zero & size;
+    // Circular background — nothing square is ever drawn outside the rim.
+    canvas.drawOval(rect, Paint()..color = bg);
+    canvas.save();
+    canvas.clipPath(Path()..addOval(rect));
     final cell = size.shortestSide / 5;
+    final center = rect.center;
+    final radius = size.shortestSide / 2;
     final paint = Paint()..color = fg;
     for (var r = 0; r < 5; r++) {
       for (var c = 0; c < 5; c++) {
-        if (cells[r * 5 + c]) {
-          canvas.drawRect(
-              Rect.fromLTWH(c * cell, r * cell, cell, cell), paint);
-        }
+        if (!cells[r * 5 + c]) continue;
+        final cellRect = Rect.fromLTWH(c * cell, r * cell, cell, cell);
+        if ((cellRect.center - center).distance > radius) continue;
+        canvas.drawRect(cellRect, paint);
       }
     }
+    canvas.restore();
   }
 
   @override
