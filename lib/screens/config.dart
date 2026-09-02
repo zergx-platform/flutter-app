@@ -54,7 +54,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canSwitch = widget.onSwitchBackend != null;
     return Scaffold(
       appBar: AppBar(
         leading: _stack.isNotEmpty
@@ -64,14 +63,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
         title: Text(_stack.isNotEmpty
             ? _titleOf(_stack.last)
             : t(context, 'settings')),
-        actions: [
-          if (canSwitch)
-            IconButton(
-              icon: const Icon(Icons.swap_horiz_rounded, size: 20),
-              tooltip: t(context, 'switchBackend'),
-              onPressed: () => widget.onSwitchBackend?.call(),
-            ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -103,8 +94,19 @@ class _ConfigScreenState extends State<ConfigScreen> {
         _listTile(context, Icons.palette_outlined, 'appearance',
             () => _push('appearance')),
         _SectionHeader(t(context, 'backendSection')),
-        _listTile(context, Icons.swap_horiz_rounded, 'switchBackend',
-            () => widget.onSwitchBackend?.call()),
+        // Highlighted as a dangerous action: switching disconnects the
+        // active workspace mid-flight.
+        ListTile(
+          leading: Icon(Icons.swap_horiz_rounded,
+              size: 20, color: colorsOf(context).destructive),
+          title: Text(t(context, 'switchBackend'),
+              style: textOf(context).meta.copyWith(
+                  color: colorsOf(context).destructive,
+                  fontWeight: FontWeight.w600)),
+          trailing: Icon(Icons.chevron_right,
+              size: 18, color: colorsOf(context).destructive),
+          onTap: () => widget.onSwitchBackend?.call(),
+        ),
         _SectionHeader(t(context, 'llm')),
         _listTile(context, Icons.dns_outlined, 'providers',
             () => _push('providers')),

@@ -34,6 +34,11 @@ class _ZergxAppState extends State<ZergxApp> {
   bool _dark = true;
   AppStore? _store;
 
+  /// Root navigator key: lets root-level helpers (backend manager) show
+  /// sheets with a context BELOW MaterialApp — the State's own context is
+  /// above it and has no Navigator, which made the button do nothing.
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
@@ -86,9 +91,10 @@ class _ZergxAppState extends State<ZergxApp> {
   /// one (which lands on the setup screen). The active backend is marked.
   Future<void> _manageBackends() async {
     final backends = await Prefs.backends();
-    if (!mounted) return;
+    final navCtx = _navKey.currentContext;
+    if (navCtx == null || !navCtx.mounted) return;
     await showModalBottomSheet<void>(
-      context: context,
+      context: navCtx,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -169,6 +175,7 @@ class _ZergxAppState extends State<ZergxApp> {
     return ValueListenableBuilder<Locale>(
       valueListenable: I18n.notifier,
       builder: (context, locale, _) => MaterialApp(
+        navigatorKey: _navKey,
         title: t(context, 'appTitle'),
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(Brightness.light),
