@@ -350,10 +350,9 @@ class MessagesController extends ChangeNotifier {
     final trimmed = text.trim();
     if ((trimmed.isEmpty && attachments.isEmpty) || sending) return;
     sending = true;
-    final attachText = attachments.isEmpty
-        ? ''
-        : '${attachments.map((a) => a.reference).join('\n')}\n';
-    final full = '$attachText$trimmed';
+    // The platform splices attachment codes into `[附件 …file:<code>…]`
+    // references; the client only sends the codes, never the rendered text.
+    final codes = attachments.map((a) => a.code).toList();
     messages = [
       ...messages.where((m) => m.status != 'streaming'),
       ChatMessage(
@@ -364,7 +363,7 @@ class MessagesController extends ChangeNotifier {
             ChatPart(
                 id: 'p${DateTime.now().microsecondsSinceEpoch}',
                 type: 'text',
-                text: full)
+                text: trimmed)
           ],
           createdAt: DateTime.now().toIso8601String(),
           seq: _allocSeq()),
@@ -372,7 +371,8 @@ class MessagesController extends ChangeNotifier {
     final _ = _ensureStreamingMsg(true);
     notifyListeners();
     try {
-      final messageId = await api.prompt(getSessionId(), full);
+      final messageId =
+          await api.prompt(getSessionId(), trimmed, attachments: codes);
       if (messageId.isNotEmpty) {
         messages = messages.map((m) {
           if (m.status == 'pending' && m.role == 'user') {

@@ -1,19 +1,18 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../api.dart';
 import '../i18n.dart';
 import '../models.dart';
+import '../services/download_service.dart';
 import '../theme/app_theme.dart';
 import 'tool_part.dart';
 
 /// A file chip surfaced from a text part that carries the
 /// `[附件 <name> | file:<code> | <mime> | <size>]` reference we embed in the
-/// prompt. Clicking it opens a preview / triggers download by [code].
+/// prompt. Clicking it opens an inline image preview (by [code]) or triggers
+/// a public-Downloads save for non-image files.
 class _FileChip extends StatelessWidget {
   final String code;
   final String label;
@@ -57,8 +56,8 @@ class _FileChip extends StatelessWidget {
 
   Future<void> _open(BuildContext context) async {
     try {
-      final bytes = await api.fetchFileBytes(code);
       if (_isImage) {
+        final bytes = await api.fetchFileBytes(code);
         if (!context.mounted) return;
         // ignore: use_build_context_synchronously
         showDialog<void>(
@@ -71,13 +70,17 @@ class _FileChip extends StatelessWidget {
           ),
         );
       } else {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/$label');
-        await file.writeAsBytes(bytes);
+        // Non-image files save into the public Downloads collection (and
+        // show a hop-free snackbar naming the destination).
+        final where = await DownloadService(api).download(
+          path: api.filePath(code),
+          displayName: label,
+          mimeType: mime ?? 'application/octet-stream',
+        );
         if (!context.mounted) return;
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${t(context, 'downloaded')}: ${file.path}'),
+          content: Text(t(context, 'savedToDownloads', [where])),
           duration: const Duration(seconds: 2),
         ));
       }
@@ -261,6 +264,7 @@ class MessageBubble extends StatelessWidget {
         parts.add(ToolPartView(
           part: part,
           isStreaming: isStreaming,
+          api: _api,
           onOpenChange: onOpenChange,
         ));
       } else if (part.type == 'compaction') {

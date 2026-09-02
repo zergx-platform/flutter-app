@@ -340,6 +340,8 @@ class UploadedFileSource {
 
 /// The server-side record for an uploaded file. The [code] is the 8-char
 /// content hash-based object key; the model refers to it as `file:<code>`.
+/// Also mirrors a LOCAL pending attachment (uploading/error) before the code
+/// exists — [localPath] lets an image show its thumbnail while uploading.
 class UploadedFile {
   final String code;
   final String? name;
@@ -347,6 +349,9 @@ class UploadedFile {
   final int? size;
   final String? sha256;
   final bool deduped;
+  final String localPath;
+  final String uploadState; // 'idle' | 'uploading' | 'done' | 'error'
+  final String? error;
   UploadedFile({
     required this.code,
     this.name,
@@ -354,7 +359,35 @@ class UploadedFile {
     this.size,
     this.sha256,
     this.deduped = false,
+    this.localPath = '',
+    this.uploadState = 'done',
+    this.error,
   });
+
+  UploadedFile uploading(String srcPath) => UploadedFile(
+      code: code,
+      name: name,
+      mime: mime,
+      size: size,
+      sha256: sha256,
+      deduped: deduped,
+      localPath: srcPath,
+      uploadState: 'uploading');
+
+  UploadedFile uploadError(String msg) => UploadedFile(
+      code: code,
+      name: name,
+      mime: mime,
+      size: size,
+      sha256: sha256,
+      deduped: deduped,
+      localPath: localPath,
+      uploadState: 'error',
+      error: msg);
+
+  bool get isUploading => uploadState == 'uploading';
+  bool get hasError => uploadState == 'error';
+  bool get isLocal => code.isEmpty;
 
   factory UploadedFile.fromJson(Map<String, dynamic> j) => UploadedFile(
         code: j['code'] as String? ?? '',
@@ -365,18 +398,8 @@ class UploadedFile {
         deduped: j['deduped'] as bool? ?? false,
       );
 
-  /// The inline reference text embedded in the prompt so the model sees it as
-  /// plain text (the agent is unchanged; no structured part).
-  String get reference =>
-      '[附件 $name | file:$code | ${mime ?? 'application/octet-stream'} | ${_fmt(size)}]';
-
-  static String _fmt(int? n) => n == null
-      ? '未知'
-      : n >= 1048576
-          ? '${(n / 1048576).toStringAsFixed(1)}MB'
-          : n >= 1024
-              ? '${(n / 1024).toStringAsFixed(1)}KB'
-              : '${n}B';
+  /// The file code the client sends to the platform, which splices it into a
+  /// `[附件 …file:<code>…]` reference. The client never renders the text.
 }
 
 // ---- chat domain (streaming state) ----

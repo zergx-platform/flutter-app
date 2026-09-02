@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../i18n.dart';
 import '../messages.dart';
@@ -143,7 +145,17 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty && _pendingAttachments.isEmpty) return;
-    final attachments = _pendingAttachments;
+    // Never send while an attachment is still uploading.
+    if (_pendingAttachments.any((a) => a.isUploading)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t(context, 'waitUpload'))));
+      }
+      return;
+    }
+    // Drop errored attachments from the outgoing batch.
+    final attachments =
+        _pendingAttachments.where((a) => !a.hasError).toList();
     _pendingAttachments = [];
     _input.clear();
     setState(() {});
@@ -152,32 +164,105 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   List<UploadedFile> _pendingAttachments = [];
+  final ImagePicker _picker = ImagePicker();
+
+  /// Open the attach bottom sheet: camera / gallery / files. A selected item
+  /// is uploaded immediately and shown (with an uploading state) above the
+  /// composer.
+  Future<void> _openAttachSheet() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: Text(t(ctx, 'takePhoto')),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: Text(t(ctx, 'chooseImage')),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file_rounded),
+              title: Text(t(ctx, 'chooseFile')),
+              onTap: () => Navigator.pop(ctx, 'file'),
+            ),
+          ],
+        ),
+      ),
+    );
+    switch (action) {
+      case 'camera':
+        await _pickImage(ImageSource.camera);
+      case 'gallery':
+        await _pickImage(ImageSource.gallery);
+      case 'file':
+        await _pickFiles();
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? x;
+    try {
+      x = await _picker.pickImage(source: source);
+    } catch (_) {
+      return;
+    }
+    if (x == null) return;
+    _uploadOne(UploadedFileSource(
+      path: x.path,
+      name: x.name,
+      mimeType: _mimeOf(x.name),
+    ));
+  }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.any,
-    );
+    final result = await FilePicker.pickFiles(type: FileType.any);
     if (result.isEmpty) return;
     for (final f in result) {
       final path = f.path;
       if (path == null) continue;
-      final src = UploadedFileSource(
+      _uploadOne(UploadedFileSource(
         path: path,
         name: f.name,
         mimeType: _mimeOf(f.name),
-      );
-      setState(() {});
-      try {
-        final uploaded = await store.api.uploadFile(src);
-        setState(() => _pendingAttachments = [..._pendingAttachments, uploaded]);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(t(context, 'sendFailed', ['$e'])),
-            duration: const Duration(seconds: 2),
-          ));
-        }
-      }
+      ));
+    }
+  }
+
+  /// Upload a single file and append it to the pending list. The local path
+  /// is kept so an image can render a thumbnail while uploading (and before
+  /// the bytes are ever needed).
+  Future<void> _uploadOne(UploadedFileSource src) async {
+    setState(() {
+      _pendingAttachments = [
+        ..._pendingAttachments,
+        UploadedFile(code: '', name: src.name, mime: src.mimeType)
+            .uploading(src.path),
+      ];
+    });
+    try {
+      final uploaded = await store.api.uploadFile(src);
+      if (!mounted) return;
+      setState(() {
+        _pendingAttachments = [
+          for (final a in _pendingAttachments)
+            if (a.code == '' && a.name == src.name) uploaded else a,
+        ];
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _pendingAttachments = [
+          for (final a in _pendingAttachments)
+            if (a.code == '' && a.name == src.name) a.uploadError('$e') else a,
+        ];
+      });
     }
   }
 
@@ -194,33 +279,82 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _attachmentRow(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Wrap(
         spacing: AppSpacing.xs,
         runSpacing: AppSpacing.xs,
         children: [
-          for (final a in _pendingAttachments)
-            Chip(
-              avatar: Icon(Icons.attach_file_rounded,
-                  size: 14, color: colors.mutedForeground),
-              label: Text(a.name ?? a.code,
-                  style: text.micro.copyWith(color: colors.foreground)),
-              onDeleted: () {
-                setState(() {
-                  _pendingAttachments =
-                      _pendingAttachments.where((x) => x != a).toList();
-                });
-              },
-              deleteIcon: const Icon(Icons.cancel_rounded, size: 16),
-              deleteIconColor: colors.mutedForeground,
-              backgroundColor: colors.muted.withValues(alpha: 0.5),
-              side: BorderSide(color: colors.border.withValues(alpha: 0.6)),
-              visualDensity: VisualDensity.compact,
-            ),
+          for (final a in _pendingAttachments) _attachmentChip(context, a),
         ],
+      ),
+    );
+  }
+
+  Widget _attachmentChip(BuildContext context, UploadedFile a) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final isImg = (a.mime ?? '').startsWith('image/');
+    // Local thumbnails render straight from disk; remote images preview only
+    // after upload (code set) via the bubble; here we show the offline thumb.
+    Widget leading;
+    if (isImg && a.localPath.isNotEmpty) {
+      leading = ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.file(
+          File(a.localPath),
+          width: 34,
+          height: 34,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const SizedBox(
+              width: 34,
+              height: 34,
+              child: Icon(Icons.broken_image_outlined, size: 16)),
+        ),
+      );
+    } else {
+      leading = Icon(Icons.attach_file_rounded,
+          size: 14, color: colors.mutedForeground);
+    }
+    Widget trailing;
+    if (a.isUploading) {
+      trailing = const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2));
+    } else if (a.hasError) {
+      trailing = InkWell(
+        onTap: () => _uploadOne(UploadedFileSource(
+            path: a.localPath, name: a.name ?? '', mimeType: a.mime ?? '')),
+        child: Icon(Icons.refresh_rounded, size: 16, color: colors.warning),
+      );
+    } else {
+      trailing = InkWell(
+        onTap: () {
+          setState(() {
+            _pendingAttachments =
+                _pendingAttachments.where((x) => x != a).toList();
+          });
+        },
+        child: Icon(Icons.cancel_rounded, size: 16, color: colors.mutedForeground),
+      );
+    }
+    return Material(
+      color: colors.muted.withValues(alpha: 0.5),
+      borderRadius: AppRadius.rSm,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            leading,
+            const SizedBox(width: AppSpacing.xs),
+            Text(a.name ?? a.code,
+                style: text.micro.copyWith(color: colors.foreground)),
+            const SizedBox(width: AppSpacing.xs),
+            trailing,
+          ],
+        ),
       ),
     );
   }
@@ -626,8 +760,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   IconButton(
                     tooltip: t(context, 'attach'),
-                    onPressed: sending ? null : _pickFiles,
-                    icon: const Icon(Icons.attach_file_rounded, size: 20),
+                    onPressed: sending ? null : _openAttachSheet,
+                    icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
                   ),
                   Expanded(
                     child: TextField(

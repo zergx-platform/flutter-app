@@ -129,8 +129,12 @@ class ZergxApi {
 
   Future<void> deleteSession(String id) => _del('/api/v1/sessions/${_enc(id)}');
 
-  Future<String> prompt(String id, String prompt) async {
-    final j = await _post('/api/v1/sessions/${_enc(id)}/prompt', {'prompt': prompt})
+  Future<String> prompt(String id, String prompt, {List<String>? attachments}) async {
+    final j = await _post('/api/v1/sessions/${_enc(id)}/prompt', {
+          'prompt': prompt,
+          if (attachments != null && attachments.isNotEmpty)
+            'attachments': attachments.map((code) => {'code': code}).toList(),
+        })
         as Map<String, dynamic>;
     return j['messageId'] as String? ?? '';
   }
@@ -169,6 +173,10 @@ class ZergxApi {
     if (r.statusCode != 200) throw ApiException(r.statusCode, r.body);
     return r.bodyBytes;
   }
+
+  /// Platform-relative path of a stored file (for streaming download +
+  /// save-to-Downloads).
+  String filePath(String code) => '/api/v1/files/$code';
 
   Future<(List<Message>, bool)> messages(String id,
       {String? before, int limit = 30}) async {

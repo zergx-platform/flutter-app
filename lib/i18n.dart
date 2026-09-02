@@ -89,6 +89,11 @@ class Texts {
     'running': (zh: '运行中…', en: 'running...'),
     'sendFailed': (zh: '发送失败: \$1', en: 'Send failed: \$1'),
     'attach': (zh: '添加附件', en: 'Attach file'),
+    'image': (zh: '图片', en: 'image'),
+    'takePhoto': (zh: '拍照', en: 'Take photo'),
+    'chooseImage': (zh: '从相册选图', en: 'Choose from gallery'),
+    'chooseFile': (zh: '选择文件', en: 'Choose file'),
+    'waitUpload': (zh: '附件仍在上传中，请稍候', en: 'Attachment is still uploading'),
     'downloaded': (zh: '已下载到', en: 'Downloaded to'),
 
     // Chat topbar menu

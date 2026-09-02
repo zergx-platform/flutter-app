@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
+import '../api.dart';
 import '../i18n.dart';
 import '../models.dart';
 import '../theme/app_theme.dart';
@@ -9,11 +12,13 @@ import 'tool_icon.dart';
 class ToolPartView extends StatefulWidget {
   final ChatPart part;
   final bool isStreaming;
+  final ZergxApi? api;
   final void Function(String changeId)? onOpenChange;
   const ToolPartView({
     super.key,
     required this.part,
     this.isStreaming = false,
+    this.api,
     this.onOpenChange,
   });
 
@@ -40,6 +45,11 @@ class _ToolPartViewState extends State<ToolPartView> {
   String inputSummary(String t, Map<String, dynamic> inp) {
     final jobId = _s(inp['job_id']);
     switch (t) {
+      case 'image_read':
+      case 'image-read':
+        return _s(inp['code'].toString()).isNotEmpty
+            ? 'image ${_s(inp['code'].toString())}'
+            : 'read image';
       case 'sandbox-read':
       case 'sandbox-write':
       case 'sandbox-edit':
@@ -232,6 +242,15 @@ class _ToolPartViewState extends State<ToolPartView> {
     } else if (summary.isNotEmpty) {
       children.add(_code(context, '$tool $summary'));
     }
+    // show the INPUT image thumbnail for image_read (and any tool carrying a
+    // `code` that is an image), fetched by code from the agent file store.
+    if (tool == 'image_read' || tool == 'image-read') {
+      children.add(_InputImage(
+        code: _s(input['code']),
+        api: widget.api,
+        maxWidth: 160,
+      ));
+    }
     final output = state?.output;
     if (output != null && output.isNotEmpty) {
       children.add(Container(
@@ -268,6 +287,93 @@ class _ToolPartViewState extends State<ToolPartView> {
       ),
       child: SelectableText(text,
           style: textOf(context).mono.copyWith(fontSize: 11)),
+    );
+  }
+}
+
+/// Fetches an image by code and shows a small tappable thumbnail inside a
+/// tool card (e.g. the input image of an image_read tool call).
+class _InputImage extends StatefulWidget {
+  final String code;
+  final ZergxApi? api;
+  final double maxWidth;
+  const _InputImage({required this.code, this.api, this.maxWidth = 160});
+
+  @override
+  State<_InputImage> createState() => _InputImageState();
+}
+
+class _InputImageState extends State<_InputImage> {
+  Uint8List? _bytes;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final api = widget.api;
+    if (api == null || widget.code.isEmpty) return;
+    try {
+      final b = await api.fetchFileBytes(widget.code);
+      if (mounted) setState(() => _bytes = Uint8List.fromList(b));
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    if (_error != null) {
+      return _flag(context, colors.mutedForeground,
+          '${t(context, 'image')}: $_error');
+    }
+    final b = _bytes;
+    if (b == null) {
+      return Container(
+        width: 120,
+        height: 80,
+        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        decoration: BoxDecoration(
+          color: colors.muted.withValues(alpha: 0.4),
+          borderRadius: AppRadius.rSm,
+        ),
+        child: const Center(
+            child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            child: InteractiveViewer(child: Image.memory(b)),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: AppRadius.rSm,
+          child: Image.memory(b,
+              width: widget.maxWidth, fit: BoxFit.cover, cacheWidth: 640),
+        ),
+      ),
+    );
+  }
+
+  Widget _flag(BuildContext context, Color color, String msg) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Text(msg,
+          style: textOf(context)
+              .micro
+              .copyWith(color: color, fontSize: 10)),
     );
   }
 }
