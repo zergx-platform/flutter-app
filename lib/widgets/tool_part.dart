@@ -5,20 +5,35 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../i18n.dart';
 import '../models.dart';
+import '../screens/change_diff.dart';
+import '../screens/task_progress.dart';
 import '../theme/app_theme.dart';
 import 'tool_icon.dart';
 
-/// Recreates ToolPartView.svelte: a collapsible tool-call card.
+/// Recreates ToolPartView.svelte + family-specific body rendering.
+///
+/// Every tool is drawn with a shared header (status dot, icon, name, title,
+/// fold arrow) and a family-appropriate body:
+///   - file/content, git, sandbox-shell, build/deploy, package/pull,
+///     browser, memory, generic.
+/// A change_id badge (when the tool produced a change) jumps to the change
+/// comparison screen; running long tasks offer a live-output screen.
 class ToolPartView extends StatefulWidget {
   final ChatPart part;
   final bool isStreaming;
   final ZergxApi? api;
+  final String? org;
+  final String? repo;
+  final String? branch;
   final void Function(String changeId)? onOpenChange;
   const ToolPartView({
     super.key,
     required this.part,
     this.isStreaming = false,
     this.api,
+    this.org,
+    this.repo,
+    this.branch,
     this.onOpenChange,
   });
 
@@ -42,14 +57,54 @@ class _ToolPartViewState extends State<ToolPartView> {
     return (c is String && c.isNotEmpty) ? c : null;
   }
 
-  String inputSummary(String t, Map<String, dynamic> inp) {
+  String get toolId => tool.toLowerCase();
+
+  /// Family classifier — drives the body renderer.
+  String get family {
+    final t = toolId;
+    if (t.startsWith('git-') || t == 'git-diff' || t == 'git-log' ||
+        t == 'git-show' || t == 'git-blame' || t == 'git-branches') {
+      return 'git';
+    }
+    if (t.startsWith('sandbox-') || t == 'sandbox-id' || t == 'sandbox-status') {
+      return 'sandbox';
+    }
+    if (t.startsWith('container-') || t.startsWith('deploy') ||
+        t.startsWith('helm') || t == 'image-list' ||
+        t == 'deployment-list') {
+      return 'deploy';
+    }
+    if (t.startsWith('package') || t.startsWith('publish') ||
+        t.startsWith('list-registry') || t.startsWith('list-containerfile') ||
+        t.startsWith('pull-') || t == 'sandbox-download') {
+      return 'package';
+    }
+    if (t.startsWith('browser') || t.startsWith('web') ||
+        t == 'navigate' || t == 'navigate_back' || t == 'navigate_forward' ||
+        t == 'webfetch' || t == 'snapshot' || t == 'screenshot' ||
+        t == 'click' || t == 'type' || t == 'find' || t == 'wait_for') {
+      return 'browser';
+    }
+    if (t.startsWith('todo') || t.startsWith('history') ||
+        t == 'file_info' || t == 'image_read') {
+      return 'memory';
+    }
+    if (t == 'read' || t == 'write' || t == 'delete' || t == 'edit' ||
+        t == 'ls' || t == 'grep' || t == 'explore' || t == 'org' ||
+        t == 'repo' || t == 'bookmark') {
+      return 'file';
+    }
+    return 'generic';
+  }
+
+  String inputSummary(Map<String, dynamic> inp) {
     final jobId = _s(inp['job_id']);
+    final t = tool;
+    final code = _s(inp['code']);
     switch (t) {
       case 'image_read':
       case 'image-read':
-        return _s(inp['code'].toString()).isNotEmpty
-            ? 'image ${_s(inp['code'].toString())}'
-            : 'read image';
+        return code.isNotEmpty ? 'image $code' : 'read image';
       case 'sandbox-read':
       case 'sandbox-write':
       case 'sandbox-edit':
@@ -86,30 +141,83 @@ class _ToolPartViewState extends State<ToolPartView> {
         return 'clone ${_s(inp['git_url'])}';
       case 'list-registry-packages':
         return 'list packages';
-      default:
-        return browserSummary(t, inp);
-    }
-  }
-
-  String browserSummary(String t, Map<String, dynamic> inp) {
-    final el = _s(inp['element']);
-    final url = _s(inp['url']);
-    switch (t) {
       case 'browser-navigate':
-        return 'navigate $url';
+        return 'navigate ${_s(inp['url'])}';
       case 'browser-navigate-back':
         return 'navigate back';
+      case 'browser-navigate-forward':
+        return 'navigate forward';
       case 'browser-click':
-        return 'click $el';
+        return 'click ${_s(inp['element'])}';
       case 'browser-type':
-        return 'type $el';
+        return 'type ${_s(inp['element'])}';
       case 'browser-snapshot':
         return 'snapshot';
       case 'browser-take-screenshot':
         return 'screenshot';
+      case 'browser-webfetch':
+        return 'webfetch ${_s(inp['url'])}';
       default:
-        return '';
+        return _genericSummary(t, inp);
     }
+  }
+
+  String _genericSummary(String t, Map<String, dynamic> inp) {
+    // Best-effort: join known scalar args into a short "k v" summary.
+    final parts = <String>[];
+    for (final kv in inp.entries) {
+      final v = kv.value;
+      if (v is String && v.isNotEmpty) {
+        parts.add(v);
+      } else if (v is num) {
+        parts.add('$v');
+      }
+    }
+    return parts.take(3).join(' ');
+  }
+
+  // ---- live-output / change nav ----
+
+  Future<void> _openChange(String id) async {
+    if (widget.api != null && widget.org != null && widget.repo != null) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ChangeDiffScreen(
+          api: widget.api!,
+          org: widget.org!,
+          repo: widget.repo!,
+          changeId: id,
+          branch: widget.branch ?? '',
+        ),
+      ));
+      return;
+    }
+    widget.onOpenChange?.call(id);
+  }
+
+  /// build_id / task_id carry the live SSE task handle for long-running ops.
+  String? get _buildId {
+    for (final k in ['build_id', 'task_id', 'id']) {
+      final v = input[k];
+      if (v is String && v.isNotEmpty) return v;
+    }
+    return null;
+  }
+
+  bool get _isLongRunning =>
+      status == 'running' &&
+      (family == 'deploy' || toolId.startsWith('sandbox-job-wait') ||
+          toolId.startsWith('container-build'));
+
+  void _openLiveOutput() {
+    final bid = _buildId;
+    if (bid == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => TaskProgressScreen(
+        api: widget.api!,
+        buildId: bid,
+        title: toolDisplayName(tool),
+      ),
+    ));
   }
 
   @override
@@ -123,6 +231,9 @@ class _ToolPartViewState extends State<ToolPartView> {
             : hasError
                 ? colors.destructive
                 : colors.success;
+    final canNavChange = changeId != null &&
+        (widget.api != null && widget.org != null && widget.repo != null ||
+            widget.onOpenChange != null);
     return Container(
       decoration: BoxDecoration(
         color: hasError
@@ -170,6 +281,34 @@ class _ToolPartViewState extends State<ToolPartView> {
                     ),
                   ],
                   const Spacer(),
+                  // Live-output entry for running long tasks.
+                  if (_isLongRunning && widget.api != null) ...[
+                    InkWell(
+                      borderRadius: AppRadius.rSm,
+                      onTap: _openLiveOutput,
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.terminal_rounded,
+                                size: 12, color: colors.warning),
+                            const SizedBox(width: 2),
+                            Text(t(context, 'viewOutput'),
+                                style: text.micro.copyWith(
+                                    fontSize: 10, color: colors.warning)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  ] else
+                    const Spacer(),
                   Icon(
                     _open
                         ? Icons.keyboard_arrow_up_rounded
@@ -177,10 +316,10 @@ class _ToolPartViewState extends State<ToolPartView> {
                     size: 14,
                     color: colors.mutedForeground,
                   ),
-                  if (changeId != null && widget.onOpenChange != null) ...[
+                  if (changeId != null && canNavChange) ...[
                     const SizedBox(width: AppSpacing.xs),
                     InkWell(
-                      onTap: () => widget.onOpenChange!(changeId!),
+                      onTap: () => _openChange(changeId!),
                       borderRadius: AppRadius.rSm,
                       child: Padding(
                         padding:
@@ -231,26 +370,55 @@ class _ToolPartViewState extends State<ToolPartView> {
                 fontSize: 11, color: colors.destructive)),
       ));
     }
-    final summary = inputSummary(tool, input);
-    if (tool == 'sandbox-run' && input['command'] is String) {
-      children.add(_code(context, '\$ ${input['command']}'));
-    } else if (input['path'] is String &&
-        (tool == 'read' || tool == 'write' || tool == 'edit')) {
-      children.add(_code(context, input['path'] as String));
-    } else if (input['pattern'] is String && tool == 'grep') {
-      children.add(_code(context, 'grep ${input['pattern']}'));
-    } else if (summary.isNotEmpty) {
-      children.add(_code(context, '$tool $summary'));
+    if (changeId != null) {
+      children.add(_code(context, 'change ${changeId!.substring(0, 12)}'));
     }
-    // show the INPUT image thumbnail for image_read (and any tool carrying a
-    // `code` that is an image), fetched by code from the agent file store.
-    if (tool == 'image_read' || tool == 'image-read') {
-      children.add(_InputImage(
-        code: _s(input['code']),
-        api: widget.api,
-        maxWidth: 160,
-      ));
+    final summary = inputSummary(input);
+    final fam = family;
+
+    // Family-specific input blocks.
+    if (fam == 'file' || fam == 'git') {
+      final path = _s(input['path']);
+      if (_s(input['pattern']).isNotEmpty && toolId == 'grep') {
+        children.add(_code(context, 'grep ${input['pattern']}'));
+      } else if (path.isNotEmpty) {
+        children.add(_code(context, path));
+      } else if (summary.isNotEmpty) {
+        children.add(_code(context, '$tool $summary'));
+      }
+    } else if (fam == 'sandbox') {
+      if (toolId == 'sandbox-run' || toolId == 'sandbox-write') {
+        if (input['command'] is String) {
+          children.add(_code(context, '\$ ${input['command']}'));
+        }
+      } else if (_s(input['path']).isNotEmpty) {
+        children.add(_code(context, _s(input['path'])));
+      } else if (summary.isNotEmpty) {
+        children.add(_code(context, '$tool $summary'));
+      }
+    } else if (fam == 'browser') {
+      if (summary.isNotEmpty) children.add(_code(context, summary));
+    } else if (fam == 'memory') {
+      if (toolId == 'image_read' || toolId == 'image-read') {
+        children.add(_InputImage(
+          code: _s(input['code']),
+          api: widget.api,
+          maxWidth: 160,
+        ));
+      } else if (summary.isNotEmpty) {
+        children.add(_code(context, '$tool $summary'));
+      }
+    } else if (fam == 'deploy' || fam == 'package') {
+      if (_buildId != null) {
+        children.add(_code(context, 'task $_buildId'));
+      } else if (summary.isNotEmpty) {
+        children.add(_code(context, '$tool $summary'));
+      }
+    } else {
+      if (summary.isNotEmpty) children.add(_code(context, '$tool $summary'));
     }
+
+    // Output block (collapsible, monospace scroll).
     final output = state?.output;
     if (output != null && output.isNotEmpty) {
       children.add(Container(
@@ -328,8 +496,13 @@ class _InputImageState extends State<_InputImage> {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     if (_error != null) {
-      return _flag(context, colors.mutedForeground,
-          '${t(context, 'image')}: $_error');
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: Text('${t(context, 'image')}: $_error',
+            style: textOf(context)
+                .micro
+                .copyWith(color: colors.mutedForeground, fontSize: 10)),
+      );
     }
     final b = _bytes;
     if (b == null) {
@@ -364,16 +537,6 @@ class _InputImageState extends State<_InputImage> {
               width: widget.maxWidth, fit: BoxFit.cover, cacheWidth: 640),
         ),
       ),
-    );
-  }
-
-  Widget _flag(BuildContext context, Color color, String msg) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Text(msg,
-          style: textOf(context)
-              .micro
-              .copyWith(color: color, fontSize: 10)),
     );
   }
 }

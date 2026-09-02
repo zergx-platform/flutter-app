@@ -108,6 +108,13 @@ class Texts {
     'historyCompacted': (zh: '历史已压缩', en: 'History compacted'),
     'nothingToCompact': (zh: '历史太短，无需压缩', en: 'Nothing to compact — history is short'),
     'back': (zh: '返回', en: 'Back'),
+    'refresh': (zh: '刷新', en: 'Refresh'),
+    'viewOutput': (zh: '查看实时输出', en: 'View live output'),
+    'taskProgress': (zh: '任务进度', en: 'Task progress'),
+    'taskDone': (zh: '已完成', en: 'Done'),
+    'taskFailed': (zh: '已失败', en: 'Failed'),
+    'viewChange': (zh: '查看变更', en: 'View change'),
+    'changeDiff': (zh: '变更对比', en: 'Change diff'),
     'you': (zh: '我', en: 'me'),
 
     // Settings dialog

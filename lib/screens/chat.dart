@@ -16,6 +16,7 @@ import 'chat_sidebar.dart';
 import 'container_overlay.dart';
 import 'files_overlay.dart';
 import 'overlays.dart';
+import 'change_diff.dart';
 
 /// IM-style chat screen. Mobile-first: full-height conversation, sticky
 /// composer with safe-area padding, long-press message actions. Wide
@@ -728,6 +729,9 @@ class _ChatScreenState extends State<ChatScreen> {
           onUndo: (id) => m.revert(id),
           onOpenChange: (changeId) => store.openChange(changeId),
           api: store.api,
+          org: store.activeSession?.org ?? '',
+          repo: store.activeSession?.repo ?? '',
+          branch: store.activeSession?.branch ?? '',
         );
       },
     );
@@ -1012,8 +1016,9 @@ class TimelineDiffScreen extends StatefulWidget {
 
 class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
   AppStore get store => widget.store;
-  List<DiffFile> _files = [];
+  String _diff = '';
   String _error = '';
+  bool _loading = true;
 
   @override
   void initState() {
@@ -1025,14 +1030,37 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
     final s = widget.store.activeSession;
     if (s == null) return;
     try {
-      final f = await widget.store.api.diffChange(s.org, s.repo, widget.changeId);
+      // change_id → current commit_id → unified diff (rebase-safe). Old
+      // code called /repos/{o}/{r}/diff/{change_id} which no longer exists
+      // on the jjlab that dropped that route (404 "not a git endpoint").
+      final d = await widget.store.api.changeDiff(
+          s.org, s.repo, widget.changeId,
+          branch: s.branch);
       setState(() {
-        _files = f;
-        if (f.isEmpty) _error = t(context, 'noChanges');
+        _diff = d;
+        if (d.isEmpty) _error = t(context, 'noChanges');
+        _loading = false;
       });
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() {
+        _error = '$e';
+        _loading = false;
+      });
     }
+  }
+
+  Future<void> _openFullScreen() async {
+    final s = widget.store.activeSession;
+    if (s == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChangeDiffScreen(
+        api: widget.store.api,
+        org: s.org,
+        repo: s.repo,
+        changeId: widget.changeId,
+        branch: s.branch,
+      ),
+    ));
   }
 
   @override
@@ -1042,45 +1070,38 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
       children: [
         ListTile(
           leading: const Icon(Icons.commit_rounded),
-          title: Text('Diff: ${widget.changeId.substring(0, 12)}',
+          title: Text('${widget.changeId.substring(0, 12)}…',
               style: textOf(context).mono),
-          trailing: TextButton(
-              // Go back to the change list (notifies the store so both the
-              // desktop panel and the mobile overlay page rebuild).
-              onPressed: () => store.closeDiff(),
-              child: Text(t(context, 'back')),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                tooltip: t(context, 'changeDiff'),
+                onPressed: _openFullScreen,
               ),
+              TextButton(
+                  // Go back to the change list (notifies the store so both
+                  // the desktop panel and the mobile overlay page rebuild).
+                  onPressed: () => store.closeDiff(),
+                  child: Text(t(context, 'back'))),
+            ],
+          ),
         ),
         Expanded(
-          child: _error.isNotEmpty
-              ? Center(
-                  child: Text(_error,
-                      style: TextStyle(color: colors.mutedForeground)))
-              : ListView.builder(
-                  itemCount: _files.length,
-                  itemBuilder: (_, i) {
-                    final f = _files[i];
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        InkWell(
-                          onTap: () => widget.store.openFile(f.path),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                            child: Text(f.path,
-                                style: textOf(context)
-                                    .mono
-                                    .copyWith(color: colors.primary)),
-                          ),
-                        ),
-                        if (f.diffText != null && f.diffText!.isNotEmpty)
-                          DiffView(diffText: f.diffText!),
-                        Divider(height: 1, color: colors.border),
-                      ],
-                    );
-                  },
-                ),
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error.isNotEmpty
+                  ? Center(
+                      child: Text(_error,
+                          style:
+                              TextStyle(color: colors.mutedForeground)))
+                  : _diff.isEmpty
+                      ? Center(
+                          child: Text(t(context, 'noChanges'),
+                              style: TextStyle(
+                                  color: colors.mutedForeground)))
+                      : DiffView(diffText: _diff),
         ),
       ],
     );

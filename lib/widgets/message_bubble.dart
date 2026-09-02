@@ -189,12 +189,18 @@ class MessageBubble extends StatelessWidget {
   final Future<void> Function(String messageId) onUndo;
   final void Function(String changeId)? onOpenChange;
   final ZergxApi api;
+  final String org;
+  final String repo;
+  final String branch;
   const MessageBubble({
     super.key,
     required this.msg,
     required this.onUndo,
     required this.api,
     this.onOpenChange,
+    this.org = '',
+    this.repo = '',
+    this.branch = '',
   });
 
   ZergxApi get _api => api;
@@ -265,6 +271,9 @@ class MessageBubble extends StatelessWidget {
           part: part,
           isStreaming: isStreaming,
           api: _api,
+          org: org,
+          repo: repo,
+          branch: branch,
           onOpenChange: onOpenChange,
         ));
       } else if (part.type == 'compaction') {

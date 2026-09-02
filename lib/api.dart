@@ -399,6 +399,39 @@ class ZergxApi {
     return _list(j, DiffFile.fromJson, 'files');
   }
 
+  /// Unified-diff of a change, resolved change_id → current commit_id →
+  /// `/commits/{id}/diff` (jj `show` semantics — rebase-safe, because the
+  /// change_id always resolves to its current visible commit).
+  ///
+  /// Returns the raw unified diff string (parse with [parseDiff]).
+  Future<String> changeDiff(String org, String repo, String changeId,
+      {String branch = ''}) async {
+    // 1) change_id -> commit_id via /changes?rev=<branch> (change-id dedup).
+    final changes = await _get(
+      '/api/v1/repos/${_enc(org)}/${_enc(repo)}/changes',
+      branch.isEmpty ? null : {'rev': branch},
+    ) as Map<String, dynamic>;
+    String? commitId;
+    for (final c in (changes['changes'] as List? ?? [])) {
+      final m = c as Map<String, dynamic>;
+      if (m['change_id'] == changeId) {
+        final cid = m['commit_id'] as String?;
+        // Prefer a non-empty real sha. This is the CURRENT commit of the
+        // change (change chain collapse), so it is rebase-stable.
+        if (cid != null && cid.isNotEmpty) {
+          commitId = cid;
+          break;
+        }
+      }
+    }
+    if (commitId == null) return '';
+    // 2) commit_id -> unified diff (before/after of this change).
+    final j = await _get(
+      '/api/v1/repos/${_enc(org)}/${_enc(repo)}/commits/${_enc(commitId)}/diff',
+    ) as Map<String, dynamic>;
+    return j['diff'] as String? ?? '';
+  }
+
   Future<String> fileAtChange(
       String org, String repo, String changeId, String filePath) async {
     final j = await _get(
