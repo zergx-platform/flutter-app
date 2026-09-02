@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'models.dart';
 import 'net/http_client_factory.dart';
@@ -132,6 +133,41 @@ class ZergxApi {
     final j = await _post('/api/v1/sessions/${_enc(id)}/prompt', {'prompt': prompt})
         as Map<String, dynamic>;
     return j['messageId'] as String? ?? '';
+  }
+
+  // ---- attachment upload (memory-extension /api/v1/files) ----
+
+  /// Uploads a single file via multipart and resolves to [UploadedFile].
+  /// The content is deduplicated by sha256: an identical prior upload returns
+  /// the same [code], so the model sees a stable `file:<code>` reference.
+  Future<UploadedFile> uploadFile(UploadedFileSource src) async {
+    final req = http.MultipartRequest(
+      'POST',
+      _u('/api/v1/files'),
+    );
+    req.headers['Authorization'] = _headers['Authorization'] ?? '';
+    req.files.add(await http.MultipartFile.fromPath(
+      'file',
+      src.path,
+      filename: src.name,
+      contentType: MediaType.parse(src.mimeType),
+    ));
+    final streamed = await client.send(req);
+    final resp = await http.Response.fromStream(streamed);
+    final j = jsonDecode(resp.body) as Map<String, dynamic>;
+    if (resp.statusCode >= 400) throw ApiException(resp.statusCode, resp.body);
+    return UploadedFile.fromJson(j);
+  }
+
+  /// Streams the bytes of a previously uploaded file for preview/download.
+  /// Uses plain GET to the files endpoint (supports image thumbnails).
+  Future<List<int>> fetchFileBytes(String code) async {
+    final r = await client.get(
+      _u('/api/v1/files/$code'),
+      headers: {'Authorization': _headers['Authorization'] ?? ''},
+    );
+    if (r.statusCode != 200) throw ApiException(r.statusCode, r.body);
+    return r.bodyBytes;
   }
 
   Future<(List<Message>, bool)> messages(String id,

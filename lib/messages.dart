@@ -346,10 +346,14 @@ class MessagesController extends ChangeNotifier {
     _streamingId = null;
   }
 
-  Future<void> send(String text) async {
+  Future<void> send(String text, [List<UploadedFile> attachments = const []]) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty || sending) return;
+    if ((trimmed.isEmpty && attachments.isEmpty) || sending) return;
     sending = true;
+    final attachText = attachments.isEmpty
+        ? ''
+        : '${attachments.map((a) => a.reference).join('\n')}\n';
+    final full = '$attachText$trimmed';
     messages = [
       ...messages.where((m) => m.status != 'streaming'),
       ChatMessage(
@@ -360,7 +364,7 @@ class MessagesController extends ChangeNotifier {
             ChatPart(
                 id: 'p${DateTime.now().microsecondsSinceEpoch}',
                 type: 'text',
-                text: trimmed)
+                text: full)
           ],
           createdAt: DateTime.now().toIso8601String(),
           seq: _allocSeq()),
@@ -368,7 +372,7 @@ class MessagesController extends ChangeNotifier {
     final _ = _ensureStreamingMsg(true);
     notifyListeners();
     try {
-      final messageId = await api.prompt(getSessionId(), trimmed);
+      final messageId = await api.prompt(getSessionId(), full);
       if (messageId.isNotEmpty) {
         messages = messages.map((m) {
           if (m.status == 'pending' && m.role == 'user') {

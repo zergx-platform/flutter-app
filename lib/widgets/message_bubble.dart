@@ -1,11 +1,142 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../api.dart';
 import '../i18n.dart';
 import '../models.dart';
 import '../theme/app_theme.dart';
 import 'tool_part.dart';
+
+/// A file chip surfaced from a text part that carries the
+/// `[附件 <name> | file:<code> | <mime> | <size>]` reference we embed in the
+/// prompt. Clicking it opens a preview / triggers download by [code].
+class _FileChip extends StatelessWidget {
+  final String code;
+  final String label;
+  final String? mime;
+  final ZergxApi api;
+  const _FileChip({required this.code, required this.label, this.mime, required this.api});
+
+  bool get _isImage => (mime ?? '').startsWith('image/');
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
+      decoration: BoxDecoration(
+        color: colors.muted.withValues(alpha: 0.5),
+        borderRadius: AppRadius.rSm,
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+      ),
+      child: InkWell(
+        borderRadius: AppRadius.rSm,
+        onTap: () => _open(context),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_isImage ? Icons.image_rounded : Icons.attach_file_rounded,
+                size: 14, color: colors.mutedForeground),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.micro.copyWith(color: colors.foreground)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _open(BuildContext context) async {
+    try {
+      final bytes = await api.fetchFileBytes(code);
+      if (_isImage) {
+        if (!context.mounted) return;
+        // ignore: use_build_context_synchronously
+        showDialog<void>(
+          context: context,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            child: InteractiveViewer(
+              child: Image.memory(Uint8List.fromList(bytes)),
+            ),
+          ),
+        );
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$label');
+        await file.writeAsBytes(bytes);
+        if (!context.mounted) return;
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${t(context, 'downloaded')}: ${file.path}'),
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(t(context, 'sendFailed', ['$e'])),
+          duration: const Duration(seconds: 2)));
+    }
+  }
+}
+
+/// Parses embedded `[附件 <name> | file:<code> | <mime> | <size>]` references
+/// out of a text part and splits the bubble into inline markdown + file chips.
+class _FileRefsText extends StatelessWidget {
+  final String text;
+  final ZergxApi api;
+  const _FileRefsText({required this.text, required this.api});
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = _splitFileRefs(text);
+    if (parts.isEmpty) return _Markdown(text);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final p in parts)
+          p is _FileRef
+              ? _FileChip(code: p.code, label: p.label, mime: p.mime, api: api)
+              : _Markdown(p as String),
+      ],
+    );
+  }
+}
+
+class _FileRef {
+  final String code;
+  final String label;
+  final String? mime;
+  _FileRef(this.code, this.label, this.mime);
+}
+
+final _fileRefRe = RegExp(
+  r'\[附件\s+(.+?)\s*\|\s*file:([0-9a-zA-Z]+)\s*\|\s*([^|\]]*)\s*\|\s*([^\]|]*)\]',
+);
+
+List<Object> _splitFileRefs(String text) {
+  final out = <Object>[];
+  var idx = 0;
+  for (final m in _fileRefRe.allMatches(text)) {
+    if (m.start > idx) out.add(text.substring(idx, m.start));
+    out.add(_FileRef(m.group(2)!, m.group(1)!, m.group(3)));
+    idx = m.end;
+  }
+  if (idx < text.length) out.add(text.substring(idx));
+  return out;
+}
 
 /// Markdown body pre-styled with the shared type scale.
 class _Markdown extends StatelessWidget {
@@ -54,12 +185,16 @@ class MessageBubble extends StatelessWidget {
   final ChatMessage msg;
   final Future<void> Function(String messageId) onUndo;
   final void Function(String changeId)? onOpenChange;
+  final ZergxApi api;
   const MessageBubble({
     super.key,
     required this.msg,
     required this.onUndo,
+    required this.api,
     this.onOpenChange,
   });
+
+  ZergxApi get _api => api;
 
   bool get _hasText =>
       msg.parts.any((p) => p.type == 'text' || p.type == 'reasoning');
@@ -119,7 +254,7 @@ class MessageBubble extends StatelessWidget {
     final parts = <Widget>[];
     for (final part in msg.parts) {
       if (part.type == 'text') {
-        parts.add(_Markdown(part.text));
+        parts.add(_FileRefsText(text: part.text, api: _api));
       } else if (part.type == 'reasoning') {
         parts.add(_ReasoningBlock(text: part.text, streaming: isStreaming));
       } else if (part.type == 'tool' && part.state != null) {

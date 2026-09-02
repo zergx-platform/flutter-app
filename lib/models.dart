@@ -324,6 +324,61 @@ class Message {
       );
 }
 
+// ---- attachment upload / download ----
+
+/// A file the user picked to attach to a message, before upload.
+class UploadedFileSource {
+  final String path;
+  final String name;
+  final String mimeType;
+  UploadedFileSource({
+    required this.path,
+    required this.name,
+    required this.mimeType,
+  });
+}
+
+/// The server-side record for an uploaded file. The [code] is the 8-char
+/// content hash-based object key; the model refers to it as `file:<code>`.
+class UploadedFile {
+  final String code;
+  final String? name;
+  final String? mime;
+  final int? size;
+  final String? sha256;
+  final bool deduped;
+  UploadedFile({
+    required this.code,
+    this.name,
+    this.mime,
+    this.size,
+    this.sha256,
+    this.deduped = false,
+  });
+
+  factory UploadedFile.fromJson(Map<String, dynamic> j) => UploadedFile(
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String?,
+        mime: j['mime'] as String?,
+        size: (j['size'] as num?)?.toInt(),
+        sha256: j['hash'] as String?,
+        deduped: j['deduped'] as bool? ?? false,
+      );
+
+  /// The inline reference text embedded in the prompt so the model sees it as
+  /// plain text (the agent is unchanged; no structured part).
+  String get reference =>
+      '[附件 $name | file:$code | ${mime ?? 'application/octet-stream'} | ${_fmt(size)}]';
+
+  static String _fmt(int? n) => n == null
+      ? '未知'
+      : n >= 1048576
+          ? '${(n / 1048576).toStringAsFixed(1)}MB'
+          : n >= 1024
+              ? '${(n / 1024).toStringAsFixed(1)}KB'
+              : '${n}B';
+}
+
 // ---- chat domain (streaming state) ----
 
 class ChatPart {

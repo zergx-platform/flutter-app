@@ -88,6 +88,8 @@ class Texts {
     'thinking': (zh: '思考中…', en: 'thinking...'),
     'running': (zh: '运行中…', en: 'running...'),
     'sendFailed': (zh: '发送失败: \$1', en: 'Send failed: \$1'),
+    'attach': (zh: '添加附件', en: 'Attach file'),
+    'downloaded': (zh: '已下载到', en: 'Downloaded to'),
 
     // Chat topbar menu
     'sessionSettings': (zh: '会话设置', en: 'Session settings'),

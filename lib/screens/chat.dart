@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../i18n.dart';
@@ -141,11 +142,87 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _send() async {
     final text = _input.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && _pendingAttachments.isEmpty) return;
+    final attachments = _pendingAttachments;
+    _pendingAttachments = [];
     _input.clear();
     setState(() {});
-    await _msg?.send(text);
+    await _msg?.send(text, attachments);
     _inputFocus.requestFocus();
+  }
+
+  List<UploadedFile> _pendingAttachments = [];
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.any,
+    );
+    if (result.isEmpty) return;
+    for (final f in result) {
+      final path = f.path;
+      if (path == null) continue;
+      final src = UploadedFileSource(
+        path: path,
+        name: f.name,
+        mimeType: _mimeOf(f.name),
+      );
+      setState(() {});
+      try {
+        final uploaded = await store.api.uploadFile(src);
+        setState(() => _pendingAttachments = [..._pendingAttachments, uploaded]);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(t(context, 'sendFailed', ['$e'])),
+            duration: const Duration(seconds: 2),
+          ));
+        }
+      }
+    }
+  }
+
+  static String _mimeOf(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.svg')) return 'image/svg+xml';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.txt') || lower.endsWith('.md')) return 'text/plain';
+    return 'application/octet-stream';
+  }
+
+  Widget _attachmentRow(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Wrap(
+        spacing: AppSpacing.xs,
+        runSpacing: AppSpacing.xs,
+        children: [
+          for (final a in _pendingAttachments)
+            Chip(
+              avatar: Icon(Icons.attach_file_rounded,
+                  size: 14, color: colors.mutedForeground),
+              label: Text(a.name ?? a.code,
+                  style: text.micro.copyWith(color: colors.foreground)),
+              onDeleted: () {
+                setState(() {
+                  _pendingAttachments =
+                      _pendingAttachments.where((x) => x != a).toList();
+                });
+              },
+              deleteIcon: const Icon(Icons.cancel_rounded, size: 16),
+              deleteIconColor: colors.mutedForeground,
+              backgroundColor: colors.muted.withValues(alpha: 0.5),
+              side: BorderSide(color: colors.border.withValues(alpha: 0.6)),
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    );
   }
 
   void _applySession(Session updated) {
@@ -516,6 +593,7 @@ class _ChatScreenState extends State<ChatScreen> {
           msg: msg,
           onUndo: (id) => m.revert(id),
           onOpenChange: (changeId) => store.openChange(changeId),
+          api: store.api,
         );
       },
     );
@@ -541,9 +619,16 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_pendingAttachments.isNotEmpty)
+                _attachmentRow(context),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  IconButton(
+                    tooltip: t(context, 'attach'),
+                    onPressed: sending ? null : _pickFiles,
+                    icon: const Icon(Icons.attach_file_rounded, size: 20),
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _input,
@@ -555,7 +640,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       textInputAction: TextInputAction.newline,
                       onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
-                        hintText: t(context, 'typeMessage'),
+                        hintText:
+                            _pendingAttachments.isEmpty ? t(context, 'typeMessage') : '',
                       ),
                     ),
                   ),
@@ -570,7 +656,10 @@ class _ChatScreenState extends State<ChatScreen> {
                           onPressed: () => m?.stop(),
                         )
                       : IconButton.filled(
-                          onPressed: _input.text.trim().isEmpty ? null : _send,
+                          onPressed:
+                              (_input.text.trim().isEmpty && _pendingAttachments.isEmpty)
+                                  ? null
+                                  : _send,
                           icon: const Icon(Icons.send_rounded, size: 20),
                         ),
                 ],
