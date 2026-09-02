@@ -121,10 +121,14 @@ class _PackagesScreenState extends State<PackagesScreen> {
   }
 
   String _endpointFor(String type) =>
-      type == 'oci' ? '/v2/' : '/api/v1/packages/$type/';
+      type == 'oci' ? '/v2/' : '/pkgs/$type/';
 
-  /// Full URL for copy-paste (base gateway + endpoint path).
-  String _endpointUrl(String type) => '${store.api.baseUrl}${_endpointFor(type)}';
+  /// The externally usable registry host (jj-lab serves every protocol
+  /// under `/pkgs/<type>` plus OCI `/v2`). This is what a tool config
+  /// would point at.
+  static const _registryHost = 'https://jj-lab.temp.10.199.64.20.nip.io';
+
+  String _endpointUrl(String type) => '$_registryHost${_endpointFor(type)}';
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +227,20 @@ class _PackagesScreenState extends State<PackagesScreen> {
                         '${_typeLabels[ty.type] ?? ty.type} · ${ty.upstream.isEmpty ? t(context, 'noUpstreamLocal') : ty.upstream}\n${t(context, 'cachedPackages', ['${ty.packages}'])}',
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
+                    trailing: IconButton(
+                      icon: Icon(Icons.copy_rounded,
+                          size: 16, color: colors.mutedForeground),
+                      tooltip: t(context, 'endpointCopied'),
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: _endpointUrl(ty.type)));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  '${_endpointUrl(ty.type)}  ·  ${Texts.t(context, 'endpointCopied')}')),
+                        );
+                      },
+                    ),
                     onLongPress: () {
                       Clipboard.setData(
                           ClipboardData(text: _endpointUrl(ty.type)));

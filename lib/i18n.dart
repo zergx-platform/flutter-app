@@ -152,6 +152,18 @@ class Texts {
     'logout': (zh: '退出登录', en: 'Log out'),
     'logoutBody': (zh: '将清除已保存的网关地址与令牌，并返回登录页。',
         en: 'This clears the saved gateway URL and token and returns to the login screen.'),
+    'switchBackend': (zh: '切换后端', en: 'Switch backend'),
+    'backendsTitle': (zh: '后端', en: 'Backends'),
+    'noSavedBackends': (zh: '暂无已保存的后端。', en: 'No saved backends yet.'),
+    'addBackend': (zh: '添加新后端', en: 'Add new backend'),
+    'deleteBackend': (zh: '移除后端', en: 'Remove backend'),
+    'backendSection': (zh: '后端', en: 'Backend'),
+
+    // Provider templates (models.dev)
+    'providerTemplate': (zh: '模板（models.dev）', en: 'Template (models.dev)'),
+    'providerTemplateHint': (zh: '选择服务商自动填充', en: 'Pick a provider to prefill'),
+    'searchModels': (zh: '搜索模型…', en: 'Search models...'),
+    'modelsSelected': (zh: '已选 \$1 / \$2', en: '\$1 of \$2 selected'),
 
     // Providers detail
     'noProviders': (zh: '暂无提供方，添加一个开始使用。',
@@ -282,6 +294,13 @@ class Texts {
     'savedToAppDir': (zh: '已保存：\$1', en: 'Saved: \$1'),
     'downloadFailed': (zh: '下载失败：\$1', en: 'Download failed: \$1'),
     'newRepoInOrg': (zh: '在此组织新建仓库', en: 'New repo in this org'),
+
+    // Code tab mobile picker
+    'pickRepo': (zh: '选择仓库', en: 'Pick a repository'),
+    'pickBranch': (zh: '选择分支', en: 'Pick a branch'),
+    'pickOrg': (zh: '选择组织', en: 'Pick an organization'),
+    'codeEmptyHint': (zh: '先选一个 org / repo / 分支开始浏览代码', en: 'Pick an org / repo / branch to browse code'),
+    'backToList': (zh: '返回列表', en: 'Back to list'),
 
     // Time
     'timeJustNow': (zh: '刚刚', en: 'just now'),

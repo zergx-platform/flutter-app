@@ -60,13 +60,108 @@ class _ZergxAppState extends State<ZergxApp> {
   }
 
   Future<void> _logout() async {
-    await Prefs.clear();
+    await Prefs.clearActive();
     if (mounted) {
       setState(() {
         _token = '';
         _store = null;
       });
     }
+  }
+
+  /// Switch to a saved backend: persist it as the active connection and
+  /// rebuild the store (keeps everything else — locale, dark mode).
+  Future<void> _switchBackend(BackendCfg b) async {
+    await Prefs.save(b.baseUrl, b.token);
+    if (mounted) {
+      setState(() {
+        _baseUrl = b.baseUrl;
+        _token = b.token;
+        _store = null;
+      });
+    }
+  }
+
+  /// Backend manager sheet: switch / delete saved backends, or add a new
+  /// one (which lands on the setup screen). The active backend is marked.
+  Future<void> _manageBackends() async {
+    final backends = await Prefs.backends();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Text(t(ctx, 'backendsTitle'),
+                  style: textOf(ctx)
+                      .meta
+                      .copyWith(fontWeight: FontWeight.w600)),
+            ),
+            Flexible(
+              child: backends.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(t(ctx, 'noSavedBackends'),
+                          style: TextStyle(
+                              color: colorsOf(ctx).mutedForeground)),
+                    )
+                  : ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final b in backends)
+                          ListTile(
+                            leading: Icon(
+                              _baseUrl == b.baseUrl
+                                  ? Icons.radio_button_checked
+                                  : Icons.dns_outlined,
+                              color: _baseUrl == b.baseUrl
+                                  ? colorsOf(ctx).primary
+                                  : colorsOf(ctx).mutedForeground,
+                            ),
+                            title: Text(b.name.isNotEmpty ? b.name : b.baseUrl),
+                            subtitle: Text(b.baseUrl,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textOf(ctx)
+                                    .micro
+                                    .copyWith(
+                                        color: colorsOf(ctx).mutedForeground)),
+                            trailing: IconButton(
+                              icon: Icon(Icons.delete_outline_rounded,
+                                  size: 18,
+                                  color: colorsOf(ctx).mutedForeground),
+                              tooltip: t(ctx, 'deleteBackend'),
+                              onPressed: () async {
+                                await Prefs.removeBackend(b.baseUrl);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                _manageBackends();
+                              },
+                            ),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _switchBackend(b);
+                            },
+                          ),
+                      ],
+                    ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.add_rounded),
+              title: Text(t(ctx, 'addBackend')),
+              onTap: () {
+                Navigator.pop(ctx);
+                _logout();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -100,6 +195,8 @@ class _ZergxAppState extends State<ZergxApp> {
         initialBaseUrl: _baseUrl!,
         onSave: (base, token) async {
           await Prefs.save(base, token);
+          await Prefs.upsertBackend(BackendCfg(
+              name: BackendCfg.nameFor(base), baseUrl: base, token: token));
           setState(() {
             _baseUrl = base;
             _token = token;
@@ -113,7 +210,7 @@ class _ZergxAppState extends State<ZergxApp> {
           store: _store!,
           darkMode: _dark,
           onDarkMode: _setDarkMode,
-          onLogout: _logout);
+          onSwitchBackend: _manageBackends);
     }
     return FutureBuilder<AppStore>(
       future: _buildStore(),
@@ -126,7 +223,7 @@ class _ZergxAppState extends State<ZergxApp> {
             store: snap.data!,
             darkMode: _dark,
             onDarkMode: _setDarkMode,
-            onLogout: _logout);
+            onSwitchBackend: _manageBackends);
       },
     );
   }
@@ -144,12 +241,12 @@ class _Shell extends StatelessWidget {
   final AppStore store;
   final bool darkMode;
   final ValueChanged<bool> onDarkMode;
-  final VoidCallback? onLogout;
+  final VoidCallback? onSwitchBackend;
   const _Shell({
       required this.store,
       required this.darkMode,
       required this.onDarkMode,
-      this.onLogout});
+      this.onSwitchBackend});
 
   static const _navItems = <(SiderTab, IconData, String)>[
     (SiderTab.chat, Icons.chat_bubble_outline, 'tabChat'),
@@ -178,7 +275,7 @@ class _Shell extends StatelessWidget {
               store: store,
               darkMode: darkMode,
               onDarkMode: onDarkMode,
-              onLogout: onLogout,
+              onSwitchBackend: onSwitchBackend,
             ),
           SiderTab.containers => ContainersScreen(store: store),
           SiderTab.packages => PackagesScreen(store: store),

@@ -6,6 +6,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
 import 'container_overlay.dart';
+import '../widgets/chat_avatar.dart';
 import '../widgets/dialogs.dart';
 
 /// Recreates ContainersPage.svelte (sandboxes + deployments; terminal
@@ -90,41 +91,45 @@ class _ContainersScreenState extends State<ContainersScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                if (_error.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Text(_error,
-                        style: text.meta.copyWith(color: colors.destructive)),
-                  ),
-                Text(t(context, 'deployments'),
-                    style: text.meta
-                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
-                if (_deployments.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    child: Text(t(context, 'noDeployments'),
-                        style: text.meta
-                            .copyWith(color: colors.mutedForeground)),
-                  )
-                else
-                  for (final d in _deployments) _deploymentCard(d),
-                const SizedBox(height: AppSpacing.lg),
-                Text(t(context, 'sandboxes'),
-                    style: text.meta
-                        .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
-                if (_sandboxes.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    child: Text(t(context, 'noContainers'),
-                        style: text.meta
-                            .copyWith(color: colors.mutedForeground)),
-                  )
-                else
-                  for (final s in _sandboxes) _sandboxCard(s),
-              ],
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  if (_error.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Text(_error,
+                          style: text.meta.copyWith(color: colors.destructive)),
+                    ),
+                  Text(t(context, 'deployments'),
+                      style: text.meta
+                          .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
+                  if (_deployments.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      child: Text(t(context, 'noDeployments'),
+                          style: text.meta
+                              .copyWith(color: colors.mutedForeground)),
+                    )
+                  else
+                    for (final d in _deployments) _deploymentCard(d),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(t(context, 'sandboxes'),
+                      style: text.meta
+                          .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
+                  if (_sandboxes.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      child: Text(t(context, 'noContainers'),
+                          style: text.meta
+                              .copyWith(color: colors.mutedForeground)),
+                    )
+                  else
+                    for (final s in _sandboxes) _sandboxCard(s),
+                ],
+              ),
             ),
     );
   }
@@ -170,14 +175,26 @@ class _ContainersScreenState extends State<ContainersScreen> {
   Widget _sandboxCard(Sandbox s) {
     final colors = colorsOf(context);
     final text = textOf(context);
+    // Session names are org:repo:branch — render the human-readable triple
+    // with an avatar instead of the hash-suffixed pod name.
+    final parts = s.session.split(':');
+    final (org, repo, branch) = parts.length == 3
+        ? (parts[0], parts[1], parts[2])
+        : ('', '', '');
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: ListTile(
-        title: Text(s.podName, style: text.mono.copyWith(fontSize: 13)),
-        subtitle: Text(s.session,
-            maxLines: 1,
+        leading: org.isNotEmpty
+            ? ChatAvatar(org: org, repo: repo, branch: branch, radius: 20)
+            : null,
+        title: Text(branch.isNotEmpty ? branch : s.session,
+            style: text.meta.copyWith(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+            org.isNotEmpty ? '$org/$repo\n${s.podName}' : s.podName,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: text.micro.copyWith(color: colors.mutedForeground)),
+        isThreeLine: org.isNotEmpty,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

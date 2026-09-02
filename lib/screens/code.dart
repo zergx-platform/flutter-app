@@ -6,6 +6,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/code_view.dart';
+import '../widgets/chat_avatar.dart';
 import '../widgets/diff_view.dart';
 import '../widgets/tree_node.dart';
 import '../widgets/commit_diff_page.dart';
@@ -81,15 +82,81 @@ class _CodeScreenState extends State<CodeScreen> {
 
   Widget _mobile(BuildContext context) {
     final showFile = store.selectedFilePath != null;
+    final hasRepo = store.codeRepo.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
-        title: Text(showFile
-            ? store.selectedFilePath!
-            : store.codeRepo.isNotEmpty
-                ? '${store.codeOrg}/${store.codeRepo}'
-                : t(context, 'tabCode')),
+        title: GestureDetector(
+          onTap: _pickRepoSheet,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  showFile
+                      ? store.selectedFilePath!
+                      : hasRepo
+                          ? '${store.codeOrg}/${store.codeRepo}'
+                              '${store.codeBranch.isNotEmpty ? '@${store.codeBranch}' : ''}'
+                          : t(context, 'tabCode'),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: colorsOf(context).mutedForeground),
+            ],
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.folder_open_rounded, size: 20),
+            tooltip: t(context, 'pickRepo'),
+            onPressed: _pickRepoSheet,
+          ),
+        ],
       ),
-      body: showFile ? _contentMobile(context) : _treeOrCommits(context),
+      body: showFile
+          ? _contentMobile(context)
+          : hasRepo
+              ? _treeOrCommits(context)
+              : _emptyPicker(context),
+    );
+  }
+
+  /// Mobile has no side selector column — this sheet is the repo picker
+  /// (org → repo → branch drill-down), mirroring the desktop _repoSelector.
+  Future<void> _pickRepoSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.7,
+        child: _RepoPickerSheet(store: store),
+      ),
+    );
+  }
+
+  Widget _emptyPicker(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_open_rounded,
+              size: 44, color: colors.mutedForeground),
+          const SizedBox(height: AppSpacing.md),
+          Text(t(context, 'codeEmptyHint'),
+              style: text.meta.copyWith(color: colors.mutedForeground)),
+          const SizedBox(height: AppSpacing.lg),
+          FilledButton.icon(
+            onPressed: _pickRepoSheet,
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: Text(t(context, 'pickRepo')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -414,6 +481,132 @@ class _CodeScreenState extends State<CodeScreen> {
           Expanded(
             child: Text(label,
                 overflow: TextOverflow.ellipsis, style: text.meta),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Three-level (org → repo → branch) bottom-sheet picker for the mobile
+/// Code tab. Selecting a branch opens the repo in the code browser.
+class _RepoPickerSheet extends StatefulWidget {
+  final AppStore store;
+  const _RepoPickerSheet({required this.store});
+
+  @override
+  State<_RepoPickerSheet> createState() => _RepoPickerSheetState();
+}
+
+class _RepoPickerSheetState extends State<_RepoPickerSheet> {
+  String? _org;
+  String? _repo;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.store.refreshRepos();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final orgs = widget.store.orgs;
+    Widget body;
+    if (_org == null) {
+      body = ListView(
+        children: [
+          _sheetHeader(t(context, 'pickOrg'), showBack: false),
+          if (orgs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Center(
+                  child: Text(t(context, 'noRepos'),
+                      style: TextStyle(color: colors.mutedForeground))),
+            ),
+          for (final org in orgs)
+            ListTile(
+              leading: ChatAvatar(org: org.org, repo: '', branch: org.org, radius: 14),
+              title: Text(org.org,
+                  style: text.meta.copyWith(fontWeight: FontWeight.w600)),
+              trailing: Text(t(context, 'reposCount', ['${org.repos.length}']),
+                  style: text.micro
+                      .copyWith(color: colors.mutedForeground)),
+              onTap: () => setState(() => _org = org.org),
+            ),
+        ],
+      );
+    } else if (_repo == null) {
+      final node = orgs
+          .where((o) => o.org == _org!)
+          .expand((o) => o.repos)
+          .toList();
+      body = ListView(
+        children: [
+          _sheetHeader('$_org', showBack: true),
+          for (final repo in node)
+            ListTile(
+              leading: Icon(Icons.folder_copy_outlined,
+                  size: 18, color: colors.primary),
+              title: Text(repo.repo, style: text.meta),
+              onTap: () => setState(() => _repo = repo.repo),
+            ),
+        ],
+      );
+    } else {
+      final node = orgs
+          .where((o) => o.org == _org!)
+          .expand((o) => o.repos)
+          .where((r) => r.repo == _repo!)
+          .toList();
+      body = ListView(
+        children: [
+          _sheetHeader('$_org/$_repo', showBack: true),
+          for (final repo in node)
+            for (final bm in repo.bookmarks)
+              ListTile(
+                leading: ChatAvatar(
+                    org: _org!, repo: _repo!, branch: bm.branch, radius: 14),
+                title: Text(bm.branch, style: text.meta),
+                trailing: bm.session != null
+                    ? Icon(Icons.chat_bubble_outline_rounded,
+                        size: 14, color: colors.mutedForeground)
+                    : null,
+                onTap: () {
+                  widget.store.openRepo(_org!, _repo!, bm.branch);
+                  Navigator.pop(context);
+                },
+              ),
+        ],
+      );
+    }
+    return body;
+  }
+
+  Widget _sheetHeader(String label, {required bool showBack}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm,
+          AppSpacing.md, AppSpacing.xs),
+      child: Row(
+        children: [
+          if (showBack)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              onPressed: () => setState(() {
+                if (_repo != null) {
+                  _repo = null;
+                } else {
+                  _org = null;
+                }
+              }),
+            ),
+          Expanded(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis,
+                style: textOf(context)
+                    .meta
+                    .copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import '../i18n.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
+import '../services/models_dev.dart';
 import '../widgets/dialogs.dart';
 
 /// Recreates ConfigPage.svelte (simplified, without the external
@@ -13,13 +14,13 @@ class ConfigScreen extends StatefulWidget {
   final AppStore store;
   final bool darkMode;
   final ValueChanged<bool> onDarkMode;
-  final VoidCallback? onLogout;
+  final VoidCallback? onSwitchBackend;
   const ConfigScreen({
     super.key,
     required this.store,
     this.darkMode = true,
     required this.onDarkMode,
-    this.onLogout,
+    this.onSwitchBackend,
   });
 
   @override
@@ -53,7 +54,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canLogout = widget.onLogout != null;
+    final canSwitch = widget.onSwitchBackend != null;
     return Scaffold(
       appBar: AppBar(
         leading: _stack.isNotEmpty
@@ -64,11 +65,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
             ? _titleOf(_stack.last)
             : t(context, 'settings')),
         actions: [
-          if (canLogout)
+          if (canSwitch)
             IconButton(
-              icon: const Icon(Icons.logout_rounded, size: 20),
-              tooltip: t(context, 'logout'),
-              onPressed: () => _confirmLogout(),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 20),
+              tooltip: t(context, 'switchBackend'),
+              onPressed: () => widget.onSwitchBackend?.call(),
             ),
         ],
       ),
@@ -78,16 +79,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
               ? _listView(context)
               : _detail(_stack.last, context),
     );
-  }
-
-  Future<void> _confirmLogout() async {
-    final ok = await confirmDialog(
-      context,
-      title: t(context, 'logout'),
-      description: t(context, 'logoutBody'),
-      confirmText: t(context, 'logout'),
-    );
-    if (ok) widget.onLogout?.call();
   }
 
   String _titleOf(String id) {
@@ -111,6 +102,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
         _SectionHeader(t(context, 'appearance')),
         _listTile(context, Icons.palette_outlined, 'appearance',
             () => _push('appearance')),
+        _SectionHeader(t(context, 'backendSection')),
+        _listTile(context, Icons.swap_horiz_rounded, 'switchBackend',
+            () => widget.onSwitchBackend?.call()),
         _SectionHeader(t(context, 'llm')),
         _listTile(context, Icons.dns_outlined, 'providers',
             () => _push('providers')),
@@ -334,6 +328,11 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   bool _testing = false;
   bool _registering = false;
 
+  // models.dev template prefill (lazy-loaded on first picker open).
+  MdProvider? _template;
+  final Set<String> _selectedModels = {};
+  String _modelQuery = '';
+
   @override
   void dispose() {
     _id.dispose();
@@ -365,12 +364,17 @@ class _AddProviderFormState extends State<_AddProviderForm> {
 
   Future<void> _register() async {
     setState(() => _registering = true);
-    final modelList = _models.text
-        .split(',')
-        .map((m) => m.trim())
-        .where((m) => m.isNotEmpty)
-        .map((id) => ProviderModel(id: id, name: id))
-        .toList();
+    final modelList = _template != null
+        ? _template!.models
+            .where((m) => _selectedModels.contains(m.id))
+            .map((m) => ProviderModel(id: m.id, name: m.name))
+            .toList()
+        : _models.text
+            .split(',')
+            .map((m) => m.trim())
+            .where((m) => m.isNotEmpty)
+            .map((id) => ProviderModel(id: id, name: id))
+            .toList();
     try {
       await widget.api.registerProvider(ProviderInfo(
         providerId: _id.text.trim(),
@@ -388,16 +392,74 @@ class _AddProviderFormState extends State<_AddProviderForm> {
     setState(() => _registering = false);
   }
 
+  /// Template picker: searchable full-screen sheet over the models.dev
+  /// catalogue (lazy load + 1h cache inside [ModelsDev]).
+  Future<void> _pickTemplate() async {
+    final picked = await Navigator.of(context).push(MaterialPageRoute<MdProvider>(
+      builder: (_) => const _TemplatePickerPage(),
+    ));
+    if (picked == null) return;
+    setState(() {
+      _template = picked;
+      _selectedModels.clear();
+      _modelQuery = '';
+      _id.text = picked.id;
+      if (picked.api.isNotEmpty) _url.text = picked.api;
+      _apiType = ModelsDev.npmToType(picked.npm);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     final text = textOf(context);
+    final templateModels = _template?.models ?? <MdModel>[];
+    final filteredModels = _modelQuery.isEmpty
+        ? templateModels
+        : templateModels
+            .where((m) =>
+                m.id.toLowerCase().contains(_modelQuery.toLowerCase()) ||
+                m.name.toLowerCase().contains(_modelQuery.toLowerCase()))
+            .toList();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // models.dev template prefill: fills id / base URL / api type
+            // and swaps the models CSV for a searchable multi-select.
+            InkWell(
+              borderRadius: AppRadius.rSm,
+              onTap: _pickTemplate,
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: t(context, 'providerTemplate'),
+                  prefixIcon: const Icon(Icons.auto_awesome_outlined,
+                      size: 18),
+                  suffixIcon: _template == null
+                      ? const Icon(Icons.chevron_right_rounded, size: 18)
+                      : IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 16),
+                          tooltip: t(context, 'none'),
+                          onPressed: () => setState(() {
+                            _template = null;
+                            _selectedModels.clear();
+                          }),
+                        ),
+                ),
+                child: Text(
+                  _template == null
+                      ? t(context, 'providerTemplateHint')
+                      : _template!.name,
+                  style: text.meta.copyWith(
+                      color: _template == null
+                          ? colors.mutedForeground
+                          : null),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
             TextField(
                 controller: _id,
                 decoration: InputDecoration(
@@ -423,10 +485,57 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                 obscureText: true,
                 decoration: InputDecoration(
                     labelText: t(context, 'apiKeyReq'))),
-            TextField(
-                controller: _models,
+            if (_template == null)
+              TextField(
+                  controller: _models,
+                  decoration: InputDecoration(
+                      labelText: t(context, 'modelsCsv')))
+            else ...[
+              TextField(
                 decoration: InputDecoration(
-                    labelText: t(context, 'modelsCsv'))),
+                  hintText: t(context, 'searchModels'),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                  isDense: true,
+                ),
+                onChanged: (v) => setState(() => _modelQuery = v),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                  t(context, 'modelsSelected', [
+                    '${_selectedModels.length}',
+                    '${templateModels.length}'
+                  ]),
+                  style: text.micro
+                      .copyWith(color: colors.mutedForeground)),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      for (final m in filteredModels)
+                        FilterChip(
+                          label: Text(m.name.isNotEmpty ? m.name : m.id,
+                              style: text.micro),
+                          selected: _selectedModels.contains(m.id),
+                          onSelected: (sel) => setState(() {
+                            if (sel) {
+                              _selectedModels.add(m.id);
+                            } else {
+                              _selectedModels.remove(m.id);
+                            }
+                          }),
+                        ),
+                      if (filteredModels.isEmpty)
+                        Text(t(context, 'noPackagesYet'),
+                            style: text.micro
+                                .copyWith(color: colors.mutedForeground)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
@@ -894,6 +1003,107 @@ class _ToolsDetailState extends State<_ToolsDetail> {
         onChanged: onChanged,
         decoration: InputDecoration(labelText: label),
       ),
+    );
+  }
+}
+/// Searchable models.dev template picker (full-screen page).
+class _TemplatePickerPage extends StatefulWidget {
+  const _TemplatePickerPage();
+
+  @override
+  State<_TemplatePickerPage> createState() => _TemplatePickerPageState();
+}
+
+class _TemplatePickerPageState extends State<_TemplatePickerPage> {
+  final _q = TextEditingController();
+  List<MdProvider> _all = [];
+  bool _loading = true;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      _all = await ModelsDev.load();
+    } catch (e) {
+      _error = '$e';
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final q = _q.text.trim().toLowerCase();
+    final list = q.isEmpty
+        ? _all
+        : _all
+            .where((p) =>
+                p.name.toLowerCase().contains(q) ||
+                p.id.toLowerCase().contains(q))
+            .toList();
+    return Scaffold(
+      appBar: AppBar(
+        title: TextField(
+          controller: _q,
+          autofocus: false,
+          decoration: InputDecoration(
+            hintText: t(context, 'providerTemplateHint'),
+            border: InputBorder.none,
+          ),
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error.isNotEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_error,
+                          style: TextStyle(color: colors.destructive)),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _loading = true;
+                              _error = '';
+                            });
+                            _load();
+                          },
+                          child: Text(t(context, 'back'))),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final p = list[i];
+                    return ListTile(
+                      title: Text(p.name,
+                          style: text.meta
+                              .copyWith(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                          '${p.id} · ${t(context, 'modelsCount', ['${p.models.length}'])}',
+                          style: text.micro.copyWith(
+                              color: colors.mutedForeground)),
+                      trailing: const Icon(Icons.chevron_right_rounded,
+                          size: 18),
+                      onTap: () => Navigator.pop(context, p),
+                    );
+                  },
+                ),
     );
   }
 }
