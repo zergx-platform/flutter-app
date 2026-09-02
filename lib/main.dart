@@ -8,7 +8,7 @@ import 'store.dart';
 import 'theme/app_theme.dart';
 import 'widgets/create_menu.dart';
 import 'screens/chat.dart';
-import 'screens/search.dart';
+import 'screens/browser.dart';
 import 'screens/chat_sidebar.dart';
 import 'screens/code.dart';
 import 'screens/config.dart';
@@ -366,7 +366,7 @@ class _SessionsHome extends StatelessWidget {
             tooltip: t(context, 'search'),
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => SessionSearchPage(store: store),
+                builder: (_) => BrowserPage(store: store),
               ));
             },
           ),

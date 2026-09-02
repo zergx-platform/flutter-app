@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -401,6 +402,47 @@ class ZergxApi {
     final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/tags')
         as Map<String, dynamic>;
     return _list(j, GitTag.fromJson, 'tags');
+  }
+
+  Future<List<BranchInfo>> branches(String org, String repo) async {
+    final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/branches')
+        as Map<String, dynamic>;
+    return _list(j, BranchInfo.fromJson, 'branches');
+  }
+
+  Future<List<Release>> releases(String org, String repo) async {
+    final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/releases')
+        as Map<String, dynamic>;
+    return _list(j, Release.fromJson, 'releases');
+  }
+
+  /// Platform-relative path of a release asset download.
+  String assetPath(String org, String repo, String tag, String name) =>
+      '/api/v1/repos/${_enc(org)}/${_enc(repo)}/releases/${_enc(tag)}/assets/${_enc(name)}';
+
+  /// Platform-relative path of a source tarball for a rev/tag.
+  String archivePath(String org, String repo, String rev) =>
+      '/api/v1/repos/${_enc(org)}/${_enc(repo)}/archive/tarball/${_enc(rev)}';
+
+  /// Streams an authenticated GET [path] (relative to baseUrl) into [sink],
+  /// reporting progress. Used for release assets and source tarballs.
+  Future<int> streamTo(String path, IOSink sink,
+      {void Function(int received, int total)? onProgress}) async {
+    final req = http.Request('GET', _u(path));
+    req.headers.addAll(_headers);
+    final resp = await client.send(req).timeout(const Duration(seconds: 30));
+    if (resp.statusCode != 200) {
+      throw ApiException(resp.statusCode, await resp.stream.bytesToString());
+    }
+    final total = resp.contentLength ?? 0;
+    var received = 0;
+    await for (final chunk in resp.stream) {
+      sink.add(chunk);
+      received += chunk.length;
+      onProgress?.call(received, total);
+    }
+    await sink.flush();
+    return received;
   }
 
   Future<List<String>> blame(

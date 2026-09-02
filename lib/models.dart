@@ -1010,3 +1010,61 @@ class RepoMirror {
         hasSecret: j['has_secret'] as bool? ?? false,
       );
 }
+/// jj-lab branch (GET /repos/{org}/{repo}/branches).
+class BranchInfo {
+  final String name;
+  final String sha;
+  BranchInfo({required this.name, required this.sha});
+  factory BranchInfo.fromJson(Map<String, dynamic> j) => BranchInfo(
+        name: j['name'] as String? ?? '',
+        sha: j['sha'] as String? ?? '',
+      );
+}
+
+/// A release asset (jj-lab releases.rs): name/size/digest/content_type.
+class ReleaseAsset {
+  final String name;
+  final int size;
+  final String digest;
+  final String contentType;
+  ReleaseAsset({
+    required this.name,
+    required this.size,
+    required this.digest,
+    required this.contentType,
+  });
+  factory ReleaseAsset.fromJson(Map<String, dynamic> j) => ReleaseAsset(
+        name: j['name'] as String? ?? '',
+        size: (j['size'] as num?)?.toInt() ?? 0,
+        digest: j['digest'] as String? ?? '',
+        contentType: j['content_type'] as String? ?? '',
+      );
+}
+
+/// jj-lab release (GET /repos/{org}/{repo}/releases).
+class Release {
+  final String tagName;
+  final String name;
+  final String body;
+  final bool draft;
+  final bool prerelease;
+  final List<ReleaseAsset> assets;
+  Release({
+    required this.tagName,
+    required this.name,
+    required this.body,
+    required this.draft,
+    required this.prerelease,
+    required this.assets,
+  });
+  factory Release.fromJson(Map<String, dynamic> j) => Release(
+        tagName: j['tag_name'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        body: j['body'] as String? ?? '',
+        draft: j['draft'] as bool? ?? false,
+        prerelease: j['prerelease'] as bool? ?? false,
+        assets: ((j['assets'] as List?) ?? [])
+            .map((e) => ReleaseAsset.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}

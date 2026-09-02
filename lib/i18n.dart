@@ -262,6 +262,27 @@ class Texts {
     'consumed': (zh: '已消费', en: 'consumed'),
     'pending': (zh: '待处理', en: 'pending'),
 
+    // Browser / org / repo detail
+    'browserTitle': (zh: '浏览', en: 'Browse'),
+    'bookmarksSection': (zh: '书签', en: 'Bookmarks'),
+    'reposCount': (zh: '\$1 个仓库', en: '\$1 repos'),
+    'overview': (zh: '概要', en: 'Overview'),
+    'releasesTab': (zh: '发布', en: 'Releases'),
+    'branchesTab': (zh: '分支', en: 'Branches'),
+    'defaultBranch': (zh: '默认分支', en: 'Default branch'),
+    'recentCommits': (zh: '最近提交', en: 'Recent commits'),
+    'noBranches': (zh: '暂无分支', en: 'No branches'),
+    'noReleases': (zh: '暂无发布。', en: 'No releases yet.'),
+    'assetsCount': (zh: '\$1 个附件', en: '\$1 assets'),
+    'draftBadge': (zh: '草稿', en: 'draft'),
+    'prereleaseBadge': (zh: '预发布', en: 'pre-release'),
+    'downloadSource': (zh: '下载源码 (tar.gz)', en: 'Download source (tar.gz)'),
+    'downloading': (zh: '下载中', en: 'Downloading'),
+    'savedToDownloads': (zh: '已保存到「下载」：\$1', en: 'Saved to Downloads: \$1'),
+    'savedToAppDir': (zh: '已保存：\$1', en: 'Saved: \$1'),
+    'downloadFailed': (zh: '下载失败：\$1', en: 'Download failed: \$1'),
+    'newRepoInOrg': (zh: '在此组织新建仓库', en: 'New repo in this org'),
+
     // Time
     'timeJustNow': (zh: '刚刚', en: 'just now'),
     'timeMinAgo': (zh: '\$1 分钟前', en: '\$1 min ago'),
