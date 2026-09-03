@@ -468,11 +468,19 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                     labelText: t(context, 'providerIdReq'))),
             DropdownButtonFormField<String>(
               initialValue: _apiType,
-              items: const [
-                DropdownMenuItem(value: 'openai-compatible', child: Text('openai-compatible')),
-                DropdownMenuItem(value: 'openai', child: Text('openai')),
-                DropdownMenuItem(value: 'anthropic', child: Text('anthropic')),
-                DropdownMenuItem(value: 'gemini', child: Text('gemini')),
+              items: [
+                const DropdownMenuItem(
+                    value: 'openai-compatible',
+                    child: Text('openai-compatible')),
+                DropdownMenuItem(
+                    value: 'openai',
+                    child: Text(t(context, 'apiTypeOpenai'))),
+                DropdownMenuItem(
+                    value: 'anthropic',
+                    child: Text(t(context, 'apiTypeAnthropic'))),
+                DropdownMenuItem(
+                    value: 'gemini',
+                    child: Text(t(context, 'apiTypeGemini'))),
               ],
               onChanged: (v) => setState(() => _apiType = v!),
               decoration:
