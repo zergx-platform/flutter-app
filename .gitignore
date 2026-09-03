@@ -52,3 +52,6 @@ app.*.map.json
 # APK server payload: rebuilt per release from build/app/outputs/flutter-apk/
 # (see apk-server/Dockerfile) — do not commit the per-ABI binaries.
 apk-server/*.apk
+
+# gen-l10n byproduct
+untranslated-messages.txt
