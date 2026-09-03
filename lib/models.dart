@@ -553,10 +553,10 @@ class FileCommit {
   });
   factory FileCommit.fromJson(Map<String, dynamic> j) => FileCommit(
         changeId: j['change_id'] as String? ?? '',
-        commitId: j['commit_id'] as String? ?? '',
+        commitId: j['sha'] as String? ?? j['commit_id'] as String? ?? '',
         author: j['author'] as String? ?? '',
         timestamp: j['timestamp'] as String? ?? '',
-        message: j['message'] as String? ?? '',
+        message: j['description'] as String? ?? j['message'] as String? ?? '',
       );
 }
 

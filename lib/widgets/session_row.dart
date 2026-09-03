@@ -64,9 +64,10 @@ class SessionRow extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            s.branch.isNotEmpty
-                                ? s.branch
-                                : (s.org.isNotEmpty ? s.repo : s.id),
+                            s.org.isNotEmpty
+                                ? '${s.org}/${s.repo}'
+                                    '${s.branch.isNotEmpty ? '/${s.branch}' : ''}'
+                                : s.id,
                             overflow: TextOverflow.ellipsis,
                             style: text.meta.copyWith(
                                 fontWeight: FontWeight.w600,

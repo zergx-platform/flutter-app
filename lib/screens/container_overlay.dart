@@ -367,7 +367,7 @@ class _JobsState extends State<_Jobs> {
           subtitle: Text('${j.id} · ${j.state}',
               style: text.mono.copyWith(
                   fontSize: 10, color: colors.mutedForeground)),
-          trailing: j.state == 'running'
+          trailing: j.state.toLowerCase() == 'running'
               ? IconButton(
                   icon: Icon(Icons.stop_rounded,
                       size: 16, color: colors.destructive),

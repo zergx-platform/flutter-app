@@ -166,7 +166,11 @@ class AppStore extends ChangeNotifier {
       return fileDiffs[changeId] ?? '';
     }
     try {
-      final d = await api.fileDiff(codeOrg, codeRepo, changeId, selectedFilePath!);
+      // jjlab exposes commit diffs, not per-change file-diffs; resolve the
+      // change_id → current commit_id → unified diff (rebase-safe).
+      final d = await api.changeDiff(
+          codeOrg, codeRepo, changeId,
+          branch: codeBranch);
       fileDiffs[changeId] = d;
       notifyListeners();
       return d;

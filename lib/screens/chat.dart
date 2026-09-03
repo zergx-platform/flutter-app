@@ -436,6 +436,8 @@ class _ChatScreenState extends State<ChatScreen> {
       SessionOverlay.todos => context.l10n.todos,
       null => '',
     };
+    // ignore: unused_local_variable
+    final _ = overlayTitle;
     return SafeArea(
       bottom: false,
       child: SizedBox(
@@ -469,7 +471,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Text(
                   s != null
                       ? '${s.org}/${s.repo}'
-                          '${overlayTitle.isNotEmpty ? ' · $overlayTitle' : ''}'
+                          '${s.branch.isNotEmpty ? '/${s.branch}' : ''}'
                       : context.l10n.chatTitle,
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(

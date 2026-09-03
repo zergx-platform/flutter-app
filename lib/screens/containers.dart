@@ -203,17 +203,18 @@ class _ContainersScreenState extends State<ContainersScreen> {
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: s.status == 'running'
+                color: s.status.toLowerCase() == 'running'
                     ? colors.success
-                    : s.status == 'starting'
+                    : s.status.toLowerCase() == 'starting'
                         ? colors.warning
                         : colors.destructive,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             TextButton(
-              onPressed:
-                  s.status != 'running' ? null : () => _openTerminal(s),
+              onPressed: s.status.toLowerCase() != 'running'
+                  ? null
+                  : () => _openTerminal(s),
               child: Text(context.l10n.terminal),
             ),
             IconButton(
