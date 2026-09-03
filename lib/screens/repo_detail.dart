@@ -472,7 +472,12 @@ class _BranchesTabState extends State<_BranchesTab> {
                     onTap: () {
                       widget.store.openRepo(widget.org, widget.repo, b.name);
                       widget.store.switchTab(SiderTab.code);
-                      Navigator.of(context).popUntil((r) => r.isFirst);
+                      // Return one level (back to the repo/org/browser stack)
+                      // rather than exploding to the first route, which would
+                      // skip the enclosing Browser/Org context.
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
               ],

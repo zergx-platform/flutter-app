@@ -54,21 +54,32 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: _stack.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back), onPressed: _pop)
-            : null,
-        title: Text(_stack.isNotEmpty
-            ? _titleOf(_stack.last)
-            : context.l10n.settings),
+    // Back-gesture handling for the in-Config sub-pages (providers/presets/
+    // tools/appearance), which are NOT Navigator routes — without this the
+    // system back on a sub-page would pop the whole route and exit to the
+    // launcher instead of returning to the settings list.
+    return PopScope(
+      canPop: _stack.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_stack.isNotEmpty) _pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: _stack.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back), onPressed: _pop)
+              : null,
+          title: Text(_stack.isNotEmpty
+              ? _titleOf(_stack.last)
+              : context.l10n.settings),
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _stack.isEmpty
+                ? _listView(context)
+                : _detail(_stack.last, context),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _stack.isEmpty
-              ? _listView(context)
-              : _detail(_stack.last, context),
     );
   }
 
