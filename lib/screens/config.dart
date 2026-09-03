@@ -882,6 +882,9 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   Map<String, dynamic> _config = {};
   String? _expanded;
   bool _loading = true;
+  // Own provider map (loaded lazily) so the VLM picker reflects the latest
+  // registered providers even if they changed after the tools page opened.
+  Map<String, ProviderInfo> _providers = {};
   // Provider/model pickers for VLM tools (image_read): keyed by tool.
   String? _vlmProvider;
   String? _vlmModel;
@@ -920,6 +923,9 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     } catch (_) {}
     try {
       _config = await widget.api.toolConfig();
+    } catch (_) {}
+    try {
+      _providers = await widget.api.providers();
     } catch (_) {}
     setState(() => _loading = false);
   }
@@ -972,7 +978,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     // A tool that needs a VLM/LLM model picks it from the registered
     // providers' models — this is the extension config knob `vlm_model`.
     final vlmTool =
-        tool.name == 'image_read' && widget.providers.isNotEmpty;
+        tool.name == 'image_read' && _providers.isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
@@ -1145,14 +1151,12 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   /// knob `vlm_model` holds a `provider_id/model_id` reference; the agent
   /// resolves it against the registered providers.
   Widget _vlmModelPicker(String toolName) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    final providers = widget.providers.entries.toList();
+    final providers = _providers.entries.toList();
     final providerIds =
         providers.map((e) => e.key).toList()..insert(0, '');
     final models = _vlmProvider == null
         ? const <String>[]
-        : (widget.providers[_vlmProvider]?.models ?? [])
+        : (_providers[_vlmProvider]?.models ?? [])
             .map((m) => m.id)
             .toList();
     return Column(
@@ -1242,30 +1246,87 @@ class _FoldGroupState extends State<_FoldGroup> {
   @override
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
-    return Padding(
-      padding: EdgeInsets.only(left: (widget.depth - 1) * 16.0, top: 2),
-      child: InkWell(
-        onTap: () => setState(() => _open = !_open),
-        borderRadius: AppRadius.rSm,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-                _open
-                    ? Icons.keyboard_arrow_down_rounded
-                    : Icons.keyboard_arrow_right_rounded,
-                size: 14,
-                color: colors.mutedForeground),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-                _open
-                    ? '${context.l10n.showLess} (${widget.children.length})'
-                    : '${context.l10n.showMore} (${widget.children.length})',
-                style: textOf(context)
-                    .micro
-                    .copyWith(color: colors.mutedForeground)),
-          ],
+    // Render the expanded children underneath. Kept here instead of only a
+    // summary row so tapping the fold truly reveals the nested params.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: (widget.depth - 1) * 16.0, top: 2),
+          child: InkWell(
+            onTap: () => setState(() => _open = !_open),
+            borderRadius: AppRadius.rSm,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                    _open
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_right_rounded,
+                    size: 14,
+                    color: colors.mutedForeground),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                    _open
+                        ? '${context.l10n.showLess} (${widget.children.length})'
+                        : '${context.l10n.showMore} (${widget.children.length})',
+                    style: textOf(context)
+                        .micro
+                        .copyWith(color: colors.mutedForeground)),
+              ],
+            ),
+          ),
         ),
+        if (_open) _childParams(),
+      ],
+    );
+  }
+
+  /// Render the fold's nested params with the deeper indent, reusing the
+  /// enclosing _ToolsDetailState's renderer by proxy: build simple rows here.
+  Widget _childParams() {
+    return Padding(
+      padding: EdgeInsets.only(left: (widget.depth) * 16.0, top: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final p in widget.children) _childRow(p),
+        ],
+      ),
+    );
+  }
+
+  Widget _childRow(ToolParam p) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.required ? '${p.name} *' : p.name,
+                style: text.mono.copyWith(
+                    fontSize: 12,
+                    color: p.required ? colors.primary : null,
+                    fontWeight: p.required ? FontWeight.w600 : null),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(p.type,
+                  style:
+                      text.micro.copyWith(color: colors.mutedForeground)),
+            ],
+          ),
+          if (p.description.isNotEmpty)
+            Text(p.description,
+                style: text.micro.copyWith(color: colors.mutedForeground)),
+          if (p.children.isNotEmpty)
+            _FoldGroup(children: p.children, depth: widget.depth + 1),
+        ],
       ),
     );
   }
