@@ -937,4 +937,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String worksheetProposed(String action, String title) {
     return 'Worksheet: $action ($title)';
   }
+
+  @override
+  String get configValueHint => 'Enter to save';
 }

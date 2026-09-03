@@ -591,5 +591,6 @@
   "worksheetArgs": "工单内容",
   "worksheetDecideBody": "确定{decision}该工单？\n{action} · {session}",
   "worksheetDecided": "已处理工单",
-  "worksheetProposed": "工单：{action}（{title}）"
+  "worksheetProposed": "工单：{action}（{title}）",
+  "configValueHint": "输入值后回车保存"
 }

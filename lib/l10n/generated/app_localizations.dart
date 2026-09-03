@@ -1789,6 +1789,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'工单：{action}（{title}）'**
   String worksheetProposed(String action, String title);
+
+  /// No description provided for @configValueHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入值后回车保存'**
+  String get configValueHint;
 }
 
 class _AppLocalizationsDelegate

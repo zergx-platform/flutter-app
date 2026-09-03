@@ -591,5 +591,6 @@
   "worksheetArgs": "Worksheet payload",
   "worksheetDecideBody": "{decision} this worksheet?\n{action} · {session}",
   "worksheetDecided": "Worksheet decided",
-  "worksheetProposed": "Worksheet: {action} ({title})"
+  "worksheetProposed": "Worksheet: {action} ({title})",
+  "configValueHint": "Enter to save"
 }

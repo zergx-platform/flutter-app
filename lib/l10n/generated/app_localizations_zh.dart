@@ -932,4 +932,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String worksheetProposed(String action, String title) {
     return '工单：$action（$title）';
   }
+
+  @override
+  String get configValueHint => '输入值后回车保存';
 }

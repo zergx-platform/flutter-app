@@ -647,12 +647,14 @@ class ToolInfo {
   final String category;
   final Map<String, dynamic>? parameters;
   final List<ToolConfigField>? configFields;
+  final List<ToolConfig>? config;
   ToolInfo({
     required this.name,
     required this.description,
     required this.category,
     this.parameters,
     this.configFields,
+    this.config,
   });
   factory ToolInfo.fromJson(Map<String, dynamic> j) => ToolInfo(
         name: j['name'] as String? ?? '',
@@ -662,11 +664,40 @@ class ToolInfo {
         configFields: (j['configFields'] as List? ?? [])
             .map((e) => ToolConfigField.fromJson(e as Map<String, dynamic>))
             .toList(),
+        config: (j['config'] as List? ?? [])
+            .map((e) => ToolConfig.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 
   /// Parsed parameter tree (properties + nested array/object items),
   /// honoring the required list. Empty when parameters is missing/empty.
   List<ToolParam> get params => ToolParam.parseSchema(parameters);
+}
+
+/// A declared extension config knob (from the tool's owning extension config).
+class ToolConfig {
+  final String name;
+  final String type; // string | number | boolean | enum | json
+  final List<String> enumValues;
+  final dynamic defaultValue;
+  final String description;
+  final String scope; // global | session
+  ToolConfig({
+    required this.name,
+    required this.type,
+    this.enumValues = const [],
+    this.defaultValue,
+    this.description = '',
+    this.scope = 'global',
+  });
+  factory ToolConfig.fromJson(Map<String, dynamic> j) => ToolConfig(
+        name: j['name'] as String? ?? '',
+        type: j['type'] as String? ?? 'string',
+        enumValues: (j['enum_values'] as List? ?? []).map((e) => '$e').toList(),
+        defaultValue: j['default'],
+        description: j['description'] as String? ?? '',
+        scope: j['scope'] as String? ?? 'global',
+      );
 }
 
 /// A single tool input parameter (recursively nests array/object items).

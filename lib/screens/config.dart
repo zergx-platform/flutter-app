@@ -975,17 +975,19 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     final text = textOf(context);
     final fields = tool.configFields ?? [];
     final hasConfig = (_config[tool.name] ?? {}).isNotEmpty;
-    // A tool that needs a VLM/LLM model picks it from the registered
-    // providers' models — this is the extension config knob `vlm_model`.
-    final vlmTool =
-        tool.name == 'image_read' && _providers.isNotEmpty;
+    // A tool whose owning extension declares config knobs shows editors for
+    // the data-driven set (e.g. memory/vlm_model -> model picker). We render
+    // a provider/model cascade when the config name suggests a model selection
+    // ('model') and otherwise a plain string/enum field.
+    final extConfigs = tool.config ?? [];
+    final withModelPicker = extConfigs.isNotEmpty && _providers.isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         children: [
           ListTile(
             title: Text(tool.name, style: text.mono.copyWith(fontSize: 12)),
-            trailing: (fields.isEmpty && !vlmTool)
+            trailing: (fields.isEmpty && extConfigs.isEmpty)
                 ? Text(context.l10n.noConfig,
                     style: text.micro.copyWith(color: colors.mutedForeground))
                 : Text(
@@ -1007,7 +1009,8 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                     Text(tool.description,
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
-                  if (vlmTool) ...[
+                  // Data-driven config editors from the extension config.
+                  if (withModelPicker) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(context.l10n.vlmModelLabel,
                         style: text.meta.copyWith(
@@ -1021,7 +1024,9 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                           onPressed: () => _saveVlmModel(tool.name),
                           child: Text(context.l10n.save)),
                     ),
-                  ],
+                  ]                   else if (extConfigs.isNotEmpty)
+                    for (final c in extConfigs)
+                      _extConfigEditor('${tool.category}~${tool.name}', c),
                   if (tool.params.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(context.l10n.toolParams,
@@ -1136,6 +1141,54 @@ class _ToolsDetailState extends State<_ToolsDetail> {
             f.type == 'number' ? (num.tryParse(v) ?? 0) : v),
       ),
     );
+  }
+
+  /// Render an extension config knob that is NOT a model reference — a plain
+  /// string / enum / number editor. Value is saved to the extId config.
+  Widget _extConfigEditor(String toolName, ToolConfig c) {
+    final extId = toolName.split('~').first; // category passed via toolName
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (c.description.isNotEmpty)
+            Text(c.description,
+                style: textOf(context).micro.copyWith(color: colorsOf(context).mutedForeground)),
+          if (c.type == 'enum' && c.enumValues.isNotEmpty)
+            DropdownButtonFormField<String>(
+              initialValue: null,
+              decoration: InputDecoration(labelText: c.name),
+              items: [
+                DropdownMenuItem(value: '', child: Text(context.l10n.none)),
+                for (final v in c.enumValues)
+                  DropdownMenuItem(value: v, child: Text(v)),
+              ],
+              onChanged: (v) => _saveExtConfig(extId, c.name, v),
+            )
+          else
+            TextField(
+              decoration: InputDecoration(
+                  labelText: c.name,
+                  helperText: context.l10n.configValueHint),
+              onSubmitted: (v) => _saveExtConfig(extId, c.name, v),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveExtConfig(String extId, String name, Object? value) async {
+    if (value == null || '$value'.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.api.setToolConfigValue(extId, name, '$value');
+      messenger.showSnackBar(SnackBar(content: Text(context.l10n.saved)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('$e',
+              style: TextStyle(color: colorsOf(context).destructive))));
+    }
   }
 
   void _set(String tool, String key, Object? value) {
