@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'api.dart';
 import 'models.dart';
 
-enum SiderTab { chat, code, containers, packages, config }
+enum SiderTab { chat, code, containers, worksheets, config }
 
 enum SessionOverlay { timeline, files, mailbox, container, todos }
 

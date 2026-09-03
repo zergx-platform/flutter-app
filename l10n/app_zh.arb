@@ -414,7 +414,7 @@
   "noTodosYet": "暂无待办 — agent 通过 todowrite 在此跟踪计划。",
   "noDescription": "（无描述）",
   "consumed": "已消费",
-  "pending": "待处理",
+  "pending": "待审批",
   "browserTitle": "浏览",
   "bookmarksSection": "书签",
   "reposCount": "{arg1} 个仓库",
@@ -557,5 +557,39 @@
   "toolParams": "参数",
   "showMore": "展开",
   "showLess": "收起",
-  "vlmModelLabel": "视觉模型"
+  "vlmModelLabel": "视觉模型",
+  "@worksheetProposed": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@worksheetDecideBody": {
+    "placeholders": {
+      "decision": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      },
+      "session": {
+        "type": "String"
+      }
+    }
+  },
+  "tabWorksheets": "工单",
+  "allWorksheets": "全部",
+  "dispatched": "已执行",
+  "rejected": "已拒绝",
+  "approve": "批准",
+  "reject": "拒绝",
+  "noWorksheets": "暂无工单。",
+  "worksheetArgs": "工单内容",
+  "worksheetDecideBody": "确定{decision}该工单？\n{action} · {session}",
+  "worksheetDecided": "已处理工单",
+  "worksheetProposed": "工单：{action}（{title}）"
 }

@@ -1379,7 +1379,7 @@ abstract class AppLocalizations {
   /// No description provided for @pending.
   ///
   /// In zh, this message translates to:
-  /// **'待处理'**
+  /// **'待审批'**
   String get pending;
 
   /// No description provided for @browserTitle.
@@ -1723,6 +1723,72 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'视觉模型'**
   String get vlmModelLabel;
+
+  /// No description provided for @tabWorksheets.
+  ///
+  /// In zh, this message translates to:
+  /// **'工单'**
+  String get tabWorksheets;
+
+  /// No description provided for @allWorksheets.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get allWorksheets;
+
+  /// No description provided for @dispatched.
+  ///
+  /// In zh, this message translates to:
+  /// **'已执行'**
+  String get dispatched;
+
+  /// No description provided for @rejected.
+  ///
+  /// In zh, this message translates to:
+  /// **'已拒绝'**
+  String get rejected;
+
+  /// No description provided for @approve.
+  ///
+  /// In zh, this message translates to:
+  /// **'批准'**
+  String get approve;
+
+  /// No description provided for @reject.
+  ///
+  /// In zh, this message translates to:
+  /// **'拒绝'**
+  String get reject;
+
+  /// No description provided for @noWorksheets.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无工单。'**
+  String get noWorksheets;
+
+  /// No description provided for @worksheetArgs.
+  ///
+  /// In zh, this message translates to:
+  /// **'工单内容'**
+  String get worksheetArgs;
+
+  /// No description provided for @worksheetDecideBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定{decision}该工单？\n{action} · {session}'**
+  String worksheetDecideBody(String decision, String action, String session);
+
+  /// No description provided for @worksheetDecided.
+  ///
+  /// In zh, this message translates to:
+  /// **'已处理工单'**
+  String get worksheetDecided;
+
+  /// No description provided for @worksheetProposed.
+  ///
+  /// In zh, this message translates to:
+  /// **'工单：{action}（{title}）'**
+  String worksheetProposed(String action, String title);
 }
 
 class _AppLocalizationsDelegate

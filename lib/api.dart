@@ -543,6 +543,20 @@ class ZergxApi {
         as Map<String, dynamic>;
   }
 
+  /// Global worksheets inbox (approval queue), filtered by optional status.
+  Future<List<Worksheet>> worksheets({String? status}) async {
+    final query = <String, dynamic>{if (status != null && status.isNotEmpty) 'status': status};
+    final j = await _get(
+      '/api/v1/worksheets',
+      query.isEmpty ? null : query,
+    ) as Map<String, dynamic>;
+    return _list(j, Worksheet.fromJson, 'worksheets');
+  }
+
+  /// Approve / reject a worksheet.
+  Future<void> decide(String sessionId, String wid, String decision) =>
+      _post('/api/v1/sessions/${_enc(sessionId)}/worksheets/${_enc(wid)}/$decision', null);
+
   Future<MirrorCfg> getMirror(String org, String repo) async {
     final j = await _get(
             '/api/v1/repos/${_enc(org)}/${_enc(repo)}/mirror')

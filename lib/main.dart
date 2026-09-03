@@ -14,6 +14,7 @@ import 'screens/code.dart';
 import 'screens/config.dart';
 import 'screens/containers.dart';
 import 'screens/packages.dart';
+import 'screens/worksheets.dart';
 
 const defaultBaseUrl = 'https://platform.zergx.10.199.64.20.nip.io';
 
@@ -261,7 +262,7 @@ class _Shell extends StatelessWidget {
     (SiderTab.chat, Icons.chat_bubble_outline, 'tabChat'),
     (SiderTab.code, Icons.folder_copy_outlined, 'tabCode'),
     (SiderTab.containers, Icons.inventory_2_outlined, 'tabContainers'),
-    (SiderTab.packages, Icons.all_inbox_outlined, 'tabPackages'),
+    (SiderTab.worksheets, Icons.assignment_outlined, 'tabWorksheets'),
     (SiderTab.config, Icons.settings_outlined, 'tabConfig'),
   ];
 
@@ -287,7 +288,7 @@ class _Shell extends StatelessWidget {
               onSwitchBackend: onSwitchBackend,
             ),
           SiderTab.containers => ContainersScreen(store: store),
-          SiderTab.packages => PackagesScreen(store: store),
+          SiderTab.worksheets => WorksheetsScreen(store: store),
         };
         return Scaffold(
           body: compact

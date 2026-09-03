@@ -701,7 +701,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get consumed => '已消费';
 
   @override
-  String get pending => '待处理';
+  String get pending => '待审批';
 
   @override
   String get browserTitle => '浏览';
@@ -895,4 +895,41 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vlmModelLabel => '视觉模型';
+
+  @override
+  String get tabWorksheets => '工单';
+
+  @override
+  String get allWorksheets => '全部';
+
+  @override
+  String get dispatched => '已执行';
+
+  @override
+  String get rejected => '已拒绝';
+
+  @override
+  String get approve => '批准';
+
+  @override
+  String get reject => '拒绝';
+
+  @override
+  String get noWorksheets => '暂无工单。';
+
+  @override
+  String get worksheetArgs => '工单内容';
+
+  @override
+  String worksheetDecideBody(String decision, String action, String session) {
+    return '确定$decision该工单？\n$action · $session';
+  }
+
+  @override
+  String get worksheetDecided => '已处理工单';
+
+  @override
+  String worksheetProposed(String action, String title) {
+    return '工单：$action（$title）';
+  }
 }

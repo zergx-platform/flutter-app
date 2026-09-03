@@ -1230,3 +1230,42 @@ class Release {
             .toList(),
       );
 }
+
+/// A requirement worksheet (agent request/approval) awaiting a user decision.
+class Worksheet {
+  final String id;
+  final String sessionName;
+  final String extId;
+  final String action;
+  final String args;
+  final String title;
+  final String? originCallId;
+  final String status; // pending | dispatched | rejected
+  final String createdAt;
+  final String? decidedAt;
+  Worksheet({
+    required this.id,
+    required this.sessionName,
+    required this.extId,
+    required this.action,
+    required this.args,
+    required this.title,
+    this.originCallId,
+    required this.status,
+    required this.createdAt,
+    this.decidedAt,
+  });
+  factory Worksheet.fromJson(Map<String, dynamic> j) => Worksheet(
+        id: j['id'] as String? ?? '',
+        sessionName: j['session_name'] as String? ?? '',
+        extId: j['ext_id'] as String? ?? '',
+        action: j['action'] as String? ?? '',
+        args: j['args'] as String? ?? '',
+        title: j['title'] as String? ?? '',
+        originCallId: j['origin_call_id'] as String?,
+        status: j['status'] as String? ?? 'pending',
+        createdAt: j['created_at'] as String? ?? '',
+        decidedAt: j['decided_at'] as String?,
+      );
+  bool get isPending => status == 'pending';
+}

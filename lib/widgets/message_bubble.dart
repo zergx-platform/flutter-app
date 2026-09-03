@@ -258,6 +258,7 @@ class MessageBubble extends StatelessWidget {
     final text = textOf(context);
     final isUser = msg.role == 'user';
     final isError = msg.role == 'error';
+    final isSystem = msg.role == 'system' || msg.role == 'event';
     final isStreaming = msg.status == 'streaming';
 
     final parts = <Widget>[];
@@ -300,15 +301,19 @@ class MessageBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: isError
             ? colors.destructive.withValues(alpha: 0.10)
-            : isUser
-                ? colors.primary.withValues(alpha: 0.12)
-                : colors.card,
+            : isSystem
+                ? colors.muted.withValues(alpha: 0.30)
+                : isUser
+                    ? colors.primary.withValues(alpha: 0.12)
+                    : colors.card,
         border: Border.all(
           color: isError
               ? colors.destructive.withValues(alpha: 0.4)
-              : isUser
-                  ? colors.primary.withValues(alpha: 0.4)
-                  : colors.border.withValues(alpha: 0.5),
+              : isSystem
+                  ? colors.mutedForeground.withValues(alpha: 0.25)
+                  : isUser
+                      ? colors.primary.withValues(alpha: 0.4)
+                      : colors.border.withValues(alpha: 0.5),
         ),
         borderRadius: AppRadius.rMd,
       ),
@@ -326,8 +331,11 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm + 4),
       child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isSystem
+            ? CrossAxisAlignment.center
+            : isUser
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onLongPress: () => _actions(context),
@@ -336,8 +344,9 @@ class MessageBubble extends StatelessWidget {
           // The actions row shows for EVERY non-streaming message — the
           // agent-ts /undo endpoint accepts any message in the session
           // chain, so tool-call messages are revertible too. Copy is only
-          // offered when there is text to copy.
-          if (!isStreaming)
+          // offered when there is text to copy. System messages show neither
+          // (they are not part of the conversation chain).
+          if (!isStreaming && !isSystem)
             _BubbleActions(
               isUser: isUser,
               showCopy: _hasText,

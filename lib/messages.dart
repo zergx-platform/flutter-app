@@ -119,9 +119,17 @@ class MessagesController extends ChangeNotifier {
         cb(ev.event, ev.params);
       } catch (_) {}
     }
-    final event = ev.event;
-    final params = ev.params;
-    switch (event) {
+        final event = ev.event;
+        final params = ev.params;
+        // A worksheet proposal surfaces as a system notification in the chat
+        // stream (approve/reject lives in the Worksheets tab).
+        if (event == 'worksheet-proposed') {
+          _addSystem(I18n.now.worksheetProposed(
+            (params['action'] ?? params['title'] ?? '').toString(),
+            (params['title'] ?? '').toString(),
+          ));
+        }
+        switch (event) {
       case 'step-start':
       case 'text-start':
       case 'reasoning-start':
@@ -344,6 +352,22 @@ class MessagesController extends ChangeNotifier {
           seq: _allocSeq()),
     ];
     _streamingId = null;
+  }
+
+  /// A system notification message (e.g. a worksheet proposal), rendered as
+  /// a centered system bubble.
+  void _addSystem(String text) {
+    messages = [
+      ...messages,
+      ChatMessage(
+          id: 'sys${DateTime.now().microsecondsSinceEpoch}',
+          role: 'system',
+          status: 'complete',
+          parts: [ChatPart(id: 'p${DateTime.now().microsecondsSinceEpoch}', type: 'text', text: text)],
+          createdAt: DateTime.now().toIso8601String(),
+          seq: _allocSeq()),
+    ];
+    notifyListeners();
   }
 
   Future<void> send(String text, [List<UploadedFile> attachments = const []]) async {

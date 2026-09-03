@@ -414,7 +414,7 @@
   "noTodosYet": "No todos yet — the agent tracks its plan here via todowrite.",
   "noDescription": "(no description)",
   "consumed": "consumed",
-  "pending": "pending",
+  "pending": "Pending",
   "browserTitle": "Browse",
   "bookmarksSection": "Bookmarks",
   "reposCount": "{arg1} repos",
@@ -557,5 +557,39 @@
   "toolParams": "Parameters",
   "showMore": "Show",
   "showLess": "Collapse",
-  "vlmModelLabel": "Vision model"
+  "vlmModelLabel": "Vision model",
+  "@worksheetProposed": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@worksheetDecideBody": {
+    "placeholders": {
+      "decision": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      },
+      "session": {
+        "type": "String"
+      }
+    }
+  },
+  "tabWorksheets": "Worksheets",
+  "allWorksheets": "All",
+  "dispatched": "Dispatched",
+  "rejected": "Rejected",
+  "approve": "Approve",
+  "reject": "Reject",
+  "noWorksheets": "No worksheets.",
+  "worksheetArgs": "Worksheet payload",
+  "worksheetDecideBody": "{decision} this worksheet?\n{action} · {session}",
+  "worksheetDecided": "Worksheet decided",
+  "worksheetProposed": "Worksheet: {action} ({title})"
 }
