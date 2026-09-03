@@ -95,7 +95,11 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
               child: Row(
                 children: [
                   ChatAvatar(
-                      org: widget.org, repo: '', branch: widget.org, radius: 28),
+                      org: widget.org,
+                      repo: '',
+                      branch: widget.org,
+                      radius: 28,
+                      level: AvatarLevel.org),
                   const SizedBox(width: AppSpacing.md),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,8 +128,12 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
             else
               for (final repo in node.repos)
                 ListTile(
-                  leading: Icon(Icons.folder_copy_outlined,
-                      size: 20, color: colors.primary),
+                  leading: ChatAvatar(
+                      org: widget.org,
+                      repo: repo.repo,
+                      branch: '',
+                      radius: 16,
+                      level: AvatarLevel.repo),
                   title: Text(repo.repo, style: text.meta),
                   trailing: Icon(Icons.chevron_right_rounded,
                       size: 18, color: colors.mutedForeground),

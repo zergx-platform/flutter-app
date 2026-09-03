@@ -254,7 +254,7 @@ class _BrowserPageState extends State<BrowserPage> {
                 horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             child: Row(
               children: [
-                ChatAvatar(org: org.org, repo: '', branch: org.org, radius: 16),
+                ChatAvatar(org: org.org, repo: '', branch: org.org, radius: 16, level: AvatarLevel.org),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(org.org,
@@ -295,7 +295,12 @@ class _BrowserPageState extends State<BrowserPage> {
             left: AppSpacing.md + 40, right: AppSpacing.sm, top: 2, bottom: 2),
         child: Row(
           children: [
-            Icon(Icons.folder_copy_outlined, size: 16, color: colors.primary),
+            ChatAvatar(
+                org: org.org,
+                repo: repo.repo,
+                branch: '',
+                radius: 12,
+                level: AvatarLevel.repo),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
                 child: Text(repo.repo,

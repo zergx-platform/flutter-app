@@ -527,7 +527,11 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
             ),
           for (final org in orgs)
             ListTile(
-              leading: ChatAvatar(org: org.org, repo: '', branch: org.org, radius: 14),
+              leading: ChatAvatar(org: org.org,
+                    repo: '',
+                    branch: org.org,
+                    radius: 14,
+                    level: AvatarLevel.org),
               title: Text(org.org,
                   style: text.meta.copyWith(fontWeight: FontWeight.w600)),
               trailing: Text(context.l10n.reposCount('${org.repos.length}'),
@@ -547,8 +551,12 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
           _sheetHeader('$_org', showBack: true),
           for (final repo in node)
             ListTile(
-              leading: Icon(Icons.folder_copy_outlined,
-                  size: 18, color: colors.primary),
+              leading: ChatAvatar(
+                  org: _org!,
+                  repo: repo.repo,
+                  branch: '',
+                  radius: 14,
+                  level: AvatarLevel.repo),
               title: Text(repo.repo, style: text.meta),
               onTap: () => setState(() => _repo = repo.repo),
             ),

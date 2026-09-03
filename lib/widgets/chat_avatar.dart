@@ -3,30 +3,28 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Chat avatar, IM-style: a GitHub-style 5x5 mirrored identicon whose
-/// hierarchy encodes org → repo → branch affinity:
+enum AvatarLevel { org, repo, branch }
+
+/// Chat avatar with a 3-level hierarchy:
 ///
-///   - background color  = hue from hash(ORG)     → same org, same底色
-///   - pattern color     = hue from hash(REPO), with lightness auto-picked
-///                         for strong WCAG contrast against the background
-///                         → same org + different repo: same底色, different
-///                           pattern color
-///   - pattern geometry  = bits from hash(org/repo/BRANCH) → same repo +
-///                         different bookmark: same配色, different图案
+///   - [AvatarLevel.org]   → a SOLID circle tinted by the org name (no
+///                           pattern). Same org ⇒ same solid color.
+///   - [AvatarLevel.repo]  → the org background + a FIXED pattern shared by
+///                           every repo (geometry constant; foreground hue
+///                           derived from the repo, auto-contrasted).
+///   - [AvatarLevel.branch]→ the org background + a UNIQUE pattern per
+///                           bookmark (foreground hue from the repo).
 ///
-/// The geometry is the classic identicon recipe: a 5x5 grid where the left
-/// 3 columns come from hash bits and the right 2 mirror them, giving
-/// left-right symmetric figures. Rendering is circle-native: the pattern is
-/// drawn through a circular clip (rim cells end in a smooth arc) and cells
-/// outside the rim are dropped, so nothing is ever chopped by an outer
-/// mask. Degenerate grids (too empty / too full) are deterministically
-/// rehashed away. Falls back down the ladder (branch → org → repo) for
-/// empty parts.
+/// Rendering is circle-native: the pattern is drawn through a circular clip
+/// (rim cells end in a smooth arc) and cells outside the rim are dropped, so
+/// nothing is ever chopped by an outer mask. Fallbacks: empty org → repo →
+/// branch for the color seed.
 class ChatAvatar extends StatelessWidget {
   final String org;
   final String repo;
   final String branch;
   final double radius;
+  final AvatarLevel level;
 
   const ChatAvatar({
     super.key,
@@ -34,13 +32,14 @@ class ChatAvatar extends StatelessWidget {
     required this.repo,
     required this.branch,
     this.radius = 22,
+    this.level = AvatarLevel.branch,
   });
 
   @override
   Widget build(BuildContext context) {
     final bg = _bgColor();
     final fg = _fgColor(bg);
-    final cells = identiconCells(_patternSeed);
+    final cells = _cells();
     return SizedBox(
       width: radius * 2,
       height: radius * 2,
@@ -58,22 +57,45 @@ class ChatAvatar extends StatelessWidget {
   String get _bgSeed =>
       org.isNotEmpty ? org : (repo.isNotEmpty ? repo : branch);
 
+  /// Foreground comes from the repo (or, at org level, the org itself) so a
+  /// single org's repos keep distinct hues on the same background.
   String get _fgSeed =>
       repo.isNotEmpty ? repo : (org.isNotEmpty ? org : branch);
 
   String get _patternSeed => '$org/$repo/$branch';
 
+  // ---- cells by level ----
+
+  List<bool> _cells() {
+    switch (level) {
+      case AvatarLevel.org:
+        // Solid: no pattern at all — the background is the whole avatar.
+        return List.filled(25, false);
+      case AvatarLevel.repo:
+        // Fixed geometry shared by EVERY repo (a symmetric "plus").
+        return _fixedRepoCells;
+      case AvatarLevel.branch:
+        return identiconCells(_patternSeed);
+    }
+  }
+
+  /// The one fixed pattern used for every repository row.
+  static const List<bool> _fixedRepoCells = [
+    false, false, true, false, false,
+    false, false, true, false, false,
+    true, true, true, true, true,
+    false, false, true, false, false,
+    false, false, true, false, false,
+  ];
+
   // ---- colors ----
 
-  /// Vivid mid-tone background from the ORG hash (hue wheel, fixed
-  /// saturation + lightness so fills are always solid and stable).
-  Color _bgColor() => HSLColor.fromAHSL(1, _hue(_bgSeed), 0.60, 0.48)
-      .toColor();
+  /// Vivid mid-tone background from the ORG hash.
+  Color _bgColor() =>
+      HSLColor.fromAHSL(1, _hue(_bgSeed), 0.60, 0.48).toColor();
 
-  /// Pattern color keeps the REPO hue but its lightness is picked from a
-  /// ladder to maximize contrast against the background (>= 3.5:1 where
-  /// reachable; otherwise the extreme rung wins, then pure white/black).
-  /// Deterministic: the same repo always yields the same color.
+  /// Foreground keeps the repo hue, with lightness laddered for strong WCAG
+  /// contrast against the background (>= 3.5:1 where reachable).
   Color _fgColor(Color bg) {
     const darkRungs = [0.34, 0.28, 0.22, 0.17, 0.12];
     const lightRungs = [0.66, 0.72, 0.78, 0.84, 0.90];
@@ -91,9 +113,7 @@ class ChatAvatar extends StatelessWidget {
       if (bestRatio >= 3.5) break;
     }
     if (bestRatio < 3.0) {
-      return _luminance(bg) > 0.35
-          ? const Color(0xFF17181C)
-          : Colors.white;
+      return _luminance(bg) > 0.35 ? const Color(0xFF17181C) : Colors.white;
     }
     return best;
   }
@@ -111,13 +131,9 @@ class ChatAvatar extends StatelessWidget {
 
   static double _hue(String source) => _fnv(source) % 360.toDouble();
 
-  /// 25 mirrored cells (row-major, 5x5). The left 3 columns are hash bits;
-  /// columns 3/4 mirror columns 1/0.
-  ///
-  /// Degenerate patterns are deterministically rehashed away. The density
-  /// check counts only cells VISIBLE inside the circular mask — the four
-  /// grid corners always fall outside the circle (see [_IdenticonPainter]),
-  /// so a pattern whose "on" bits are all corners would render empty.
+  /// 25 mirrored cells (row-major, 5x5). Left 3 columns hash; columns 3/4
+  /// mirror columns 1/0. Degenerate patterns are rehashed. Density counts
+  /// only circle-visible cells so an all-corner seed can't render empty.
   static List<bool> identiconCells(String seed) {
     var h = _fnv(seed);
     for (var attempt = 0; attempt < 8; attempt++) {
@@ -132,17 +148,14 @@ class ChatAvatar extends StatelessWidget {
       }
       h = _fnv('$seed#$attempt');
     }
-    // Deterministic fallback: a small mirrored "X" figure.
     bool x(int r, int c) => (r - c).abs() == 2 || r == c;
     return [
-      for (var r = 0; r < 5; r++)
-        for (var c = 0; c < 5; c++) x(r, c <= 2 ? c : 4 - c),
+      for (var r = 0; r < 5; r++) for (var c = 0; c < 5; c++) x(r, c <= 2 ? c : 4 - c),
     ];
   }
 
-  /// Count 'on' cells that are visible inside the circle. The corner cells
-  /// (left-column indices 0 and 12) mirror into all four corners, whose
-  /// centers lie outside the inscribed circle — they never render.
+  /// Count 'on' cells that are visible inside the circle (corners never
+  /// render — their centers lie outside the inscribed circle).
   static int _visibleOnCount(List<bool> left) {
     var n = 0;
     for (var i = 0; i < left.length; i++) {
@@ -171,11 +184,9 @@ class ChatAvatar extends StatelessWidget {
   }
 }
 
-/// Paints the identicon natively in the circle: the background fills the
-/// full circle, and on-cells are drawn through a circular clip so rim cells
-/// end in a smooth arc instead of being chopped by an outer mask. Cells
-/// whose center lies outside the circle (the four corners) are skipped
-/// entirely — no dangling slivers.
+/// Paints the identicon natively in the circle: background fills the whole
+/// circle; on-cells are drawn through a circular clip so rim cells finish in
+/// a smooth arc. Cells whose center lies outside the circle are skipped.
 class _IdenticonPainter extends CustomPainter {
   final Color bg;
   final Color fg;
@@ -186,7 +197,6 @@ class _IdenticonPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    // Circular background — nothing square is ever drawn outside the rim.
     canvas.drawOval(rect, Paint()..color = bg);
     canvas.save();
     canvas.clipPath(Path()..addOval(rect));
