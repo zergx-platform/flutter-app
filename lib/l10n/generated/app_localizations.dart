@@ -1717,6 +1717,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'收起'**
   String get showLess;
+
+  /// No description provided for @vlmModelLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'视觉模型'**
+  String get vlmModelLabel;
 }
 
 class _AppLocalizationsDelegate

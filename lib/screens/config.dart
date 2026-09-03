@@ -882,6 +882,10 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   Map<String, dynamic> _config = {};
   String? _expanded;
   bool _loading = true;
+  // Provider/model pickers for VLM tools (image_read): keyed by tool.
+  String? _vlmProvider;
+  String? _vlmModel;
+  bool _vlmLoading = false;
 
   // Persistent text controllers per "tool.key" field so editing never
   /// rebuilds a TextField with a fresh controller (cursor jump / leak).
@@ -965,13 +969,17 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     final text = textOf(context);
     final fields = tool.configFields ?? [];
     final hasConfig = (_config[tool.name] ?? {}).isNotEmpty;
+    // A tool that needs a VLM/LLM model picks it from the registered
+    // providers' models — this is the extension config knob `vlm_model`.
+    final vlmTool =
+        tool.name == 'image_read' && widget.providers.isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         children: [
           ListTile(
             title: Text(tool.name, style: text.mono.copyWith(fontSize: 12)),
-            trailing: fields.isEmpty
+            trailing: (fields.isEmpty && !vlmTool)
                 ? Text(context.l10n.noConfig,
                     style: text.micro.copyWith(color: colors.mutedForeground))
                 : Text(
@@ -993,6 +1001,21 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                     Text(tool.description,
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
+                  if (vlmTool) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(context.l10n.vlmModelLabel,
+                        style: text.meta.copyWith(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: AppSpacing.xs),
+                    _vlmModelPicker(tool.name),
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                          onPressed: () => _saveVlmModel(tool.name),
+                          child: Text(context.l10n.save)),
+                    ),
+                  ],
                   if (tool.params.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(context.l10n.toolParams,
@@ -1116,6 +1139,73 @@ class _ToolsDetailState extends State<_ToolsDetail> {
         tool: {...(_config[tool] ?? const <String, dynamic>{}), key: value},
       };
     });
+  }
+
+  /// Provider/model cascade for a VLM tool (image_read). The extension config
+  /// knob `vlm_model` holds a `provider_id/model_id` reference; the agent
+  /// resolves it against the registered providers.
+  Widget _vlmModelPicker(String toolName) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final providers = widget.providers.entries.toList();
+    final providerIds =
+        providers.map((e) => e.key).toList()..insert(0, '');
+    final models = _vlmProvider == null
+        ? const <String>[]
+        : (widget.providers[_vlmProvider]?.models ?? [])
+            .map((m) => m.id)
+            .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _vlmProvider,
+          decoration: InputDecoration(labelText: context.l10n.providerId),
+          items: [
+            DropdownMenuItem(value: '', child: Text(context.l10n.none)),
+            for (final pid in providerIds.where((x) => x.isNotEmpty))
+              DropdownMenuItem(value: pid, child: Text(pid)),
+          ],
+          onChanged: (v) => setState(() {
+            _vlmProvider = (v == null || v.isEmpty) ? null : v;
+            _vlmModel = null;
+          }),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        DropdownButtonFormField<String>(
+          initialValue: _vlmModel,
+          decoration: InputDecoration(labelText: context.l10n.modelLabel),
+          items: [
+            DropdownMenuItem(value: '', child: Text(context.l10n.none)),
+            for (final mid in models)
+              DropdownMenuItem(value: mid, child: Text(mid)),
+          ],
+          onChanged: (v) =>
+              setState(() => _vlmModel = (v == null || v.isEmpty) ? null : v),
+        ),
+      ],
+    );
+  }
+
+  /// Save the VLM model reference (provider_id/model_id) to the extension
+  /// config knob `vlm_model` on the memory extension.
+  Future<void> _saveVlmModel(String toolName) async {
+    if (_vlmProvider == null || _vlmModel == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _vlmLoading = true);
+    try {
+      await widget.api.setToolConfigValue(
+        'memory',
+        'vlm_model',
+        '${_vlmProvider}/${_vlmModel}',
+      );
+      messenger.showSnackBar(
+          SnackBar(content: Text(context.l10n.saved)));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('$e', style: TextStyle(color: colorsOf(context).destructive))));
+    }
+    if (mounted) setState(() => _vlmLoading = false);
   }
 
   Widget _dropdown(String label, Object? current, List<String> options,

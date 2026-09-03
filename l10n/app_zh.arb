@@ -556,5 +556,6 @@
   "agentLocaleApplied": "Agent 语言已切换为 {l}",
   "toolParams": "参数",
   "showMore": "展开",
-  "showLess": "收起"
+  "showLess": "收起",
+  "vlmModelLabel": "视觉模型"
 }

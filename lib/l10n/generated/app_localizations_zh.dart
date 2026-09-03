@@ -892,4 +892,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get showLess => '收起';
+
+  @override
+  String get vlmModelLabel => '视觉模型';
 }

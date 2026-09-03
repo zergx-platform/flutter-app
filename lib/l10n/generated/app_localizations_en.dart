@@ -897,4 +897,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showLess => 'Collapse';
+
+  @override
+  String get vlmModelLabel => 'Vision model';
 }

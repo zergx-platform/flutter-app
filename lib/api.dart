@@ -475,6 +475,13 @@ class ZergxApi {
     return _list(j, FileCommit.fromJson, 'commits');
   }
 
+  /// Set an extension config knob by id (e.g. memory/vlm_model). Delivers the
+  /// validated change to the extension so tools pick it up immediately.
+  Future<void> setToolConfigValue(
+          String extId, String name, Object? value) async =>
+      _put('/api/v1/tool-config/${_enc(extId)}/${_enc(name)}',
+          {'value': value});
+
   Future<List<GitTag>> tags(String org, String repo) async {
     final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/tags')
         as Map<String, dynamic>;

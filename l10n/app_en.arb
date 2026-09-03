@@ -556,5 +556,6 @@
   "agentLocaleApplied": "Agent language set to {l}",
   "toolParams": "Parameters",
   "showMore": "Show",
-  "showLess": "Collapse"
+  "showLess": "Collapse",
+  "vlmModelLabel": "Vision model"
 }
