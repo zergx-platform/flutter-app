@@ -8,6 +8,8 @@ import '../models.dart';
 import '../screens/change_diff.dart';
 import '../screens/task_progress.dart';
 import '../theme/app_theme.dart';
+import 'diff_parser.dart';
+import 'diff_view.dart';
 import 'tool_icon.dart';
 
 /// Recreates ToolPartView.svelte + family-specific body rendering.
@@ -58,6 +60,9 @@ class _ToolPartViewState extends State<ToolPartView> {
   }
 
   String get toolId => tool.toLowerCase();
+
+  /// Unified diff the tool produced (write/delete/edit/sandbox-edit etc).
+  String? get _toolDiff => state?.diff;
 
   /// Family classifier — drives the body renderer.
   String get family {
@@ -418,6 +423,17 @@ class _ToolPartViewState extends State<ToolPartView> {
       if (summary.isNotEmpty) children.add(_code(context, '$tool $summary'));
     }
 
+    // New: inline the unified diff the edit/write/delete tools produce (they
+    // now return `diff` in metadata), with a changeId badge linking to the
+    // full change-comparison screen.
+    final toolDiff = _toolDiff;
+    if (toolDiff != null && toolDiff.isNotEmpty) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: _InlineDiff(diffText: toolDiff),
+      ));
+    }
+
     // Output block (collapsible, monospace scroll).
     final output = state?.output;
     if (output != null && output.isNotEmpty) {
@@ -455,6 +471,77 @@ class _ToolPartViewState extends State<ToolPartView> {
       ),
       child: SelectableText(text,
           style: textOf(context).mono.copyWith(fontSize: 11)),
+    );
+  }
+}
+
+/// Compact inline diff (parse + render) inside a tool card, with a small
+/// changeId chip. Tap opens the full change-comparison screen.
+class _InlineDiff extends StatefulWidget {
+  final String diffText;
+  const _InlineDiff({required this.diffText});
+
+  @override
+  State<_InlineDiff> createState() => _InlineDiffState();
+}
+
+class _InlineDiffState extends State<_InlineDiff> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final files = parseDiff(widget.diffText);
+    final summary = files.map((f) => f.filename).take(3).join(', ');
+    final count = files.length;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        borderRadius: AppRadius.rSm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppRadius.sm)),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              child: Row(
+                children: [
+                  Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_right_rounded,
+                    size: 14,
+                    color: colors.mutedForeground,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(Icons.difference_rounded,
+                      size: 13, color: colors.primary),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                        '$count 文件${summary.isEmpty ? '' : ' · $summary'}',
+                        overflow: TextOverflow.ellipsis,
+                        style: textOf(context)
+                            .micro
+                            .copyWith(color: colors.mutedForeground)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.only(
+                  left: AppSpacing.sm, right: AppSpacing.sm, bottom: AppSpacing.sm),
+              child: DiffView(diffText: widget.diffText),
+            ),
+        ],
+      ),
     );
   }
 }
