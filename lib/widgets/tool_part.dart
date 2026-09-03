@@ -300,7 +300,7 @@ class _ToolPartViewState extends State<ToolPartView> {
                             Icon(Icons.terminal_rounded,
                                 size: 12, color: colors.warning),
                             const SizedBox(width: 2),
-                            Text(t(context, 'viewOutput'),
+                            Text(context.l10n.viewOutput,
                                 style: text.micro.copyWith(
                                     fontSize: 10, color: colors.warning)),
                           ],
@@ -449,7 +449,7 @@ class _ToolPartViewState extends State<ToolPartView> {
     } else if (widget.isStreaming && status == 'running') {
       children.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Text(t(context, 'running'),
+        child: Text(context.l10n.running,
             style: text.micro.copyWith(
                 color: colors.mutedForeground,
                 fontStyle: FontStyle.italic)),
@@ -585,7 +585,7 @@ class _InputImageState extends State<_InputImage> {
     if (_error != null) {
       return Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-        child: Text('${t(context, 'image')}: $_error',
+        child: Text('${context.l10n.image}: $_error',
             style: textOf(context)
                 .micro
                 .copyWith(color: colors.mutedForeground, fontSize: 10)),

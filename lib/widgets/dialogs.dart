@@ -15,12 +15,12 @@ Future<bool> confirmDialog(BuildContext context,
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(t(ctx, 'cancel'))),
+            child: Text(ctx.l10n.cancel)),
         FilledButton(
           style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error),
           onPressed: () => Navigator.pop(ctx, true),
-          child: Text(confirmText ?? t(ctx, 'delete')),
+          child: Text(confirmText ?? ctx.l10n.delete),
         ),
       ],
     ),
@@ -48,10 +48,10 @@ Future<String?> promptDialog(BuildContext context,
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(t(ctx, 'cancel'))),
+            child: Text(ctx.l10n.cancel)),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, ctrl.text),
-          child: Text(confirmText ?? t(ctx, 'create')),
+          child: Text(confirmText ?? ctx.l10n.create),
         ),
       ],
     ),

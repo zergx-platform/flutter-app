@@ -80,7 +80,7 @@ class _FileChip extends StatelessWidget {
         if (!context.mounted) return;
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(t(context, 'savedToDownloads', [where])),
+          content: Text(context.l10n.savedToDownloads(where)),
           duration: const Duration(seconds: 2),
         ));
       }
@@ -88,7 +88,7 @@ class _FileChip extends StatelessWidget {
       if (!context.mounted) return;
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(t(context, 'sendFailed', ['$e'])),
+          content: Text(context.l10n.sendFailed('$e')),
           duration: const Duration(seconds: 2)));
     }
   }
@@ -215,7 +215,7 @@ class MessageBubble extends StatelessWidget {
         .join('\n');
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(t(context, 'copied')), duration: const Duration(seconds: 1)));
+        content: Text(context.l10n.copied), duration: const Duration(seconds: 1)));
   }
 
   Future<void> _actions(BuildContext context) async {
@@ -231,12 +231,12 @@ class MessageBubble extends StatelessWidget {
             if (_hasText)
               ListTile(
                 leading: const Icon(Icons.copy_rounded),
-                title: Text(t(ctx, 'copy')),
+                title: Text(ctx.l10n.copy),
                 onTap: () => Navigator.pop(ctx, 'copy'),
               ),
             ListTile(
               leading: const Icon(Icons.undo_rounded),
-              title: Text(t(ctx, 'undo')),
+              title: Text(ctx.l10n.undo),
               onTap: () => Navigator.pop(ctx, 'undo'),
             ),
           ],
@@ -281,14 +281,14 @@ class MessageBubble extends StatelessWidget {
       }
     }
     if (isStreaming && parts.isEmpty) {
-      parts.add(Text(t(context, 'thinking'),
+      parts.add(Text(context.l10n.thinking,
           style: text.meta
               .copyWith(color: colors.mutedForeground, fontStyle: FontStyle.italic)));
     }
     if (isError) {
       parts.insert(
         0,
-        Text(t(context, 'error'),
+        Text(context.l10n.error,
             style: text.micro.copyWith(
                 color: colors.destructive, fontWeight: FontWeight.w600)),
       );
@@ -355,18 +355,18 @@ class MessageBubble extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t(ctx, 'undoTitle')),
-        content: Text(t(ctx, 'undoBody')),
+        title: Text(ctx.l10n.undoTitle),
+        content: Text(ctx.l10n.undoBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(t(ctx, 'cancel'))),
+              child: Text(ctx.l10n.cancel)),
           FilledButton(
             style: FilledButton.styleFrom(
                 backgroundColor: colorsOf(ctx).destructive,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(t(ctx, 'undo')),
+            child: Text(ctx.l10n.undo),
           ),
         ],
       ),
@@ -402,10 +402,10 @@ class _BubbleActions extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showCopy) ...[
-            _tinyIcon(Icons.copy_rounded, t(context, 'copy'), onCopy, colors),
+            _tinyIcon(Icons.copy_rounded, context.l10n.copy, onCopy, colors),
             const SizedBox(width: 2),
           ],
-          _tinyIcon(Icons.undo_rounded, t(context, 'undo'), onUndo, colors),
+          _tinyIcon(Icons.undo_rounded, context.l10n.undo, onUndo, colors),
           if (isUser) ...[
             const SizedBox(width: 4),
             // Show the message's persisted timestamp instead of "you".
@@ -424,10 +424,11 @@ class _BubbleActions extends StatelessWidget {
     final d = now.difference(dt);
     final hm =
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    if (d.inMinutes < 1) return t(context, 'timeJustNow');
+    if (d.inMinutes < 1) return context.l10n.timeJustNow;
     if (d.inMinutes < 60) {
-      return t(context, 'timeMinAgo', ['${d.inMinutes}']);
+      return context.l10n.timeMinAgo('${d.inMinutes}');
     }
+    if (d.inHours < 24 && now.day == dt.day) return hm;
     if (d.inHours < 24) return hm;
     return '${dt.month}/${dt.day} $hm';
   }
@@ -459,7 +460,7 @@ class _ReasoningBlock extends StatelessWidget {
     final colors = colorsOf(context);
     final text_ = textOf(context);
     return _CollapseBlock(
-      label: t(context, 'thinkLabel') + (streaming ? '...' : ''),
+      label: context.l10n.thinkLabel + (streaming ? '...' : ''),
       labelColor: colors.warning,
       initiallyOpen: true,
       textStyle: text_.micro
@@ -492,7 +493,7 @@ class _CompactionBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     return _CollapseBlock(
-      label: t(context, 'compactedLabel'),
+      label: context.l10n.compactedLabel,
       labelColor: colors.mutedForeground,
       initiallyOpen: false,
       textStyle: textOf(context).micro.copyWith(color: colors.mutedForeground),

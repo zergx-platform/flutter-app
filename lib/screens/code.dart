@@ -97,7 +97,7 @@ class _CodeScreenState extends State<CodeScreen> {
                       : hasRepo
                           ? '${store.codeOrg}/${store.codeRepo}'
                               '${store.codeBranch.isNotEmpty ? '@${store.codeBranch}' : ''}'
-                          : t(context, 'tabCode'),
+                          : context.l10n.tabCode,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -110,7 +110,7 @@ class _CodeScreenState extends State<CodeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.folder_open_rounded, size: 20),
-            tooltip: t(context, 'pickRepo'),
+            tooltip: context.l10n.pickRepo,
             onPressed: _pickRepoSheet,
           ),
         ],
@@ -147,13 +147,13 @@ class _CodeScreenState extends State<CodeScreen> {
           Icon(Icons.folder_open_rounded,
               size: 44, color: colors.mutedForeground),
           const SizedBox(height: AppSpacing.md),
-          Text(t(context, 'codeEmptyHint'),
+          Text(context.l10n.codeEmptyHint,
               style: text.meta.copyWith(color: colors.mutedForeground)),
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             onPressed: _pickRepoSheet,
             icon: const Icon(Icons.search_rounded, size: 18),
-            label: Text(t(context, 'pickRepo')),
+            label: Text(context.l10n.pickRepo),
           ),
         ],
       ),
@@ -169,7 +169,7 @@ class _CodeScreenState extends State<CodeScreen> {
           height: AppBars.height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           alignment: Alignment.centerLeft,
-          child: Text(t(context, 'repositories'),
+          child: Text(context.l10n.repositories,
               style: text.meta.copyWith(fontWeight: FontWeight.w600)),
         ),
         Expanded(
@@ -219,7 +219,7 @@ class _CodeScreenState extends State<CodeScreen> {
               if (store.orgs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Text(t(context, 'noRepos'),
+                  child: Text(context.l10n.noRepos,
                       style: TextStyle(color: colors.mutedForeground)),
                 ),
             ],
@@ -243,7 +243,7 @@ class _CodeScreenState extends State<CodeScreen> {
                 child: Text(
                   store.codeRepo.isNotEmpty
                       ? '${store.codeOrg}/${store.codeRepo}'
-                      : t(context, 'files'),
+                      : context.l10n.files,
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(fontWeight: FontWeight.w600),
                 ),
@@ -266,7 +266,7 @@ class _CodeScreenState extends State<CodeScreen> {
         Expanded(
           child: store.codeRepo.isEmpty
               ? Center(
-                  child: Text(t(context, 'selectBranch'),
+                  child: Text(context.l10n.selectBranch,
                       style: TextStyle(color: colors.mutedForeground)))
               : _showCommits
                   ? _commitsList(context)
@@ -288,7 +288,7 @@ class _CodeScreenState extends State<CodeScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_commits.isEmpty) {
-      return Center(child: Text(t(context, 'noCommits')));
+      return Center(child: Text(context.l10n.noCommits));
     }
     return ListView(
       children: [
@@ -357,8 +357,8 @@ class _CodeScreenState extends State<CodeScreen> {
       return Center(
         child: Text(
           store.codeRepo.isNotEmpty
-              ? t(context, 'selectFile')
-              : t(context, 'selectBranch'),
+              ? context.l10n.selectFile
+              : context.l10n.selectBranch,
           style: TextStyle(color: colors.mutedForeground),
         ),
       );
@@ -418,7 +418,7 @@ class _CodeScreenState extends State<CodeScreen> {
         return const Center(child: CircularProgressIndicator());
       }
       if (store.fileHistory.isEmpty) {
-        return Center(child: Text(t(context, 'noHistory')));
+        return Center(child: Text(context.l10n.noHistory));
       }
       return ListView(
         children: [
@@ -517,12 +517,12 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
     if (_org == null) {
       body = ListView(
         children: [
-          _sheetHeader(t(context, 'pickOrg'), showBack: false),
+          _sheetHeader(context.l10n.pickOrg, showBack: false),
           if (orgs.isEmpty)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Center(
-                  child: Text(t(context, 'noRepos'),
+                  child: Text(context.l10n.noRepos,
                       style: TextStyle(color: colors.mutedForeground))),
             ),
           for (final org in orgs)
@@ -530,7 +530,7 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
               leading: ChatAvatar(org: org.org, repo: '', branch: org.org, radius: 14),
               title: Text(org.org,
                   style: text.meta.copyWith(fontWeight: FontWeight.w600)),
-              trailing: Text(t(context, 'reposCount', ['${org.repos.length}']),
+              trailing: Text(context.l10n.reposCount('${org.repos.length}'),
                   style: text.micro
                       .copyWith(color: colors.mutedForeground)),
               onTap: () => setState(() => _org = org.org),

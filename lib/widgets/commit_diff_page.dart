@@ -41,7 +41,7 @@ class _CommitDiffPageState extends State<CommitDiffPage> {
       if (!mounted) return;
       setState(() {
         _files = f;
-        if (f.isEmpty) _error = t(context, 'noChanges');
+        if (f.isEmpty) _error = context.l10n.noChanges;
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');

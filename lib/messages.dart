@@ -385,7 +385,7 @@ class MessagesController extends ChangeNotifier {
     } catch (e) {
       _addError(e is ApiException
           ? e.toString()
-          : Texts.tr('sendFailed', ['$e']));
+          : I18n.now.sendFailed('$e'));
       sending = false;
       notifyListeners();
     }

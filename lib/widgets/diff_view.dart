@@ -26,7 +26,7 @@ class DiffView extends StatelessWidget {
     if (diffText.trim().isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Text(t(context, 'noChanges'),
+        child: Text(context.l10n.noChanges,
             style: TextStyle(color: colors.mutedForeground)),
       );
     }

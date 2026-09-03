@@ -37,8 +37,8 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
 
   Future<void> _newRepo() async {
     final name = await promptDialog(context,
-        title: t(context, 'newRepoIn', [widget.org]),
-        label: t(context, 'repoNameLabel'));
+        title: context.l10n.newRepoIn(widget.org),
+        label: context.l10n.repoNameLabel);
     if (name != null && name.trim().isNotEmpty) {
       try {
         await store.api.ensureRepo(widget.org, name.trim());
@@ -47,7 +47,7 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(t(context, 'failed', [e.toString()]))));
+              SnackBar(content: Text(context.l10n.failed(e.toString()))));
         }
       }
     }
@@ -55,8 +55,8 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
 
   Future<void> _deleteOrg() async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteOrgTitle'),
-        description: t(context, 'deleteOrgBody', [widget.org]));
+        title: context.l10n.deleteOrgTitle,
+        description: context.l10n.deleteOrgBody(widget.org));
     if (ok) {
       await store.deleteOrg(widget.org);
       if (mounted) Navigator.of(context).pop();
@@ -74,13 +74,13 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
-            tooltip: t(context, 'newRepoInOrg'),
+            tooltip: context.l10n.newRepoInOrg,
             onPressed: _newRepo,
           ),
           IconButton(
             icon: Icon(Icons.delete_outline_rounded,
                 color: colors.destructive),
-            tooltip: t(context, 'deleteOrgTitle'),
+            tooltip: context.l10n.deleteOrgTitle,
             onPressed: _deleteOrg,
           ),
         ],
@@ -105,8 +105,7 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
                               .copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(
-                          t(context,
-                              'reposCount', ['${node?.repos.length ?? 0}']),
+                          context.l10n.reposCount('${node?.repos.length ?? 0}'),
                           style: text.micro
                               .copyWith(color: colors.mutedForeground)),
                     ],
@@ -119,7 +118,7 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Center(
-                    child: Text(t(context, 'noRepos'),
+                    child: Text(context.l10n.noRepos,
                         style: TextStyle(color: colors.mutedForeground))),
               )
             else

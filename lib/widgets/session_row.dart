@@ -7,15 +7,15 @@ import 'chat_avatar.dart';
 
 /// WeChat-style relative timestamp (locale-aware).
 String wechatTime(BuildContext context, String iso) {
-  final dt = DateTime.tryParse(iso);
+  final dt = DateTime.tryParse(iso)?.toLocal();
   if (dt == null) return '';
   final d = DateTime.now().difference(dt);
-  if (d.inMinutes < 1) return I18n.isZh ? '' : t(context, 'timeJustNow');
+  if (d.inMinutes < 1) return I18n.isZh ? '' : context.l10n.timeJustNow;
   if (d.inMinutes < 60) {
-    return t(context, 'timeMinAgo', ['${d.inMinutes}']);
+    return context.l10n.timeMinAgo('${d.inMinutes}');
   }
-  if (d.inHours < 24) return t(context, 'timeHour', ['${d.inHours}']);
-  if (d.inDays < 7) return t(context, 'timeDay', ['${d.inDays}']);
+  if (d.inHours < 24) return context.l10n.timeHour('${d.inHours}');
+  if (d.inDays < 7) return context.l10n.timeDay('${d.inDays}');
   return '${dt.month}/${dt.day}';
 }
 

@@ -60,7 +60,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
                       ? Icons.description_outlined
                       : Icons.history_rounded,
                   size: 16),
-              tooltip: t(context, 'history'),
+              tooltip: context.l10n.history,
               onPressed: () {
                 if (store.showFileHistory) {
                   store.showFileHistory = false;
@@ -86,7 +86,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
           context,
           label: store.codeRepo.isNotEmpty
               ? '${store.codeOrg}/${store.codeRepo}'
-              : t(context, 'files'),
+              : context.l10n.files,
           // Root level: no back arrow (drill-in only), matching FilesPage.
           showBack: false,
         ),
@@ -110,7 +110,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
     }
     if (store.fileHistory.isEmpty) {
       return Center(
-          child: Text(t(context, 'noHistory'),
+          child: Text(context.l10n.noHistory,
               style: TextStyle(color: colors.mutedForeground)));
     }
     final commits = store.fileHistory;
@@ -130,7 +130,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                        c.message.isNotEmpty ? c.message : t(context, 'noDescription'),
+                        c.message.isNotEmpty ? c.message : context.l10n.noDescription,
                         overflow: TextOverflow.ellipsis,
                         style: text.meta),
                   ),
@@ -219,7 +219,7 @@ class _TodosOverlayState extends State<TodosOverlay> {
     final text = textOf(context);
     if (_todos.isEmpty) {
       return Center(
-          child: Text(t(context, 'noTodosYet'),
+          child: Text(context.l10n.noTodosYet,
               style: TextStyle(color: colors.mutedForeground, fontSize: 12)));
     }
     return ListView(

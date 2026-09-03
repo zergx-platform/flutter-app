@@ -65,18 +65,18 @@ class _ContainerOverlayState extends State<ContainerOverlay> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_sandbox == null && sessionWorkerId.isEmpty) {
-      return Center(child: Text(t(context, 'noSession')));
+      return Center(child: Text(context.l10n.noSession));
     }
     if (_sandbox == null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(t(context, 'noWorker'), textAlign: TextAlign.center),
+            Text(context.l10n.noWorker, textAlign: TextAlign.center),
             const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: _create,
-              child: Text(t(context, 'createContainerNow')),
+              child: Text(context.l10n.createContainerNow),
             ),
           ],
         ),
@@ -105,11 +105,11 @@ class ContainerWorkspace extends StatelessWidget {
         children: [
           TabBar(
             tabs: [
-              Tab(text: t(context, 'terminalTab')),
+              Tab(text: context.l10n.terminalTab),
               Tab(
                   text: containerName.isEmpty
-                      ? t(context, 'jobsTab')
-                      : '$containerName · ${t(context, 'jobsTab')}'),
+                      ? context.l10n.jobsTab
+                      : '$containerName · ${context.l10n.jobsTab}'),
             ],
           ),
           Expanded(
@@ -234,7 +234,7 @@ class _TerminalState extends State<_Terminal> {
       if (r.error != null) {
         _history.add('[error] ${r.error}');
       } else if (r.backgrounded && r.jobId != null) {
-        _history.add(Texts.tr('backgrounded', [r.jobId!]));
+        _history.add(I18n.now.backgrounded(r.jobId!));
       } else if (r.exitCode != null) {
         if (r.output != null && r.output!.isNotEmpty) _history.add(r.output!);
         if (r.exitCode != 0) _history.add('[exit: ${r.exitCode}]');
@@ -292,7 +292,7 @@ class _TerminalState extends State<_Terminal> {
                     enabled: !_running,
                     style: text.mono.copyWith(fontSize: 12),
                     decoration: InputDecoration(
-                      hintText: t(context, 'commandHint'),
+                      hintText: context.l10n.commandHint,
                       filled: false,
                       border: InputBorder.none,
                     ),
@@ -352,7 +352,7 @@ class _JobsState extends State<_Jobs> {
     final text = textOf(context);
     if (_jobs.isEmpty) {
       return Center(
-          child: Text(t(context, 'noJobs'),
+          child: Text(context.l10n.noJobs,
               style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.builder(
@@ -388,14 +388,14 @@ class _JobsState extends State<_Jobs> {
           width: double.maxFinite,
           height: 300,
           child: SingleChildScrollView(
-            child: SelectableText(j.stdout ?? t(ctx, 'noOutput'),
+            child: SelectableText(j.stdout ?? ctx.l10n.noOutput,
                 style: textOf(ctx).mono.copyWith(fontSize: 11)),
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(t(ctx, 'close'))),
+              child: Text(ctx.l10n.close)),
         ],
       ),
     );

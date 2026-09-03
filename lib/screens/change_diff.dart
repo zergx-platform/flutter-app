@@ -52,7 +52,7 @@ class _ChangeDiffScreenState extends State<ChangeDiffScreen> {
       if (!mounted) return;
       setState(() {
         _diff = d;
-        if (d.isEmpty) _error = t(context, 'noChanges');
+        if (d.isEmpty) _error = context.l10n.noChanges;
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -71,7 +71,7 @@ class _ChangeDiffScreenState extends State<ChangeDiffScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: t(context, 'refresh'),
+            tooltip: context.l10n.refresh,
             onPressed: _load,
           ),
         ],
@@ -88,7 +88,7 @@ class _ChangeDiffScreenState extends State<ChangeDiffScreen> {
                       const SizedBox(height: AppSpacing.sm),
                       TextButton(
                           onPressed: _load,
-                          child: Text(t(context, 'back'))),
+                          child: Text(context.l10n.back)),
                     ],
                   ),
                 )
@@ -122,7 +122,7 @@ class _ChangeDiffScreenState extends State<ChangeDiffScreen> {
                     Expanded(
                       child: _diff.isEmpty
                           ? Center(
-                              child: Text(t(context, 'noChanges'),
+                              child: Text(context.l10n.noChanges,
                                   style: TextStyle(
                                       color: colors.mutedForeground)))
                           : DiffView(diffText: _diff),

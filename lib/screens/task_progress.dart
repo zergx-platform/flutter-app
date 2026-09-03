@@ -107,7 +107,7 @@ class _TaskProgressScreenState extends State<TaskProgressScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-            widget.title.isNotEmpty ? widget.title : t(context, 'taskProgress'),
+            widget.title.isNotEmpty ? widget.title : context.l10n.taskProgress,
             overflow: TextOverflow.ellipsis),
         actions: [
           Container(
@@ -166,9 +166,9 @@ class _TaskProgressScreenState extends State<TaskProgressScreen> {
               alignment: Alignment.center,
               color: stateColor.withValues(alpha: 0.08),
               child: Text(
-                  t(context, _state == 'done' || _state == 'succeeded'
-                      ? 'taskDone'
-                      : 'taskFailed'),
+                  (_state == 'done' || _state == 'succeeded')
+                      ? context.l10n.taskDone
+                      : context.l10n.taskFailed,
                   style: text.micro.copyWith(color: stateColor)),
             ),
         ],

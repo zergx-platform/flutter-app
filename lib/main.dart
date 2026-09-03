@@ -102,7 +102,7 @@ class _ZergxAppState extends State<ZergxApp> {
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: Text(t(ctx, 'backendsTitle'),
+              child: Text(ctx.l10n.backendsTitle,
                   style: textOf(ctx)
                       .meta
                       .copyWith(fontWeight: FontWeight.w600)),
@@ -111,7 +111,7 @@ class _ZergxAppState extends State<ZergxApp> {
               child: backends.isEmpty
                   ? Padding(
                       padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Text(t(ctx, 'noSavedBackends'),
+                      child: Text(ctx.l10n.noSavedBackends,
                           style: TextStyle(
                               color: colorsOf(ctx).mutedForeground)),
                     )
@@ -140,7 +140,7 @@ class _ZergxAppState extends State<ZergxApp> {
                               icon: Icon(Icons.delete_outline_rounded,
                                   size: 18,
                                   color: colorsOf(ctx).mutedForeground),
-                              tooltip: t(ctx, 'deleteBackend'),
+                              tooltip: ctx.l10n.deleteBackend,
                               onPressed: () async {
                                 await Prefs.removeBackend(b.baseUrl);
                                 if (ctx.mounted) Navigator.pop(ctx);
@@ -158,7 +158,7 @@ class _ZergxAppState extends State<ZergxApp> {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.add_rounded),
-              title: Text(t(ctx, 'addBackend')),
+              title: Text(ctx.l10n.addBackend),
               onTap: () {
                 Navigator.pop(ctx);
                 _logout();
@@ -176,7 +176,7 @@ class _ZergxAppState extends State<ZergxApp> {
       valueListenable: I18n.notifier,
       builder: (context, locale, _) => MaterialApp(
         navigatorKey: _navKey,
-        title: t(context, 'appTitle'),
+        title: I18n.now.appTitle,
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(Brightness.light),
         darkTheme: buildAppTheme(Brightness.dark),
@@ -184,6 +184,7 @@ class _ZergxAppState extends State<ZergxApp> {
         locale: locale,
         supportedLocales: const [Locale('zh'), Locale('en')],
         localizationsDelegates: const [
+          AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
@@ -337,7 +338,7 @@ class _NavRail extends StatelessWidget {
           for (final (tb, icon, labelKey) in items)
             _RailItem(
               icon: icon,
-              label: t(context, labelKey),
+              label: l10nString(labelKey),
               selected: tab == tb,
               onTap: () => onTap(tb),
             ),
@@ -432,7 +433,7 @@ class _BottomBar extends StatelessWidget {
                                 : colors.mutedForeground),
                         const SizedBox(height: 2),
                         Text(
-                          t(context, labelKey),
+                          l10nString(labelKey),
                           style: text.micro.copyWith(
                             color: selected(tb, tab)
                                 ? colors.primary
@@ -467,7 +468,7 @@ class _SessionsHome extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.search_rounded, color: colorsOf(context).primary),
-            tooltip: t(context, 'search'),
+            tooltip: context.l10n.search,
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => BrowserPage(store: store),
@@ -524,7 +525,7 @@ class _SetupScreenState extends State<_SetupScreen> {
       await widget.onSave(base, token);
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text(Texts.tr('loadError', ['$e']))));
+          SnackBar(content: Text(I18n.now.loadError('$e'))));
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -550,7 +551,7 @@ class _SetupScreenState extends State<_SetupScreen> {
                       controller: _base,
                       enabled: !_busy,
                       decoration: InputDecoration(
-                          labelText: t(context, 'gatewayUrl')),
+                          labelText: context.l10n.gatewayUrl),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
@@ -558,7 +559,7 @@ class _SetupScreenState extends State<_SetupScreen> {
                       obscureText: !_showToken,
                       enabled: !_busy,
                       decoration: InputDecoration(
-                        labelText: t(context, 'tokenLabel'),
+                        labelText: context.l10n.tokenLabel,
                         suffixIcon: IconButton(
                           icon: Icon(_showToken
                               ? Icons.visibility_off_outlined
@@ -572,8 +573,8 @@ class _SetupScreenState extends State<_SetupScreen> {
                     FilledButton(
                       onPressed: _canConnect ? _connect : null,
                       child: Text(_busy
-                          ? t(context, 'connecting')
-                          : t(context, 'connect')),
+                          ? context.l10n.connecting
+                          : context.l10n.connect),
                     ),
                   ],
                 ),

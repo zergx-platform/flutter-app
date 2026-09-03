@@ -59,7 +59,7 @@ class _TimelineOverlayState extends State<TimelineOverlay> {
     final changes = _changes ?? [];
     if (changes.isEmpty) {
       return Center(
-          child: Text(t(context, 'noChangesYet'),
+          child: Text(context.l10n.noChangesYet,
               style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.separated(
@@ -132,7 +132,7 @@ class _MailboxOverlayState extends State<MailboxOverlay> {
     final text = textOf(context);
     if (_entries.isEmpty) {
       return Center(
-          child: Text(t(context, 'noMessages'),
+          child: Text(context.l10n.noMessages,
               style: TextStyle(color: colors.mutedForeground)));
     }
     return ListView.builder(
@@ -156,7 +156,7 @@ class _MailboxOverlayState extends State<MailboxOverlay> {
                             color: colors.primary)),
                     const Spacer(),
                     Text(
-                      consumed ? t(context, 'consumed') : t(context, 'pending'),
+                      consumed ? context.l10n.consumed : context.l10n.pending,
                       style: text.micro.copyWith(
                           color: consumed ? colors.success : colors.mutedForeground),
                     ),

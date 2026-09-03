@@ -22,8 +22,8 @@ class CreateMenu extends StatelessWidget {
   Future<void> _newOrg(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final name = await promptDialog(context,
-        title: t(context, 'createNewOrg'),
-        label: t(context, 'orgNameLabel'));
+        title: context.l10n.createNewOrg,
+        label: context.l10n.orgNameLabel);
     if (name != null && name.trim().isNotEmpty) {
       try {
         await store.api.ensureOrg(name.trim());
@@ -31,7 +31,7 @@ class CreateMenu extends StatelessWidget {
       } catch (e) {
         if (context.mounted) {
           messenger.showSnackBar(
-              SnackBar(content: Text(t(context, 'failed', [e.toString()]))));
+              SnackBar(content: Text(context.l10n.failed(e.toString()))));
         }
       }
     }
@@ -43,7 +43,7 @@ class CreateMenu extends StatelessWidget {
     final orgs = store.orgs.map((o) => o.org).toList();
     if (orgs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t(context, 'createOrgFirst'))));
+          SnackBar(content: Text(context.l10n.createOrgFirst)));
       return null;
     }
     if (orgs.length == 1) return orgs.first;
@@ -56,7 +56,7 @@ class CreateMenu extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: Text(t(ctx, 'chooseOrg'),
+              child: Text(ctx.l10n.chooseOrg,
                   style: textOf(ctx)
                       .meta
                       .copyWith(fontWeight: FontWeight.w600)),
@@ -79,8 +79,8 @@ class CreateMenu extends StatelessWidget {
     if (org == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final name = await promptDialog(context,
-        title: t(context, 'newRepoIn', [org]),
-        label: t(context, 'repoNameLabel'));
+        title: context.l10n.newRepoIn(org),
+        label: context.l10n.repoNameLabel);
     if (name != null && name.trim().isNotEmpty) {
       try {
         await store.api.ensureRepo(org, name.trim());
@@ -89,7 +89,7 @@ class CreateMenu extends StatelessWidget {
       } catch (e) {
         if (context.mounted) {
           messenger.showSnackBar(
-              SnackBar(content: Text(t(context, 'failed', [e.toString()]))));
+              SnackBar(content: Text(context.l10n.failed(e.toString()))));
         }
       }
     }
@@ -104,7 +104,7 @@ class CreateMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      tooltip: t(context, 'createNewOrg'),
+      tooltip: context.l10n.createNewOrg,
       icon: Icon(Icons.add_rounded, color: iconColor, size: 22),
       onSelected: (v) {
         switch (v) {
@@ -118,11 +118,11 @@ class CreateMenu extends StatelessWidget {
       },
       itemBuilder: (context) => [
         PopupMenuItem(
-            value: 'org', child: Text(t(context, 'createNewOrg'))),
+            value: 'org', child: Text(context.l10n.createNewOrg)),
         PopupMenuItem(
-            value: 'repo', child: Text(t(context, 'createNewRepo'))),
+            value: 'repo', child: Text(context.l10n.createNewRepo)),
         PopupMenuItem(
-            value: 'clone', child: Text(t(context, 'createCloneRepo'))),
+            value: 'clone', child: Text(context.l10n.createCloneRepo)),
       ],
     );
   }
@@ -138,7 +138,7 @@ Future<void> showCloneDialog(BuildContext context, AppStore store, String org) a
   final r = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(t(ctx, 'cloneInto', [org])),
+      title: Text(ctx.l10n.cloneInto(org)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -146,32 +146,32 @@ Future<void> showCloneDialog(BuildContext context, AppStore store, String org) a
             TextField(
                 controller: urlCtrl,
                 decoration: InputDecoration(
-                    labelText: t(ctx, 'gitUrlLabel'))),
+                    labelText: ctx.l10n.gitUrlLabel)),
             const SizedBox(height: AppSpacing.sm),
             TextField(
                 controller: nameCtrl,
                 decoration: InputDecoration(
-                    labelText: t(ctx, 'repoName2'))),
+                    labelText: ctx.l10n.repoName2)),
             const SizedBox(height: AppSpacing.sm),
             TextField(
                 controller: tokenCtrl,
                 decoration: InputDecoration(
-                    labelText: t(ctx, 'accessTokenOpt'))),
+                    labelText: ctx.l10n.accessTokenOpt)),
             const SizedBox(height: AppSpacing.sm),
             TextField(
                 controller: revCtrl,
                 decoration: InputDecoration(
-                    labelText: t(ctx, 'revOpt'))),
+                    labelText: ctx.l10n.revOpt)),
           ],
         ),
       ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(t(ctx, 'cancel'))),
+            child: Text(ctx.l10n.cancel)),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: Text(t(ctx, 'clone')),
+          child: Text(ctx.l10n.clone),
         ),
       ],
     ),
@@ -193,7 +193,7 @@ Future<void> showCloneDialog(BuildContext context, AppStore store, String org) a
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(t(context, 'cloneFailed', [e.toString()]))));
+              SnackBar(content: Text(context.l10n.cloneFailed(e.toString()))));
         }
       }
     }

@@ -93,22 +93,22 @@ class _BrowserPageState extends State<BrowserPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(t(context, 'adoptFailed', [e.toString()]))));
+            .showSnackBar(SnackBar(content: Text(context.l10n.adoptFailed(e.toString()))));
       }
     }
   }
 
   Future<void> _deleteOrgFlow(String org) async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteOrgTitle'),
-        description: t(context, 'deleteOrgBody', [org]));
+        title: context.l10n.deleteOrgTitle,
+        description: context.l10n.deleteOrgBody(org));
     if (ok) await store.deleteOrg(org);
   }
 
   Future<void> _deleteRepoFlow(String org, String repo) async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteRepoTitle'),
-        description: t(context, 'deleteRepoBody', [org, repo]));
+        title: context.l10n.deleteRepoTitle,
+        description: context.l10n.deleteRepoBody(org, repo));
     if (ok) await store.deleteRepo(org, repo);
   }
 
@@ -117,19 +117,19 @@ class _BrowserPageState extends State<BrowserPage> {
     final r = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t(context, 'fork')),
+        title: Text(context.l10n.fork),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: InputDecoration(labelText: t(context, 'forkBranchLabel')),
+          decoration: InputDecoration(labelText: context.l10n.forkBranchLabel),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(t(ctx, 'cancel'))),
+              child: Text(ctx.l10n.cancel)),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: Text(t(ctx, 'fork'))),
+              child: Text(ctx.l10n.fork)),
         ],
       ),
     );
@@ -138,7 +138,7 @@ class _BrowserPageState extends State<BrowserPage> {
       if (store.existingBookmarks.contains(branch)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(t(context, 'branchExists'))));
+            .showSnackBar(SnackBar(content: Text(context.l10n.branchExists)));
         return;
       }
       store.activeSessionId = sessionId;
@@ -158,7 +158,7 @@ class _BrowserPageState extends State<BrowserPage> {
           controller: _q,
           autofocus: false,
           decoration: InputDecoration(
-            hintText: t(context, 'searchHint'),
+            hintText: context.l10n.searchHint,
             border: InputBorder.none,
           ),
         ),
@@ -182,7 +182,7 @@ class _BrowserPageState extends State<BrowserPage> {
     return ListView(
       children: [
         if (_hits.isNotEmpty) ...[
-          _Header(t(context, 'recent')),
+          _Header(context.l10n.recent),
           for (final s in _hits)
             SessionRow(
               session: s,
@@ -194,7 +194,7 @@ class _BrowserPageState extends State<BrowserPage> {
             ),
         ],
         if (_bmHits.isNotEmpty) ...[
-          _Header(t(context, 'bookmarksSection')),
+          _Header(context.l10n.bookmarksSection),
           for (final (org, repo, bm) in _bmHits)
             _bookmarkRow(org, repo, bm),
         ],
@@ -202,7 +202,7 @@ class _BrowserPageState extends State<BrowserPage> {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Center(
-                child: Text(t(context, 'noRepos'),
+                child: Text(context.l10n.noRepos,
                     style: TextStyle(color: colors.mutedForeground))),
           ),
       ],
@@ -221,7 +221,7 @@ class _BrowserPageState extends State<BrowserPage> {
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Center(
-                  child: Text(t(context, 'noRepos'),
+                  child: Text(context.l10n.noRepos,
                       style: TextStyle(color: colors.mutedForeground))),
             ),
           ],
@@ -261,7 +261,7 @@ class _BrowserPageState extends State<BrowserPage> {
                       style:
                           text.meta.copyWith(fontWeight: FontWeight.w600)),
                 ),
-                Text(t(context, 'reposCount', ['${org.repos.length}']),
+                Text(context.l10n.reposCount('${org.repos.length}'),
                     style: text.micro
                         .copyWith(color: colors.mutedForeground)),
                 const SizedBox(width: AppSpacing.xs),

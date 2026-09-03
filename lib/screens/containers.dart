@@ -48,8 +48,8 @@ class _ContainersScreenState extends State<ContainersScreen> {
 
   Future<void> _destroySandbox(Sandbox s) async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteSandboxTitle'),
-        description: t(context, 'deleteSandboxBody', [s.podName]));
+        title: context.l10n.deleteSandboxTitle,
+        description: context.l10n.deleteSandboxBody(s.podName));
     if (!ok) return;
     try {
       await store.api.destroySandbox(s.session);
@@ -62,8 +62,8 @@ class _ContainersScreenState extends State<ContainersScreen> {
 
   Future<void> _destroyDeployment(Deployment d) async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteDeploymentTitle'),
-        description: t(context, 'deleteDeploymentBody', [d.name]));
+        title: context.l10n.deleteDeploymentTitle,
+        description: context.l10n.deleteDeploymentBody(d.name));
     if (!ok) return;
     try {
       await store.api.destroyDeployment(d.name);
@@ -80,12 +80,12 @@ class _ContainersScreenState extends State<ContainersScreen> {
     final text = textOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(context, 'containersTitle')),
+        title: Text(context.l10n.containersTitle),
         actions: [
           IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
           IconButton(
               icon: const Icon(Icons.public_rounded),
-              tooltip: t(context, 'deployService'),
+              tooltip: context.l10n.deployService,
               onPressed: () => _deployDialog()),
         ],
       ),
@@ -103,26 +103,26 @@ class _ContainersScreenState extends State<ContainersScreen> {
                       child: Text(_error,
                           style: text.meta.copyWith(color: colors.destructive)),
                     ),
-                  Text(t(context, 'deployments'),
+                  Text(context.l10n.deployments,
                       style: text.meta
                           .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                   if (_deployments.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                      child: Text(t(context, 'noDeployments'),
+                      child: Text(context.l10n.noDeployments,
                           style: text.meta
                               .copyWith(color: colors.mutedForeground)),
                     )
                   else
                     for (final d in _deployments) _deploymentCard(d),
                   const SizedBox(height: AppSpacing.lg),
-                  Text(t(context, 'sandboxes'),
+                  Text(context.l10n.sandboxes,
                       style: text.meta
                           .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
                   if (_sandboxes.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                      child: Text(t(context, 'noContainers'),
+                      child: Text(context.l10n.noContainers,
                           style: text.meta
                               .copyWith(color: colors.mutedForeground)),
                     )
@@ -157,7 +157,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
                     : colors.destructive.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Text(t(context, 'ready', ['${d.ready}', '${d.replicas}']),
+              child: Text(context.l10n.ready('${d.ready}', '${d.replicas}'),
                   style: text.micro.copyWith(
                       color: d.ready > 0 ? colors.success : colors.destructive)),
             ),
@@ -214,7 +214,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
             TextButton(
               onPressed:
                   s.status != 'running' ? null : () => _openTerminal(s),
-              child: Text(t(context, 'terminal')),
+              child: Text(context.l10n.terminal),
             ),
             IconButton(
               icon: Icon(Icons.delete_outline_rounded,
@@ -248,7 +248,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
     final r = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t(context, 'deployService')),
+        title: Text(context.l10n.deployService),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -256,40 +256,40 @@ class _ContainersScreenState extends State<ContainersScreen> {
               TextField(
                   controller: name,
                   decoration: InputDecoration(
-                      labelText: t(ctx, 'nameLabel'))),
+                      labelText: ctx.l10n.nameLabel)),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: image,
                   decoration: InputDecoration(
-                      labelText: t(ctx, 'imageLabel'))),
+                      labelText: ctx.l10n.imageLabel)),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: replicas,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                      labelText: t(ctx, 'replicasLabel'))),
+                      labelText: ctx.l10n.replicasLabel)),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: port,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                      labelText: t(ctx, 'portLabel'))),
+                      labelText: ctx.l10n.portLabel)),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                   controller: session,
                   decoration: InputDecoration(
-                      labelText: t(ctx, 'sessionOptLabel'))),
+                      labelText: ctx.l10n.sessionOptLabel)),
             ],
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(t(ctx, 'cancel')),
+              child: Text(ctx.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(t(ctx, 'confirm')),
+            child: Text(ctx.l10n.confirm),
           ),
         ],
       ),

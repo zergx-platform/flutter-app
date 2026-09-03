@@ -78,7 +78,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
               child: Text(
-                t(context, 'loadError', [store.sessionError]),
+                context.l10n.loadError(store.sessionError),
                 style: textOf(context)
                     .micro
                     .copyWith(color: colors.destructive),
@@ -92,7 +92,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Center(
-                child: Text(t(context, 'noRepos'),
+                child: Text(context.l10n.noRepos,
                     style: TextStyle(color: colors.mutedForeground)),
               ),
             ),
@@ -127,7 +127,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
             if ((s.unreadCount ?? 0) > 0)
               ListTile(
                 leading: const Icon(Icons.done_all_rounded),
-                title: Text(t(ctx, 'markRead')),
+                title: Text(ctx.l10n.markRead),
                 onTap: () {
                   store.markSessionRead(s.id);
                   Navigator.pop(ctx);
@@ -136,7 +136,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
             ListTile(
               leading: Icon(Icons.delete_outline_rounded,
                   color: colorsOf(ctx).destructive),
-              title: Text(t(ctx, 'deleteSession'),
+              title: Text(ctx.l10n.deleteSession,
                   style: TextStyle(color: colorsOf(ctx).destructive)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -154,8 +154,8 @@ class _ChatSidebarState extends State<ChatSidebar> {
         ? '${s.org}/${s.repo}/${s.branch}'
         : s.id;
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteSessionTitle'),
-        description: t(context, 'deleteSessionBody', [label]));
+        title: context.l10n.deleteSessionTitle,
+        description: context.l10n.deleteSessionBody(label));
     if (ok != true) return;
     try {
       if (s.org.isNotEmpty) {
@@ -192,6 +192,6 @@ class _HeaderKey extends StatelessWidget {
   const _HeaderKey(this.textKey);
   @override
   Widget build(BuildContext context) {
-    return _Header(t(context, textKey));
+    return _Header(l10nString(textKey));
   }
 }

@@ -62,7 +62,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
             : null,
         title: Text(_stack.isNotEmpty
             ? _titleOf(_stack.last)
-            : t(context, 'settings')),
+            : context.l10n.settings),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -75,13 +75,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
   String _titleOf(String id) {
     switch (id) {
       case 'providers':
-        return t(context, 'llmProviders');
+        return context.l10n.llmProviders;
       case 'presets':
-        return t(context, 'presets');
+        return context.l10n.presets;
       case 'appearance':
-        return t(context, 'appearance');
+        return context.l10n.appearance;
       case 'tools':
-        return t(context, 'tools');
+        return context.l10n.tools;
       default:
         return id;
     }
@@ -90,16 +90,16 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Widget _listView(BuildContext context) {
     return ListView(
       children: [
-        _SectionHeader(t(context, 'appearance')),
+        _SectionHeader(context.l10n.appearance),
         _listTile(context, Icons.palette_outlined, 'appearance',
             () => _push('appearance')),
-        _SectionHeader(t(context, 'backendSection')),
+        _SectionHeader(context.l10n.backendSection),
         // Highlighted as a dangerous action: switching disconnects the
         // active workspace mid-flight.
         ListTile(
           leading: Icon(Icons.swap_horiz_rounded,
               size: 20, color: colorsOf(context).destructive),
-          title: Text(t(context, 'switchBackend'),
+          title: Text(context.l10n.switchBackend,
               style: textOf(context).meta.copyWith(
                   color: colorsOf(context).destructive,
                   fontWeight: FontWeight.w600)),
@@ -107,15 +107,15 @@ class _ConfigScreenState extends State<ConfigScreen> {
               size: 18, color: colorsOf(context).destructive),
           onTap: () => widget.onSwitchBackend?.call(),
         ),
-        _SectionHeader(t(context, 'llm')),
+        _SectionHeader(context.l10n.llm),
         _listTile(context, Icons.dns_outlined, 'providers',
             () => _push('providers')),
         _listTile(
             context, Icons.auto_awesome_outlined, 'presets', () => _push('presets')),
-        _SectionHeader(t(context, 'workspace')),
+        _SectionHeader(context.l10n.workspace),
         _listTile(
             context, Icons.handyman_outlined, 'tools', () => _push('tools')),
-        _SectionHeader(t(context, 'language')),
+        _SectionHeader(context.l10n.language),
         _listTile(context, Icons.language_rounded, 'language', _pickLanguage),
       ],
     );
@@ -126,7 +126,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
     final picked = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: Text(t(ctx, 'language')),
+        title: Text(ctx.l10n.language),
         children: [
           for (final (code, label) in [
             ('zh', '中文'),
@@ -153,7 +153,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
       BuildContext context, IconData icon, String labelKey, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icon, size: 20),
-      title: Text(t(context, labelKey)),
+      title: Text(l10nString(labelKey)),
       trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: onTap,
     );
@@ -180,8 +180,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         SwitchListTile(
-          title: Text(t(context, 'darkMode')),
-          subtitle: Text(t(context, 'darkModeSub')),
+          title: Text(context.l10n.darkMode),
+          subtitle: Text(context.l10n.darkModeSub),
           value: dark,
           onChanged: (v) => widget.onDarkMode(v),
         ),
@@ -250,8 +250,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
           Card(
             margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ListTile(
-              title: Text(t(context, 'providerTitle',
-                  [e.key, e.value.apiType])),
+              title: Text(context.l10n.providerTitle(e.key, e.value.apiType)),
               subtitle: Text(e.value.baseUrl,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -259,17 +258,16 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(t(context, 'modelsCount',
-                      ['${e.value.models.length}']),
+                  Text(context.l10n.modelsCount('${e.value.models.length}'),
                       style: text.micro.copyWith(color: colors.mutedForeground)),
                   IconButton(
                     icon: Icon(Icons.delete_outline_rounded,
                         size: 18, color: colors.mutedForeground),
                     onPressed: () async {
                       final ok = await confirmDialog(context,
-                          title: t(context, 'deleteProvider'),
+                          title: context.l10n.deleteProvider,
                           description:
-                              t(context, 'deleteProviderBody', [e.key]));
+                              context.l10n.deleteProviderBody(e.key));
                       if (ok) {
                         await widget.api.deleteProvider(e.key);
                         widget.onChanged();
@@ -283,7 +281,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
         if (widget.providers.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Text(t(context, 'noProviders'),
+            child: Text(context.l10n.noProviders,
                 style: TextStyle(color: colors.mutedForeground)),
           ),
         const SizedBox(height: AppSpacing.sm),
@@ -300,7 +298,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
           OutlinedButton.icon(
             onPressed: () => setState(() => _showAdd = true),
             icon: const Icon(Icons.add_rounded, size: 16),
-            label: Text(t(context, 'addProvider')),
+            label: Text(context.l10n.addProvider),
           ),
       ],
     );
@@ -436,14 +434,14 @@ class _AddProviderFormState extends State<_AddProviderForm> {
               onTap: _pickTemplate,
               child: InputDecorator(
                 decoration: InputDecoration(
-                  labelText: t(context, 'providerTemplate'),
+                  labelText: context.l10n.providerTemplate,
                   prefixIcon: const Icon(Icons.auto_awesome_outlined,
                       size: 18),
                   suffixIcon: _template == null
                       ? const Icon(Icons.chevron_right_rounded, size: 18)
                       : IconButton(
                           icon: const Icon(Icons.close_rounded, size: 16),
-                          tooltip: t(context, 'none'),
+                          tooltip: context.l10n.none,
                           onPressed: () => setState(() {
                             _template = null;
                             _selectedModels.clear();
@@ -452,7 +450,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                 ),
                 child: Text(
                   _template == null
-                      ? t(context, 'providerTemplateHint')
+                      ? context.l10n.providerTemplateHint
                       : _template!.name,
                   style: text.meta.copyWith(
                       color: _template == null
@@ -465,7 +463,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
             TextField(
                 controller: _id,
                 decoration: InputDecoration(
-                    labelText: t(context, 'providerIdReq'))),
+                    labelText: context.l10n.providerIdReq)),
             DropdownButtonFormField<String>(
               initialValue: _apiType,
               items: [
@@ -474,36 +472,36 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                     child: Text('openai-compatible')),
                 DropdownMenuItem(
                     value: 'openai',
-                    child: Text(t(context, 'apiTypeOpenai'))),
+                    child: Text(context.l10n.apiTypeOpenai)),
                 DropdownMenuItem(
                     value: 'anthropic',
-                    child: Text(t(context, 'apiTypeAnthropic'))),
+                    child: Text(context.l10n.apiTypeAnthropic)),
                 DropdownMenuItem(
                     value: 'gemini',
-                    child: Text(t(context, 'apiTypeGemini'))),
+                    child: Text(context.l10n.apiTypeGemini)),
               ],
               onChanged: (v) => setState(() => _apiType = v!),
               decoration:
-                  InputDecoration(labelText: t(context, 'apiType')),
+                  InputDecoration(labelText: context.l10n.apiType),
             ),
             TextField(
                 controller: _url,
                 decoration: InputDecoration(
-                    labelText: t(context, 'baseUrlReq'))),
+                    labelText: context.l10n.baseUrlReq)),
             TextField(
                 controller: _key,
                 obscureText: true,
                 decoration: InputDecoration(
-                    labelText: t(context, 'apiKeyReq'))),
+                    labelText: context.l10n.apiKeyReq)),
             if (_template == null)
               TextField(
                   controller: _models,
                   decoration: InputDecoration(
-                      labelText: t(context, 'modelsCsv')))
+                      labelText: context.l10n.modelsCsv))
             else ...[
               TextField(
                 decoration: InputDecoration(
-                  hintText: t(context, 'searchModels'),
+                  hintText: context.l10n.searchModels,
                   prefixIcon: const Icon(Icons.search_rounded, size: 18),
                   isDense: true,
                 ),
@@ -511,10 +509,8 @@ class _AddProviderFormState extends State<_AddProviderForm> {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                  t(context, 'modelsSelected', [
-                    '${_selectedModels.length}',
-                    '${templateModels.length}'
-                  ]),
+                  context.l10n.modelsSelected('${_selectedModels.length}',
+                    '${templateModels.length}'),
                   style: text.micro
                       .copyWith(color: colors.mutedForeground)),
               ConstrainedBox(
@@ -538,7 +534,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                           }),
                         ),
                       if (filteredModels.isEmpty)
-                        Text(t(context, 'noPackagesYet'),
+                        Text(context.l10n.noPackagesYet,
                             style: text.micro
                                 .copyWith(color: colors.mutedForeground)),
                     ],
@@ -552,7 +548,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                 OutlinedButton.icon(
                   onPressed: _testing ? null : _test,
                   icon: const Icon(Icons.science_outlined, size: 14),
-                  label: Text(t(context, _testing ? 'testing' : 'test')),
+                  label: Text(_testing ? context.l10n.testing : context.l10n.test),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Flexible(
@@ -568,14 +564,14 @@ class _AddProviderFormState extends State<_AddProviderForm> {
               children: [
                 TextButton(
                     onPressed: widget.onCancel,
-                    child: Text(t(context, 'cancel'))),
+                    child: Text(context.l10n.cancel)),
                 const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: (_id.text.isEmpty || _url.text.isEmpty || _registering)
                       ? null
                       : _register,
                   child: Text(
-                      t(context, _registering ? 'registering' : 'register')),
+                      _registering ? context.l10n.registering : context.l10n.register),
                 ),
               ],
             ),
@@ -647,8 +643,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
 
   Future<void> _delete(Preset p) async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deletePreset'),
-        description: t(context, 'deletePresetBody', [p.id]));
+        title: context.l10n.deletePreset,
+        description: context.l10n.deletePresetBody(p.id));
     if (ok) {
       await widget.api.deletePreset(p.id);
       await _load();
@@ -690,14 +686,14 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                   controller: _newId,
                   autofocus: true,
                   decoration: InputDecoration(
-                      labelText: t(context, 'presetId')),
+                      labelText: context.l10n.presetId),
                   onSubmitted: (_) => _create(),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               FilledButton(
                   onPressed: _newId.text.trim().isEmpty ? null : _create,
-                  child: Text(t(context, 'create'))),
+                  child: Text(context.l10n.create)),
               IconButton(
                   icon: const Icon(Icons.close_rounded, size: 18),
                   onPressed: () => setState(() => _showNew = false)),
@@ -710,7 +706,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             child: OutlinedButton.icon(
               onPressed: () => setState(() => _showNew = true),
               icon: const Icon(Icons.add_rounded, size: 16),
-              label: Text(t(context, 'newPreset')),
+              label: Text(context.l10n.newPreset),
             ),
           ),
         for (final p in _presets)
@@ -720,11 +716,8 @@ class _PresetsDetailState extends State<_PresetsDetail> {
               children: [
                 ListTile(
                   title: Text(p.id),
-                  subtitle: Text(t(
-                      context, 'presetSummary', [
-                        '${p.maxTurns}',
-                        '${p.tools.length}'
-                      ])),
+                  subtitle: Text(context.l10n.presetSummary('${p.maxTurns}',
+                        '${p.tools.length}')),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -751,7 +744,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           controller: _sysPromptCtrl,
                           maxLines: 3,
                           decoration: InputDecoration(
-                              labelText: t(context, 'systemPrompt')),
+                              labelText: context.l10n.systemPrompt),
                           onChanged: (v) => _edit = Preset(
                               id: _edit.id,
                               systemPrompt: v,
@@ -762,7 +755,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           controller: _maxTurnsCtrl,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                              labelText: t(context, 'maxTurns')),
+                              labelText: context.l10n.maxTurns),
                           onChanged: (v) => _edit = Preset(
                               id: _edit.id,
                               systemPrompt: _edit.systemPrompt,
@@ -799,7 +792,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             FilledButton(
-                                onPressed: _save, child: Text(t(context, 'save'))),
+                                onPressed: _save, child: Text(context.l10n.save)),
                           ],
                         ),
                       ],
@@ -811,7 +804,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
         if (_presets.isEmpty)
           Padding(
               padding: const EdgeInsets.all(AppSpacing.sm),
-              child: Text(t(context, 'noPresets'),
+              child: Text(context.l10n.noPresets,
                   style: TextStyle(color: colors.mutedForeground))),
       ],
     );
@@ -875,7 +868,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
           {name: _config[name] ?? const <String, dynamic>{}});
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(t(context, 'saved'))));
+            .showSnackBar(SnackBar(content: Text(context.l10n.saved)));
       }
     } catch (e) {
       if (mounted) {
@@ -888,7 +881,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_tools.isEmpty) {
-      return Center(child: Text(t(context, 'noTools')));
+      return Center(child: Text(context.l10n.noTools));
     }
     final cats = <String, List<ToolInfo>>{};
     for (final t in _tools) {
@@ -921,10 +914,12 @@ class _ToolsDetailState extends State<_ToolsDetail> {
           ListTile(
             title: Text(tool.name, style: text.mono.copyWith(fontSize: 12)),
             trailing: fields.isEmpty
-                ? Text(t(context, 'noConfig'),
+                ? Text(context.l10n.noConfig,
                     style: text.micro.copyWith(color: colors.mutedForeground))
                 : Text(
-                    t(context, hasConfig ? 'configured' : 'needsConfig'),
+                    hasConfig
+                        ? context.l10n.configured
+                        : context.l10n.needsConfig,
                     style: text.micro.copyWith(
                         color: hasConfig ? colors.success : colors.warning)),
             onTap: () => setState(
@@ -948,7 +943,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                     alignment: Alignment.centerRight,
                     child: FilledButton(
                         onPressed: () => _save(tool.name),
-                        child: Text(t(context, 'save'))),
+                        child: Text(context.l10n.save)),
                   ),
                 ],
               ),
@@ -1007,7 +1002,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
       child: DropdownButtonFormField<String>(
         initialValue: current == null ? null : '$current',
         items: [
-          DropdownMenuItem(value: '', child: Text(t(context, 'none'))),
+          DropdownMenuItem(value: '', child: Text(context.l10n.none)),
           for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
         ],
         onChanged: onChanged,
@@ -1069,7 +1064,7 @@ class _TemplatePickerPageState extends State<_TemplatePickerPage> {
           controller: _q,
           autofocus: false,
           decoration: InputDecoration(
-            hintText: t(context, 'providerTemplateHint'),
+            hintText: context.l10n.providerTemplateHint,
             border: InputBorder.none,
           ),
         ),
@@ -1092,7 +1087,7 @@ class _TemplatePickerPageState extends State<_TemplatePickerPage> {
                             });
                             _load();
                           },
-                          child: Text(t(context, 'back'))),
+                          child: Text(context.l10n.back)),
                     ],
                   ),
                 )
@@ -1105,7 +1100,7 @@ class _TemplatePickerPageState extends State<_TemplatePickerPage> {
                           style: text.meta
                               .copyWith(fontWeight: FontWeight.w600)),
                       subtitle: Text(
-                          '${p.id} · ${t(context, 'modelsCount', ['${p.models.length}'])}',
+                          '${p.id} · ${context.l10n.modelsCount('${p.models.length}')}',
                           style: text.micro.copyWith(
                               color: colors.mutedForeground)),
                       trailing: const Icon(Icons.chevron_right_rounded,

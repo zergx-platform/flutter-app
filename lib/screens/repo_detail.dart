@@ -47,15 +47,15 @@ class _RepoDetailScreenState extends State<RepoDetailScreen>
         bottom: TabBar(
           controller: _tabs,
           tabs: [
-            Tab(text: t(context, 'overview')),
-            Tab(text: t(context, 'releasesTab')),
-            Tab(text: t(context, 'branchesTab')),
+            Tab(text: context.l10n.overview),
+            Tab(text: context.l10n.releasesTab),
+            Tab(text: context.l10n.branchesTab),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: t(context, 'deleteRepoTitle'),
+            tooltip: context.l10n.deleteRepoTitle,
             onPressed: _deleteRepo,
           ),
         ],
@@ -77,8 +77,8 @@ class _RepoDetailScreenState extends State<RepoDetailScreen>
 
   Future<void> _deleteRepo() async {
     final ok = await confirmDialog(context,
-        title: t(context, 'deleteRepoTitle'),
-        description: t(context, 'deleteRepoBody', [widget.org, widget.repo]));
+        title: context.l10n.deleteRepoTitle,
+        description: context.l10n.deleteRepoBody(widget.org, widget.repo));
     if (ok) {
       await store.deleteRepo(widget.org, widget.repo);
       if (mounted) Navigator.of(context).pop();
@@ -133,12 +133,12 @@ class _OverviewTabState extends State<_OverviewTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          Text(t(context, 'branchesTab'),
+          Text(context.l10n.branchesTab,
               style: text.meta.copyWith(
                   fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: AppSpacing.sm),
           if (_branches.isEmpty)
-            Text(t(context, 'noBranches'),
+            Text(context.l10n.noBranches,
                 style: TextStyle(color: colors.mutedForeground))
           else
             Wrap(
@@ -154,12 +154,12 @@ class _OverviewTabState extends State<_OverviewTab> {
               ],
             ),
           const SizedBox(height: AppSpacing.lg),
-          Text(t(context, 'recentCommits'),
+          Text(context.l10n.recentCommits,
               style: text.meta.copyWith(
                   fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: AppSpacing.xs),
           if (_commits.isEmpty)
-            Text(t(context, 'noCommits'),
+            Text(context.l10n.noCommits,
                 style: TextStyle(color: colors.mutedForeground))
           else
             for (final c in _commits)
@@ -252,10 +252,10 @@ class _ReleasesTabState extends State<_ReleasesTab> {
         mimeType: mime,
       );
       messenger.showSnackBar(SnackBar(
-          content: Text(Texts.tr('savedToDownloads', [where]))));
+          content: Text(I18n.now.savedToDownloads(where))));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-          content: Text(Texts.tr('downloadFailed', ['$e']))));
+          content: Text(I18n.now.downloadFailed('$e'))));
     }
     if (mounted) setState(() => _downloading = null);
   }
@@ -273,7 +273,7 @@ class _ReleasesTabState extends State<_ReleasesTab> {
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Center(
-                      child: Text(t(context, 'noReleases'),
+                      child: Text(context.l10n.noReleases,
                           style: TextStyle(color: colors.mutedForeground))),
                 ),
               ],
@@ -306,16 +306,16 @@ class _ReleasesTabState extends State<_ReleasesTab> {
                         style: text.meta.copyWith(fontWeight: FontWeight.w600))),
                 if (r.draft) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  _badge(t(context, 'draftBadge'), colors.mutedForeground),
+                  _badge(context.l10n.draftBadge, colors.mutedForeground),
                 ],
                 if (r.prerelease) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  _badge(t(context, 'prereleaseBadge'), colors.warning),
+                  _badge(context.l10n.prereleaseBadge, colors.warning),
                 ],
               ],
             ),
             subtitle: Text(
-                '${r.tagName} · ${t(context, 'assetsCount', ['${r.assets.length}'])}',
+                '${r.tagName} · ${context.l10n.assetsCount('${r.assets.length}')}',
                 style:
                     text.micro.copyWith(color: colors.mutedForeground)),
             trailing: _downloading == r.tagName
@@ -326,7 +326,7 @@ class _ReleasesTabState extends State<_ReleasesTab> {
                 : IconButton(
                     icon: Icon(Icons.download_rounded,
                         size: 18, color: colors.primary),
-                    tooltip: t(context, 'downloadSource'),
+                    tooltip: context.l10n.downloadSource,
                     onPressed: () => _download(
                         widget.api.archivePath(
                             widget.org, widget.repo, r.tagName),
@@ -453,7 +453,7 @@ class _BranchesTabState extends State<_BranchesTab> {
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Center(
-                      child: Text(t(context, 'noBranches'),
+                      child: Text(context.l10n.noBranches,
                           style: TextStyle(color: colors.mutedForeground))),
                 ),
               ],

@@ -150,7 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_pendingAttachments.any((a) => a.isUploading)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t(context, 'waitUpload'))));
+            SnackBar(content: Text(context.l10n.waitUpload)));
       }
       return;
     }
@@ -180,17 +180,17 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera_rounded),
-              title: Text(t(ctx, 'takePhoto')),
+              title: Text(ctx.l10n.takePhoto),
               onTap: () => Navigator.pop(ctx, 'camera'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_rounded),
-              title: Text(t(ctx, 'chooseImage')),
+              title: Text(ctx.l10n.chooseImage),
               onTap: () => Navigator.pop(ctx, 'gallery'),
             ),
             ListTile(
               leading: const Icon(Icons.attach_file_rounded),
-              title: Text(t(ctx, 'chooseFile')),
+              title: Text(ctx.l10n.chooseFile),
               onTap: () => Navigator.pop(ctx, 'file'),
             ),
           ],
@@ -429,11 +429,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = textOf(context);
     final s = store.activeSession;
     final overlayTitle = switch (store.sessionOverlay) {
-      SessionOverlay.timeline => t(context, 'timeline'),
-      SessionOverlay.files => t(context, 'files'),
-      SessionOverlay.mailbox => t(context, 'mailbox'),
-      SessionOverlay.container => t(context, 'container'),
-      SessionOverlay.todos => t(context, 'todos'),
+      SessionOverlay.timeline => context.l10n.timeline,
+      SessionOverlay.files => context.l10n.files,
+      SessionOverlay.mailbox => context.l10n.mailbox,
+      SessionOverlay.container => context.l10n.container,
+      SessionOverlay.todos => context.l10n.todos,
       null => '',
     };
     return SafeArea(
@@ -470,7 +470,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   s != null
                       ? '${s.org}/${s.repo}'
                           '${overlayTitle.isNotEmpty ? ' · $overlayTitle' : ''}'
-                      : t(context, 'chatTitle'),
+                      : context.l10n.chatTitle,
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(
                       fontWeight: FontWeight.w600,
@@ -480,17 +480,17 @@ class _ChatScreenState extends State<ChatScreen> {
               PopupMenuButton<String>(
                 onSelected: (v) => _menuAction(v),
                 itemBuilder: (context) => [
-                  PopupMenuItem(value: 'settings', child: Text(t(context, 'sessionSettings'))),
-                  PopupMenuItem(value: 'compact', child: Text(t(context, 'compactHistory'))),
-                  PopupMenuItem(value: 'timeline', child: Text(t(context, 'timeline'))),
-                  PopupMenuItem(value: 'files', child: Text(t(context, 'files'))),
-                  PopupMenuItem(value: 'mailbox', child: Text(t(context, 'mailbox'))),
-                  PopupMenuItem(value: 'container', child: Text(t(context, 'container'))),
-                  PopupMenuItem(value: 'todos', child: Text(t(context, 'todos'))),
+                  PopupMenuItem(value: 'settings', child: Text(context.l10n.sessionSettings)),
+                  PopupMenuItem(value: 'compact', child: Text(context.l10n.compactHistory)),
+                  PopupMenuItem(value: 'timeline', child: Text(context.l10n.timeline)),
+                  PopupMenuItem(value: 'files', child: Text(context.l10n.files)),
+                  PopupMenuItem(value: 'mailbox', child: Text(context.l10n.mailbox)),
+                  PopupMenuItem(value: 'container', child: Text(context.l10n.container)),
+                  PopupMenuItem(value: 'todos', child: Text(context.l10n.todos)),
                   const PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'delete',
-                    child: Text(t(context, 'deleteSession'),
+                    child: Text(context.l10n.deleteSession,
                         style: TextStyle(color: colors.destructive)),
                   ),
                 ],
@@ -545,19 +545,19 @@ class _ChatScreenState extends State<ChatScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t(context, 'deleteSessionTitle')),
-        content: Text(t(context, 'deleteSessionBody', [label])),
+        title: Text(context.l10n.deleteSessionTitle),
+        content: Text(context.l10n.deleteSessionBody(label)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(t(ctx, 'cancel')),
+              child: Text(ctx.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
                 backgroundColor: colorsOf(ctx).destructive,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(t(ctx, 'delete')),
+            child: Text(ctx.l10n.delete),
           ),
         ],
       ),
@@ -586,13 +586,13 @@ class _ChatScreenState extends State<ChatScreen> {
         // A compaction checkpoint was created: reopen the conversation so the
         // new "历史已压缩" summary message renders at the top of the tail.
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(t(context, 'historyCompacted'))));
+            .showSnackBar(SnackBar(content: Text(context.l10n.historyCompacted)));
         await _setup();
       } else {
         // Nothing to fold (the agent returns {ok:false}); the current
         // conversation is unchanged.
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(t(context, 'nothingToCompact'))));
+            content: Text(context.l10n.nothingToCompact)));
       }
     } catch (e) {
       if (mounted) {
@@ -626,7 +626,7 @@ class _ChatScreenState extends State<ChatScreen> {
               preset,
           ];
           return AlertDialog(
-            title: Text(t(ctx, 'settingsTitle')),
+            title: Text(ctx.l10n.settingsTitle),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -640,7 +640,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         DropdownMenuItem(value: id, child: Text(id)),
                     ],
                     onChanged: (v) => setState(() => model = v ?? ''),
-                    decoration: InputDecoration(labelText: t(ctx, 'modelLabel')),
+                    decoration: InputDecoration(labelText: ctx.l10n.modelLabel),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
@@ -650,19 +650,19 @@ class _ChatScreenState extends State<ChatScreen> {
                         DropdownMenuItem(value: id, child: Text(id)),
                     ],
                     onChanged: (v) => setState(() => preset = v ?? ''),
-                    decoration: InputDecoration(labelText: t(ctx, 'presetLabel')),
+                    decoration: InputDecoration(labelText: ctx.l10n.presetLabel),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: maxTurns,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: t(ctx, 'maxTurnsLabel')),
+                    decoration: InputDecoration(labelText: ctx.l10n.maxTurnsLabel),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: sysPrompt,
                     maxLines: 3,
-                    decoration: InputDecoration(labelText: t(ctx, 'sysPromptLabel')),
+                    decoration: InputDecoration(labelText: ctx.l10n.sysPromptLabel),
                   ),
                 ],
               ),
@@ -670,7 +670,7 @@ class _ChatScreenState extends State<ChatScreen> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: Text(t(ctx, 'cancel')),
+                  child: Text(ctx.l10n.cancel),
               ),
               FilledButton(
                 onPressed: () async {
@@ -692,7 +692,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
                   }
                 },
-                child: Text(t(ctx, 'apply')),
+                child: Text(ctx.l10n.apply),
               ),
             ],
           );
@@ -717,8 +717,8 @@ class _ChatScreenState extends State<ChatScreen> {
             child: TextButton(
               onPressed: m.loading ? null : () => m.loadMore(),
               child: Text(m.loading
-                  ? t(context, 'loading')
-                  : t(context, 'loadEarlier')),
+                  ? context.l10n.loading
+                  : context.l10n.loadEarlier),
             ),
           );
         }
@@ -763,7 +763,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   IconButton(
-                    tooltip: t(context, 'attach'),
+                    tooltip: context.l10n.attach,
                     onPressed: sending ? null : _openAttachSheet,
                     icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
                   ),
@@ -779,7 +779,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
                         hintText:
-                            _pendingAttachments.isEmpty ? t(context, 'typeMessage') : '',
+                            _pendingAttachments.isEmpty ? context.l10n.typeMessage : '',
                       ),
                     ),
                   ),
@@ -810,7 +810,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   const Spacer(),
                   if (last > 0)
                     Text(
-                      '${t(context, 'contextTokens')} ${_k(last)}',
+                      '${context.l10n.contextTokens} ${_k(last)}',
                       style: text.micro.copyWith(
                           color: colors.mutedForeground),
                     ),
@@ -873,15 +873,15 @@ class _ChatScreenState extends State<ChatScreen> {
   String _overlayLabel(SessionOverlay ov) {
     switch (ov) {
       case SessionOverlay.timeline:
-        return t(context, 'timeline');
+        return context.l10n.timeline;
       case SessionOverlay.files:
-        return t(context, 'files');
+        return context.l10n.files;
       case SessionOverlay.mailbox:
-        return t(context, 'mailbox');
+        return context.l10n.mailbox;
       case SessionOverlay.container:
-        return t(context, 'container');
+        return context.l10n.container;
       case SessionOverlay.todos:
-        return t(context, 'todos');
+        return context.l10n.todos;
     }
   }
 
@@ -967,13 +967,13 @@ class _OverlayPage extends StatelessWidget {
               Navigator.of(context).pop();
             },
           ),
-          title: Text(t(context, switch (overlay) {
-            SessionOverlay.timeline => 'timeline',
-            SessionOverlay.files => 'files',
-            SessionOverlay.mailbox => 'mailbox',
-            SessionOverlay.container => 'container',
-            SessionOverlay.todos => 'todos',
-          })),
+          title: Text(switch (overlay) {
+            SessionOverlay.timeline => context.l10n.timeline,
+            SessionOverlay.files => context.l10n.files,
+            SessionOverlay.mailbox => context.l10n.mailbox,
+            SessionOverlay.container => context.l10n.container,
+            SessionOverlay.todos => context.l10n.todos,
+          }),
         ),
         body: ListenableBuilder(
           listenable: store,
@@ -1038,7 +1038,7 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
           branch: s.branch);
       setState(() {
         _diff = d;
-        if (d.isEmpty) _error = t(context, 'noChanges');
+        if (d.isEmpty) _error = context.l10n.noChanges;
         _loading = false;
       });
     } catch (e) {
@@ -1077,14 +1077,14 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                tooltip: t(context, 'changeDiff'),
+                tooltip: context.l10n.changeDiff,
                 onPressed: _openFullScreen,
               ),
               TextButton(
                   // Go back to the change list (notifies the store so both
                   // the desktop panel and the mobile overlay page rebuild).
                   onPressed: () => store.closeDiff(),
-                  child: Text(t(context, 'back'))),
+                  child: Text(context.l10n.back)),
             ],
           ),
         ),
@@ -1098,7 +1098,7 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
                               TextStyle(color: colors.mutedForeground)))
                   : _diff.isEmpty
                       ? Center(
-                          child: Text(t(context, 'noChanges'),
+                          child: Text(context.l10n.noChanges,
                               style: TextStyle(
                                   color: colors.mutedForeground)))
                       : DiffView(diffText: _diff),
