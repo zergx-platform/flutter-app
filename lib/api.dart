@@ -536,6 +536,32 @@ class ZergxApi {
         as Map<String, dynamic>;
   }
 
+  Future<MirrorCfg> getMirror(String org, String repo) async {
+    final j = await _get(
+            '/api/v1/repos/${_enc(org)}/${_enc(repo)}/mirror')
+        as Map<String, dynamic>;
+    return MirrorCfg(
+      pullUrl: j['pull_url'] as String? ?? '',
+      pushUrl: j['push_url'] as String? ?? '',
+      pushSecretSet: j['push_secret_set'] as bool? ?? false,
+    );
+  }
+
+  Future<void> setMirror(String org, String repo,
+      {String pullUrl = '',
+      String pushUrl = '',
+      String? pushSecret}) async {
+    await _put('/api/v1/repos/${_enc(org)}/${_enc(repo)}/mirror', {
+      if (pullUrl.isNotEmpty) 'pull_url': pullUrl,
+      if (pushUrl.isNotEmpty) 'push_url': pushUrl,
+      if (pushSecret != null && pushSecret.isNotEmpty)
+        'push_secret': pushSecret,
+    });
+  }
+
+  Future<void> delMirror(String org, String repo) =>
+      _del('/api/v1/repos/${_enc(org)}/${_enc(repo)}/mirror');
+
   // ---- config / providers / models / presets / tools ----
 
   Future<Map<String, String>> config() async {
@@ -583,10 +609,20 @@ class ZergxApi {
 
   Future<void> deletePreset(String id) => _del('/api/v1/presets/${_enc(id)}');
 
-  Future<List<ToolInfo>> tools() async {
-    final j = await _get('/api/v1/tools') as Map<String, dynamic>;
+  Future<List<ToolInfo>> tools({String? locale}) async {
+    final query = <String, dynamic>{if (locale != null && locale.isNotEmpty) 'locale': locale};
+    final j = await _get('/api/v1/tools', query.isEmpty ? null : query)
+        as Map<String, dynamic>;
     return _list(j, ToolInfo.fromJson, 'tools');
   }
+
+  /// Set a single agent config key (e.g. locale) via `PUT /api/v1/config`.
+  Future<void> setConfigKey(String key, String value) =>
+      _put('/api/v1/config', {'key': key, 'value': value});
+
+  /// Per-session language override (`PATCH /sessions/{id}/settings`).
+  Future<Session> sessionLocale(String id, String locale) =>
+      settings(id, {'locale': locale});
 
   Future<Map<String, dynamic>> toolConfig() async =>
       await _get('/api/v1/tool-config') as Map<String, dynamic>;

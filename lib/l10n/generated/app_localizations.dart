@@ -743,7 +743,7 @@ abstract class AppLocalizations {
   /// No description provided for @language.
   ///
   /// In zh, this message translates to:
-  /// **'语言 / Language'**
+  /// **'语言'**
   String get language;
 
   /// No description provided for @logout.
@@ -1633,6 +1633,90 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'同步失败：{e}'**
   String syncFailed(String e);
+
+  /// No description provided for @mirrorSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'镜像设置'**
+  String get mirrorSettings;
+
+  /// No description provided for @pullUrlLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'拉取地址'**
+  String get pullUrlLabel;
+
+  /// No description provided for @pushUrlLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'推送地址'**
+  String get pushUrlLabel;
+
+  /// No description provided for @secretSetPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'已设置（留空保持不变）'**
+  String get secretSetPlaceholder;
+
+  /// No description provided for @secretKeepToUpdate.
+  ///
+  /// In zh, this message translates to:
+  /// **'已保存过凭证，输入新值可更新'**
+  String get secretKeepToUpdate;
+
+  /// No description provided for @clearMirror.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除'**
+  String get clearMirror;
+
+  /// No description provided for @savedMirror.
+  ///
+  /// In zh, this message translates to:
+  /// **'镜像设置已保存'**
+  String get savedMirror;
+
+  /// No description provided for @agentLocale.
+  ///
+  /// In zh, this message translates to:
+  /// **'Agent 语言'**
+  String get agentLocale;
+
+  /// No description provided for @agentLocaleSub.
+  ///
+  /// In zh, this message translates to:
+  /// **'控制 agent 拼提示词与工具描述的语言（跟随/中文/English），写入后端并即时生效'**
+  String get agentLocaleSub;
+
+  /// No description provided for @agentLocaleFollow.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随（UI 语言）'**
+  String get agentLocaleFollow;
+
+  /// No description provided for @agentLocaleApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'Agent 语言已切换为 {l}'**
+  String agentLocaleApplied(String l);
+
+  /// No description provided for @toolParams.
+  ///
+  /// In zh, this message translates to:
+  /// **'参数'**
+  String get toolParams;
+
+  /// No description provided for @showMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'展开'**
+  String get showMore;
+
+  /// No description provided for @showLess.
+  ///
+  /// In zh, this message translates to:
+  /// **'收起'**
+  String get showLess;
 }
 
 class _AppLocalizationsDelegate

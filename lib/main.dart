@@ -48,6 +48,7 @@ class _ZergxAppState extends State<ZergxApp> {
   Future<void> _load() async {
     // Load persisted locale before the first build.
     await I18n.load();
+    await Prefs.loadAgentLocale();
     final prefs = await Prefs.load();
     final base = prefs.baseUrl?.isNotEmpty == true ? prefs.baseUrl! : defaultBaseUrl;
     if (mounted) {

@@ -616,6 +616,7 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (ctx, setState) {
           String model = store.activeSession?.model ?? '';
           String preset = store.activeSession?.preset ?? '';
+          String locale = store.activeSession?.locale ?? '';
           // Include the session's current value even if it is not among the
           // registered options, otherwise the dropdown asserts.
           final modelOptions = [
@@ -626,6 +627,14 @@ class _ChatScreenState extends State<ChatScreen> {
             ..._presets.map((p) => p.id),
             if (preset.isNotEmpty && !_presets.any((p) => p.id == preset))
               preset,
+          ];
+          final localeOptions = [
+            for (final (code, label) in [
+              ('', ctx.l10n.agentLocaleFollow),
+              ('zh', '中文'),
+              ('en', 'English'),
+            ])
+              DropdownMenuItem(value: code, child: Text(label)),
           ];
           return AlertDialog(
             title: Text(ctx.l10n.settingsTitle),
@@ -655,6 +664,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: InputDecoration(labelText: ctx.l10n.presetLabel),
                   ),
                   const SizedBox(height: AppSpacing.md),
+                  // Per-session language override. '' = follow the global
+                  // agent locale (written by the config 'Agent language'
+                  // setting); zh/en pin this session's prompt language.
+                  DropdownButtonFormField<String>(
+                    initialValue: locale.isEmpty ? '' : locale,
+                    items: localeOptions,
+                    onChanged: (v) => setState(() => locale = v ?? ''),
+                    decoration: InputDecoration(labelText: ctx.l10n.agentLocale),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: maxTurns,
                     keyboardType: TextInputType.number,
@@ -680,6 +699,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   final updates = <String, dynamic>{};
                   if (model.isNotEmpty) updates['model'] = model;
                   if (preset.isNotEmpty) updates['preset'] = preset;
+                  // Only send the per-session locale when explicitly chosen;
+                  // '' (follow) is sent as empty to clear any override.
+                  updates['locale'] = locale;
                   if (maxTurns.text.isNotEmpty) {
                     updates['max_turns'] = int.tryParse(maxTurns.text);
                   }

@@ -65,6 +65,10 @@ class _RepoDetailScreenState extends State<RepoDetailScreen>
               PopupMenuItem(
                   value: 'push',
                   child: Text(context.l10n.pushToRemote)),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                  value: 'settings',
+                  child: Text(context.l10n.mirrorSettings)),
             ],
           ),
           IconButton(
@@ -103,52 +107,139 @@ class _RepoDetailScreenState extends State<RepoDetailScreen>
   /// Sync a remote Git mirror into/out of this repo via jjlab.
   Future<void> _syncAction(String kind) async {
     final messenger = ScaffoldMessenger.of(context);
+    if (kind == 'settings') {
+      await _mirrorSettings();
+      return;
+    }
     final okMsg = kind == 'pull'
         ? context.l10n.pullDone
         : context.l10n.pushDone;
-    if (kind == 'pull') {
-      final url = await promptDialog(context,
-          title: context.l10n.pullFromRemote,
-          label: context.l10n.gitUrlLabel,
-          confirmText: context.l10n.pullConfirm);
-      if (url == null || url.trim().isEmpty) return;
-      try {
-        final r = await store.api.mirrorSync(
-            widget.org, widget.repo, 'pull-mirror', {
-          'url': url.trim(),
-        });
-        messenger.showSnackBar(SnackBar(
-            content: Text(okMsg +
-                (r['updated_bookmarks'] != null
-                    ? ' (${r['updated_bookmarks']})'
-                    : ''))));
-      } catch (e) {
-        messenger.showSnackBar(
-            SnackBar(content: Text(context.l10n.syncFailed('$e'))));
-      }
-      return;
-    }
-    // push
-    final url = await promptDialog(context,
-        title: context.l10n.pushToRemote,
-        label: context.l10n.gitUrlLabel,
-        confirmText: context.l10n.pushConfirm);
-    if (url == null || url.trim().isEmpty) return;
-    final secret = await promptDialog(context,
-        title: context.l10n.secretLabel,
-        label: context.l10n.accessTokenOpt,
-        confirmText: context.l10n.pushConfirm);
+    // Pull/push default the URL to the stored config so the user only needs
+    // to type it once; the secret lives on the platform (never client-side).
+    MirrorCfg stored;
     try {
-      await store.api.mirrorSync(widget.org, widget.repo, 'push-mirror', {
-        'url': url.trim(),
-        if (secret != null && secret.trim().isNotEmpty)
-          'secret': secret.trim(),
-      });
-      messenger.showSnackBar(SnackBar(content: Text(okMsg)));
+      stored = await store.api.getMirror(widget.org, widget.repo);
+    } catch (_) {
+      stored = MirrorCfg();
+    }
+    final prefill = kind == 'pull' ? stored.pullUrl : stored.pushUrl;
+    String? url = await promptDialog(context,
+        title: kind == 'pull'
+            ? context.l10n.pullFromRemote
+            : context.l10n.pushToRemote,
+        label: context.l10n.gitUrlLabel,
+        confirmText: kind == 'pull'
+            ? context.l10n.pullConfirm
+            : context.l10n.pushConfirm);
+    if (url == null || url.trim().isEmpty) return;
+    if (url.trim() == context.l10n.gitUrlLabel) url = prefill;
+    final body = <String, dynamic>{'url': url.trim()};
+    if (kind == 'push') {
+      final secret = await promptDialog(context,
+          title: context.l10n.secretLabel,
+          label: context.l10n.accessTokenOpt,
+          confirmText: context.l10n.pushConfirm);
+      if (secret != null && secret.trim().isNotEmpty) {
+        body['secret'] = secret.trim();
+      }
+    }
+    try {
+      final r = await store.api.mirrorSync(
+          widget.org, widget.repo, '${kind}-mirror', body);
+      messenger.showSnackBar(SnackBar(
+          content: Text(okMsg +
+              (r['updated_bookmarks'] != null
+                  ? ' (${r['updated_bookmarks']})'
+                  : ''))));
     } catch (e) {
       messenger.showSnackBar(
           SnackBar(content: Text(context.l10n.syncFailed('$e'))));
     }
+  }
+
+  /// Save pull/push URLs + an optional push secret on the platform (NATS KV,
+  /// secret encrypted server-side, never returned to the client).
+  Future<void> _mirrorSettings() async {
+    final messenger = ScaffoldMessenger.of(context);
+    MirrorCfg stored;
+    try {
+      stored = await store.api.getMirror(widget.org, widget.repo);
+    } catch (_) {
+      stored = MirrorCfg();
+    }
+    final pullCtrl = TextEditingController(text: stored.pullUrl);
+    final pushCtrl = TextEditingController(text: stored.pushUrl);
+    final secretCtrl = TextEditingController(
+        text: stored.pushSecretSet ? context.l10n.secretSetPlaceholder : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.mirrorSettings),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: pullCtrl,
+                  decoration: InputDecoration(
+                      labelText: context.l10n.pullUrlLabel)),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: pushCtrl,
+                  decoration: InputDecoration(
+                      labelText: context.l10n.pushUrlLabel)),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: secretCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                      helperText: stored.pushSecretSet
+                          ? context.l10n.secretKeepToUpdate
+                          : null,
+                      labelText: context.l10n.secretLabel)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(context.l10n.cancel)),
+          if (stored.pullUrl.isNotEmpty || stored.pushUrl.isNotEmpty)
+            TextButton(
+              onPressed: () async {
+                await store.api.delMirror(widget.org, widget.repo);
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              },
+              child: Text(context.l10n.clearMirror,
+                  style: TextStyle(color: colorsOf(ctx).destructive)),
+            ),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(context.l10n.save)),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        final secret = secretCtrl.text.trim();
+        await store.api.setMirror(widget.org, widget.repo,
+            pullUrl: pullCtrl.text.trim(),
+            pushUrl: pushCtrl.text.trim(),
+            // If the user left the placeholder (already-set secret) and
+            // changed nothing, send null so the stored secret is preserved.
+            pushSecret: secret.isEmpty || secret == context.l10n.secretSetPlaceholder
+                ? null
+                : secret);
+        messenger.showSnackBar(
+            SnackBar(content: Text(context.l10n.savedMirror)));
+      } catch (e) {
+        messenger.showSnackBar(
+            SnackBar(content: Text(context.l10n.syncFailed('$e'))));
+      }
+    }
+    pullCtrl.dispose();
+    pushCtrl.dispose();
+    secretCtrl.dispose();
   }
 }
 

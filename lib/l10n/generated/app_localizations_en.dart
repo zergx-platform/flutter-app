@@ -851,4 +851,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String syncFailed(String e) {
     return 'Sync failed: $e';
   }
+
+  @override
+  String get mirrorSettings => 'Mirror settings';
+
+  @override
+  String get pullUrlLabel => 'Pull URL';
+
+  @override
+  String get pushUrlLabel => 'Push URL';
+
+  @override
+  String get secretSetPlaceholder => 'Secret set (leave blank to keep)';
+
+  @override
+  String get secretKeepToUpdate =>
+      'A secret is stored; enter a new value to update it';
+
+  @override
+  String get clearMirror => 'Clear';
+
+  @override
+  String get savedMirror => 'Mirror settings saved';
+
+  @override
+  String get agentLocale => 'Agent language';
+
+  @override
+  String get agentLocaleSub =>
+      'Agent prompt/tool language: follow UI, zh or en; written to backend immediately';
+
+  @override
+  String get agentLocaleFollow => 'Follow (UI language)';
+
+  @override
+  String agentLocaleApplied(String l) {
+    return 'Agent language set to $l';
+  }
+
+  @override
+  String get toolParams => 'Parameters';
+
+  @override
+  String get showMore => 'Show';
+
+  @override
+  String get showLess => 'Collapse';
 }

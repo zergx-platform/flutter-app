@@ -28,6 +28,7 @@ class Session {
   final String? tipId;
   final int? maxTurns;
   final String? systemPrompt;
+  final String? locale;
   final int? inputTokens;
   final int? outputTokens;
   final int? totalTokens;
@@ -49,6 +50,7 @@ class Session {
     this.tipId,
     this.maxTurns,
     this.systemPrompt,
+    this.locale,
     this.inputTokens,
     this.outputTokens,
     this.totalTokens,
@@ -68,6 +70,7 @@ class Session {
         branch: j['branch'] as String? ?? '',
         model: j['model'] as String? ?? '',
         preset: j['preset'] as String? ?? '',
+        locale: j['locale'] as String?,
         tipId: j['tip_id'] as String?,
         maxTurns: j['max_turns'] as int?,
         systemPrompt: j['system_prompt'] as String?,
@@ -123,6 +126,7 @@ class SessionInfo {
   final int? unread;
   final String model;
   final String preset;
+  final String? locale;
 
   SessionInfo({
     required this.sessionId,
@@ -131,6 +135,7 @@ class SessionInfo {
     this.unread,
     this.model = '',
     this.preset = '',
+    this.locale,
   });
 
   factory SessionInfo.fromJson(Map<String, dynamic> j) => SessionInfo(
@@ -140,6 +145,7 @@ class SessionInfo {
         unread: j['unread'] as int?,
         model: j['model'] as String? ?? '',
         preset: j['preset'] as String? ?? '',
+        locale: j['locale'] as String?,
       );
 }
 
@@ -657,6 +663,71 @@ class ToolInfo {
             .map((e) => ToolConfigField.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
+
+  /// Parsed parameter tree (properties + nested array/object items),
+  /// honoring the required list. Empty when parameters is missing/empty.
+  List<ToolParam> get params => ToolParam.parseSchema(parameters);
+}
+
+/// A single tool input parameter (recursively nests array/object items).
+class ToolParam {
+  final String name;
+  final String type;
+  final String description;
+  final bool required;
+  final List<String>? enumValues;
+  final List<ToolParam> children;
+  final String? defaultValue;
+  ToolParam({
+    required this.name,
+    required this.type,
+    this.description = '',
+    this.required = false,
+    this.enumValues,
+    this.children = const [],
+    this.defaultValue,
+  });
+
+  /// Parse `parameters` JSON-Schema into a flat/recursive param list.
+  static List<ToolParam> parseSchema(Map<String, dynamic>? schema) {
+    if (schema == null) return const [];
+    final out = <ToolParam>[];
+    final properties = schema['properties'];
+    if (properties is! Map) return out;
+    final requiredList = (schema['required'] as List?)?.map((e) => '$e').toSet() ??
+        const <String>{};
+    properties.forEach((key, value) {
+      if (value is! Map) return;
+      final v = value.cast<String, dynamic>();
+      final type = (v['type'] as String?) ?? 'object';
+      final children = <ToolParam>[];
+      // array items object/array
+      final items = v['items'];
+      if (items is Map) {
+        final im = items.cast<String, dynamic>();
+        if ((im['type'] as String?) == 'array' ||
+            (im['properties'] as Map?)?.isNotEmpty == true) {
+          children.addAll(parseSchema({
+            'type': 'object',
+            'properties': im['properties'],
+            'required': im['required'],
+          }));
+        }
+      } else if (type == 'object' && v['properties'] is Map) {
+        children.addAll(parseSchema(v));
+      }
+      out.add(ToolParam(
+        name: '$key',
+        type: type,
+        description: (v['description'] as String?) ?? '',
+        required: requiredList.contains('$key'),
+        enumValues: v['enum'] is List ? (v['enum'] as List).map((e) => '$e').toList() : null,
+        defaultValue: v['default'] == null ? null : '${v['default']}',
+        children: children,
+      ));
+    });
+    return out;
+  }
 }
 
 class ProviderModel {
@@ -1087,6 +1158,19 @@ class RepoMirror {
         mirrorUrl: j['mirror_url'] as String? ?? '',
         hasSecret: j['has_secret'] as bool? ?? false,
       );
+}
+
+/// Stored per-repo mirror config (urls + whether a push secret is set; the
+/// secret itself never leaves the platform).
+class MirrorCfg {
+  final String pullUrl;
+  final String pushUrl;
+  final bool pushSecretSet;
+  MirrorCfg({
+    this.pullUrl = '',
+    this.pushUrl = '',
+    this.pushSecretSet = false,
+  });
 }
 /// jj-lab branch (GET /repos/{org}/{repo}/branches).
 class BranchInfo {

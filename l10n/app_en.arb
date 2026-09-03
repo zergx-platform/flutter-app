@@ -532,5 +532,29 @@
   "secretLabel": "Access token (optional)",
   "pullDone": "Pulled from remote",
   "pushDone": "Pushed to remote",
-  "syncFailed": "Sync failed: {e}"
+  "syncFailed": "Sync failed: {e}",
+  "@secretSetPlaceholder": {
+    "placeholders": {}
+  },
+  "mirrorSettings": "Mirror settings",
+  "pullUrlLabel": "Pull URL",
+  "pushUrlLabel": "Push URL",
+  "secretSetPlaceholder": "Secret set (leave blank to keep)",
+  "secretKeepToUpdate": "A secret is stored; enter a new value to update it",
+  "clearMirror": "Clear",
+  "savedMirror": "Mirror settings saved",
+  "@agentLocaleApplied": {
+    "placeholders": {
+      "l": {
+        "type": "String"
+      }
+    }
+  },
+  "agentLocale": "Agent language",
+  "agentLocaleSub": "Agent prompt/tool language: follow UI, zh or en; written to backend immediately",
+  "agentLocaleFollow": "Follow (UI language)",
+  "agentLocaleApplied": "Agent language set to {l}",
+  "toolParams": "Parameters",
+  "showMore": "Show",
+  "showLess": "Collapse"
 }

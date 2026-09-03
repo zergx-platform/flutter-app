@@ -351,7 +351,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tools => '工具';
 
   @override
-  String get language => '语言 / Language';
+  String get language => '语言';
 
   @override
   String get logout => '退出登录';
@@ -848,4 +848,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String syncFailed(String e) {
     return '同步失败：$e';
   }
+
+  @override
+  String get mirrorSettings => '镜像设置';
+
+  @override
+  String get pullUrlLabel => '拉取地址';
+
+  @override
+  String get pushUrlLabel => '推送地址';
+
+  @override
+  String get secretSetPlaceholder => '已设置（留空保持不变）';
+
+  @override
+  String get secretKeepToUpdate => '已保存过凭证，输入新值可更新';
+
+  @override
+  String get clearMirror => '清除';
+
+  @override
+  String get savedMirror => '镜像设置已保存';
+
+  @override
+  String get agentLocale => 'Agent 语言';
+
+  @override
+  String get agentLocaleSub => '控制 agent 拼提示词与工具描述的语言（跟随/中文/English），写入后端并即时生效';
+
+  @override
+  String get agentLocaleFollow => '跟随（UI 语言）';
+
+  @override
+  String agentLocaleApplied(String l) {
+    return 'Agent 语言已切换为 $l';
+  }
+
+  @override
+  String get toolParams => '参数';
+
+  @override
+  String get showMore => '展开';
+
+  @override
+  String get showLess => '收起';
 }

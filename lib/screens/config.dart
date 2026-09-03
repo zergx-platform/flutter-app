@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../i18n.dart';
 import '../models.dart';
+import '../prefs.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
 import '../services/models_dev.dart';
@@ -128,8 +129,53 @@ class _ConfigScreenState extends State<ConfigScreen> {
             context, Icons.handyman_outlined, 'tools', () => _push('tools')),
         _SectionHeader(context.l10n.language),
         _listTile(context, Icons.language_rounded, 'language', _pickLanguage),
+        _listTile(
+            context,
+            Icons.translate_rounded,
+            'agentLocale',
+            _pickAgentLocale),
       ],
     );
+  }
+
+  Future<void> _pickAgentLocale() async {
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.l10n.agentLocale),
+        children: [
+          for (final (code, label) in [
+            ('follow', ctx.l10n.agentLocaleFollow),
+            ('zh', '中文'),
+            ('en', 'English'),
+          ])
+            ListTile(
+              leading: Icon(
+                  agentLocaleValue == code
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: colorsOf(ctx).primary),
+              title: Text(label),
+              onTap: () => Navigator.pop(ctx, code),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || picked == agentLocaleValue) return;
+    await Prefs.saveAgentLocale(picked);
+    final messenger = ScaffoldMessenger.of(context);
+    // Push to the agent so the prompt/tool descriptions use the locale
+    // immediately (agent dynamic-locale reads the config KV each turn).
+    final value = Prefs.effectiveAgentLocale(uiZh: I18n.isZh);
+    try {
+      await store.api.setConfigKey('locale', value);
+      messenger.showSnackBar(
+          SnackBar(content: Text(context.l10n.agentLocaleApplied('$value'))));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('$e', style: TextStyle(color: colorsOf(context).destructive))));
+    }
+    setState(() {});
   }
 
   Future<void> _pickLanguage() async {
@@ -865,7 +911,8 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      _tools = await widget.api.tools();
+      _tools = await widget.api.tools(
+          locale: Prefs.effectiveAgentLocale(uiZh: I18n.isZh));
     } catch (_) {}
     try {
       _config = await widget.api.toolConfig();
@@ -946,21 +993,86 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                     Text(tool.description,
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
-                  for (final f in fields) ...[
-                    _field(tool.name, f),
+                  if (tool.params.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(context.l10n.toolParams,
+                        style: text.meta.copyWith(
+                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: AppSpacing.xs),
+                    _paramList(tool.params, 0),
                   ],
-                  const SizedBox(height: AppSpacing.sm),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(
-                        onPressed: () => _save(tool.name),
-                        child: Text(context.l10n.save)),
-                  ),
+                  if (fields.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    for (final f in fields) _field(tool.name, f),
+                  ],
+                  if (fields.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                          onPressed: () => _save(tool.name),
+                          child: Text(context.l10n.save)),
+                    ),
+                  ],
                 ],
               ),
             ),
         ],
       ),
+    );
+  }
+
+  /// Render a parameter list. Depth 0 rows are expanded; deeper levels wrap
+  /// in a tappable fold (showMore) that expands on tap and collapses.
+  Widget _paramList(List<ToolParam> params, int depth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final p in params) _paramRow(p, depth),
+      ],
+    );
+  }
+
+  Widget _paramRow(ToolParam p, int depth) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: depth * 16.0, top: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.required ? '${p.name} *' : p.name,
+                style: text.mono.copyWith(
+                    fontSize: 12,
+                    color: p.required ? colors.primary : null,
+                    fontWeight: p.required ? FontWeight.w600 : null),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              if (p.enumValues != null)
+                Text(
+                  '${p.type} (${p.enumValues!.join('/')})',
+                  style: text.micro.copyWith(color: colors.mutedForeground),
+                )
+              else
+                Text(p.type,
+                    style: text.micro.copyWith(color: colors.mutedForeground)),
+            ],
+          ),
+        ),
+        if (p.description.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(left: depth * 16.0, top: 1),
+            child: Text(p.description,
+                style: text.micro.copyWith(color: colors.mutedForeground)),
+          ),
+        if (p.children.isNotEmpty)
+          _FoldGroup(children: p.children, depth: depth + 1),
+      ],
     );
   }
 
@@ -1018,6 +1130,52 @@ class _ToolsDetailState extends State<_ToolsDetail> {
         ],
         onChanged: onChanged,
         decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+}
+
+/// Deep-parameter group: collapsed inline summary, tap to expand, tap again
+/// to collapse.
+class _FoldGroup extends StatefulWidget {
+  final List<ToolParam> children;
+  final int depth;
+  const _FoldGroup({required this.children, required this.depth});
+
+  @override
+  State<_FoldGroup> createState() => _FoldGroupState();
+}
+
+class _FoldGroupState extends State<_FoldGroup> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    return Padding(
+      padding: EdgeInsets.only(left: (widget.depth - 1) * 16.0, top: 2),
+      child: InkWell(
+        onTap: () => setState(() => _open = !_open),
+        borderRadius: AppRadius.rSm,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+                _open
+                    ? Icons.keyboard_arrow_down_rounded
+                    : Icons.keyboard_arrow_right_rounded,
+                size: 14,
+                color: colors.mutedForeground),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+                _open
+                    ? '${context.l10n.showLess} (${widget.children.length})'
+                    : '${context.l10n.showMore} (${widget.children.length})',
+                style: textOf(context)
+                    .micro
+                    .copyWith(color: colors.mutedForeground)),
+          ],
+        ),
       ),
     );
   }
