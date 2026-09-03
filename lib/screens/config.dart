@@ -661,8 +661,6 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   final _sysPromptCtrl = TextEditingController();
   final _maxTurnsCtrl = TextEditingController();
 
-  static const _seedPresetIds = {'default', 'build', 'plan'};
-
   @override
   void initState() {
     super.initState();
@@ -727,6 +725,121 @@ class _PresetsDetailState extends State<_PresetsDetail> {
     setState(() => _editingId = null);
   }
 
+  /// Read-only view for an immutable system preset. Shows the localized
+  /// system prompt, the enabled tools, and the turn ceiling — no edit/save.
+  Widget _systemPresetView(Preset p) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.l10n.readOnlyPreset,
+              style: text.micro.copyWith(color: colors.warning)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(context.l10n.systemPrompt,
+              style: text.meta.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: colors.muted.withValues(alpha: 0.4),
+              borderRadius: AppRadius.rSm,
+            ),
+            child: SelectableText(p.systemPrompt,
+                style: text.mono.copyWith(fontSize: 11)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text('${context.l10n.tools} · ${p.tools.length}',
+              style: text.meta.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final t in p.tools)
+                Chip(
+                  label: Text(t, style: text.micro.copyWith(fontSize: 10)),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(context.l10n.presetSummary('${p.maxTurns}', '${p.tools.length}'),
+              style: text.micro.copyWith(color: colors.mutedForeground)),
+        ],
+      ),
+    );
+  }
+
+  /// Editable view for a user-created preset (non-system).
+  Widget _presetEditView(Preset p) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: [
+          TextField(
+            controller: _sysPromptCtrl,
+            maxLines: 3,
+            decoration: InputDecoration(labelText: context.l10n.systemPrompt),
+            onChanged: (v) => _edit = Preset(
+                id: _edit.id,
+                systemPrompt: v,
+                tools: _edit.tools,
+                maxTurns: _edit.maxTurns),
+          ),
+          TextField(
+            controller: _maxTurnsCtrl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: context.l10n.maxTurns),
+            onChanged: (v) => _edit = Preset(
+                id: _edit.id,
+                systemPrompt: _edit.systemPrompt,
+                tools: _edit.tools,
+                maxTurns: int.tryParse(v) ?? 30),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final t in _tools.map((t) => t.name).toList())
+                FilterChip(
+                  label: Text(t, style: text.micro),
+                  selected: _edit.tools.contains(t),
+                  onSelected: (sel) {
+                    final tools = [..._edit.tools];
+                    if (sel) {
+                      tools.add(t);
+                    } else {
+                      tools.remove(t);
+                    }
+                    setState(() => _edit = Preset(
+                        id: _edit.id,
+                        systemPrompt: _edit.systemPrompt,
+                        tools: tools,
+                        maxTurns: _edit.maxTurns));
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              FilledButton(
+                  onPressed: _save, child: Text(context.l10n.save)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -772,13 +885,33 @@ class _PresetsDetailState extends State<_PresetsDetail> {
             child: Column(
               children: [
                 ListTile(
-                  title: Text(p.id),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(p.id),
+                      if (p.isSystem) ...[
+                        const SizedBox(width: AppSpacing.xs),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: colors.warning.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(context.l10n.systemPresetBadge,
+                              style: text.micro.copyWith(
+                                  color: colors.warning, fontSize: 9)),
+                        ),
+                      ],
+                    ],
+                  ),
                   subtitle: Text(context.l10n.presetSummary('${p.maxTurns}',
                         '${p.tools.length}')),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (!_seedPresetIds.contains(p.id))
+                      // System presets are immutable — no delete/edit.
+                      if (!p.isSystem)
                         IconButton(
                           icon: Icon(Icons.delete_outline_rounded,
                               size: 18, color: colors.mutedForeground),
@@ -793,68 +926,9 @@ class _PresetsDetailState extends State<_PresetsDetail> {
                       : _open(p),
                 ),
                 if (_editingId == p.id)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: _sysPromptCtrl,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                              labelText: context.l10n.systemPrompt),
-                          onChanged: (v) => _edit = Preset(
-                              id: _edit.id,
-                              systemPrompt: v,
-                              tools: _edit.tools,
-                              maxTurns: _edit.maxTurns),
-                        ),
-                        TextField(
-                          controller: _maxTurnsCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                              labelText: context.l10n.maxTurns),
-                          onChanged: (v) => _edit = Preset(
-                              id: _edit.id,
-                              systemPrompt: _edit.systemPrompt,
-                              tools: _edit.tools,
-                              maxTurns: int.tryParse(v) ?? 30),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Wrap(
-                          spacing: AppSpacing.xs,
-                          runSpacing: AppSpacing.xs,
-                          children: [
-                            for (final t in _tools.map((t) => t.name).toList())
-                              FilterChip(
-                                label: Text(t, style: text.micro),
-                                selected: _edit.tools.contains(t),
-                                onSelected: (sel) {
-                                  final tools = [..._edit.tools];
-                                  if (sel) {
-                                    tools.add(t);
-                                  } else {
-                                    tools.remove(t);
-                                  }
-                                  setState(() => _edit = Preset(
-                                      id: _edit.id,
-                                      systemPrompt: _edit.systemPrompt,
-                                      tools: tools,
-                                      maxTurns: _edit.maxTurns));
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            FilledButton(
-                                onPressed: _save, child: Text(context.l10n.save)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  p.isSystem
+                      ? _systemPresetView(p)
+                      : _presetEditView(p),
               ],
             ),
           ),

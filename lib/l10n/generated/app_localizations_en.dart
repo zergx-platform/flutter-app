@@ -940,4 +940,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get configValueHint => 'Enter to save';
+
+  @override
+  String get systemPresetBadge => 'System';
+
+  @override
+  String get readOnlyPreset => 'System preset: read-only';
+
+  @override
+  String get sysPromptByPreset =>
+      'System prompt is determined by the selected preset.';
 }

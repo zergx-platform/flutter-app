@@ -599,17 +599,20 @@ class Preset {
   final String systemPrompt;
   final List<String> tools;
   final int maxTurns;
+  final bool isSystem;
   Preset({
     required this.id,
     required this.systemPrompt,
     required this.tools,
     required this.maxTurns,
+    this.isSystem = false,
   });
   factory Preset.fromJson(Map<String, dynamic> j) => Preset(
         id: j['id'] as String? ?? '',
         systemPrompt: j['system_prompt'] as String? ?? '',
         tools: (j['tools'] as List? ?? []).map((e) => e.toString()).toList(),
         maxTurns: j['max_turns'] as int? ?? 30,
+        isSystem: j['is_system'] as bool? ?? false,
       );
   Map<String, dynamic> toJson() => {
         'id': id,

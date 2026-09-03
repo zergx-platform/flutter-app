@@ -592,5 +592,8 @@
   "worksheetDecideBody": "确定{decision}该工单？\n{action} · {session}",
   "worksheetDecided": "已处理工单",
   "worksheetProposed": "工单：{action}（{title}）",
-  "configValueHint": "输入值后回车保存"
+  "configValueHint": "输入值后回车保存",
+  "systemPresetBadge": "系统",
+  "readOnlyPreset": "系统预设：只读，不可编辑",
+  "sysPromptByPreset": "系统提示由所选预设决定，不可直接修改。"
 }

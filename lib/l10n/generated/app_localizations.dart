@@ -1795,6 +1795,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'输入值后回车保存'**
   String get configValueHint;
+
+  /// No description provided for @systemPresetBadge.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统'**
+  String get systemPresetBadge;
+
+  /// No description provided for @readOnlyPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统预设：只读，不可编辑'**
+  String get readOnlyPreset;
+
+  /// No description provided for @sysPromptByPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统提示由所选预设决定，不可直接修改。'**
+  String get sysPromptByPreset;
 }
 
 class _AppLocalizationsDelegate

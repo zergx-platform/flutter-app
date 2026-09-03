@@ -935,4 +935,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get configValueHint => '输入值后回车保存';
+
+  @override
+  String get systemPresetBadge => '系统';
+
+  @override
+  String get readOnlyPreset => '系统预设：只读，不可编辑';
+
+  @override
+  String get sysPromptByPreset => '系统提示由所选预设决定，不可直接修改。';
 }

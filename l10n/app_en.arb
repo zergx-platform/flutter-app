@@ -592,5 +592,8 @@
   "worksheetDecideBody": "{decision} this worksheet?\n{action} · {session}",
   "worksheetDecided": "Worksheet decided",
   "worksheetProposed": "Worksheet: {action} ({title})",
-  "configValueHint": "Enter to save"
+  "configValueHint": "Enter to save",
+  "systemPresetBadge": "System",
+  "readOnlyPreset": "System preset: read-only",
+  "sysPromptByPreset": "System prompt is determined by the selected preset."
 }

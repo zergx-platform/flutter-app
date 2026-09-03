@@ -608,8 +608,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (sid == null) return;
     final maxTurns = TextEditingController(
         text: store.activeSession?.maxTurns?.toString() ?? '');
-    final sysPrompt = TextEditingController(
-        text: store.activeSession?.systemPrompt ?? '');
+    maxTurns.addListener(() {});
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -680,10 +679,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: InputDecoration(labelText: ctx.l10n.maxTurnsLabel),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: sysPrompt,
-                    maxLines: 3,
-                    decoration: InputDecoration(labelText: ctx.l10n.sysPromptLabel),
+                  // System prompt is governed by the selected preset — we no
+                  // longer let the user set it directly per session.
+                  Text(
+                    ctx.l10n.sysPromptByPreset,
+                    style: textOf(ctx)
+                        .micro
+                        .copyWith(color: colorsOf(ctx).mutedForeground),
                   ),
                 ],
               ),
@@ -705,7 +707,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (maxTurns.text.isNotEmpty) {
                     updates['max_turns'] = int.tryParse(maxTurns.text);
                   }
-                  updates['system_prompt'] = sysPrompt.text;
                   try {
                     final updated = await store.api.settings(sid, updates);
                     _applySession(updated);
