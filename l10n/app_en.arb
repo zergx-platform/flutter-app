@@ -516,5 +516,21 @@
         "type": "String"
       }
     }
-  }
+  },
+  "@syncFailed": {
+    "placeholders": {
+      "e": {
+        "type": "String"
+      }
+    }
+  },
+  "syncRepo": "Sync",
+  "pullFromRemote": "Pull from remote",
+  "pushToRemote": "Push to remote",
+  "pullConfirm": "Pull",
+  "pushConfirm": "Push",
+  "secretLabel": "Access token (optional)",
+  "pullDone": "Pulled from remote",
+  "pushDone": "Pushed to remote",
+  "syncFailed": "Sync failed: {e}"
 }

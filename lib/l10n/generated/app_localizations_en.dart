@@ -822,4 +822,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String packPageOf(String arg1, String arg2, String arg3) {
     return '$arg1–$arg2 of $arg3';
   }
+
+  @override
+  String get syncRepo => 'Sync';
+
+  @override
+  String get pullFromRemote => 'Pull from remote';
+
+  @override
+  String get pushToRemote => 'Push to remote';
+
+  @override
+  String get pullConfirm => 'Pull';
+
+  @override
+  String get pushConfirm => 'Push';
+
+  @override
+  String get secretLabel => 'Access token (optional)';
+
+  @override
+  String get pullDone => 'Pulled from remote';
+
+  @override
+  String get pushDone => 'Pushed to remote';
+
+  @override
+  String syncFailed(String e) {
+    return 'Sync failed: $e';
+  }
 }

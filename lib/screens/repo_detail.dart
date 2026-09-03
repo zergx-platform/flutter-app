@@ -54,6 +54,19 @@ class _RepoDetailScreenState extends State<RepoDetailScreen>
           ],
         ),
         actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sync_rounded, size: 20),
+            tooltip: context.l10n.syncRepo,
+            onSelected: (v) => _syncAction(v),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                  value: 'pull',
+                  child: Text(context.l10n.pullFromRemote)),
+              PopupMenuItem(
+                  value: 'push',
+                  child: Text(context.l10n.pushToRemote)),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: context.l10n.deleteRepoTitle,
@@ -84,6 +97,57 @@ class _RepoDetailScreenState extends State<RepoDetailScreen>
     if (ok) {
       await store.deleteRepo(widget.org, widget.repo);
       if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  /// Sync a remote Git mirror into/out of this repo via jjlab.
+  Future<void> _syncAction(String kind) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final okMsg = kind == 'pull'
+        ? context.l10n.pullDone
+        : context.l10n.pushDone;
+    if (kind == 'pull') {
+      final url = await promptDialog(context,
+          title: context.l10n.pullFromRemote,
+          label: context.l10n.gitUrlLabel,
+          confirmText: context.l10n.pullConfirm);
+      if (url == null || url.trim().isEmpty) return;
+      try {
+        final r = await store.api.mirrorSync(
+            widget.org, widget.repo, 'pull-mirror', {
+          'url': url.trim(),
+        });
+        messenger.showSnackBar(SnackBar(
+            content: Text(okMsg +
+                (r['updated_bookmarks'] != null
+                    ? ' (${r['updated_bookmarks']})'
+                    : ''))));
+      } catch (e) {
+        messenger.showSnackBar(
+            SnackBar(content: Text(context.l10n.syncFailed('$e'))));
+      }
+      return;
+    }
+    // push
+    final url = await promptDialog(context,
+        title: context.l10n.pushToRemote,
+        label: context.l10n.gitUrlLabel,
+        confirmText: context.l10n.pushConfirm);
+    if (url == null || url.trim().isEmpty) return;
+    final secret = await promptDialog(context,
+        title: context.l10n.secretLabel,
+        label: context.l10n.accessTokenOpt,
+        confirmText: context.l10n.pushConfirm);
+    try {
+      await store.api.mirrorSync(widget.org, widget.repo, 'push-mirror', {
+        'url': url.trim(),
+        if (secret != null && secret.trim().isNotEmpty)
+          'secret': secret.trim(),
+      });
+      messenger.showSnackBar(SnackBar(content: Text(okMsg)));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(context.l10n.syncFailed('$e'))));
     }
   }
 }

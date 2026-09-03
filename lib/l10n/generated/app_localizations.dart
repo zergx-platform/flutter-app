@@ -1579,6 +1579,60 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'{arg1}–{arg2} / 共{arg3}'**
   String packPageOf(String arg1, String arg2, String arg3);
+
+  /// No description provided for @syncRepo.
+  ///
+  /// In zh, this message translates to:
+  /// **'同步'**
+  String get syncRepo;
+
+  /// No description provided for @pullFromRemote.
+  ///
+  /// In zh, this message translates to:
+  /// **'从远程拉取'**
+  String get pullFromRemote;
+
+  /// No description provided for @pushToRemote.
+  ///
+  /// In zh, this message translates to:
+  /// **'推送到远程'**
+  String get pushToRemote;
+
+  /// No description provided for @pullConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'拉取'**
+  String get pullConfirm;
+
+  /// No description provided for @pushConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'推送'**
+  String get pushConfirm;
+
+  /// No description provided for @secretLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'访问令牌（可选，用于鉴权）'**
+  String get secretLabel;
+
+  /// No description provided for @pullDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已从远程拉取'**
+  String get pullDone;
+
+  /// No description provided for @pushDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已推送到远程'**
+  String get pushDone;
+
+  /// No description provided for @syncFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'同步失败：{e}'**
+  String syncFailed(String e);
 }
 
 class _AppLocalizationsDelegate

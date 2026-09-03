@@ -516,5 +516,21 @@
         "type": "String"
       }
     }
-  }
+  },
+  "@syncFailed": {
+    "placeholders": {
+      "e": {
+        "type": "String"
+      }
+    }
+  },
+  "syncRepo": "同步",
+  "pullFromRemote": "从远程拉取",
+  "pushToRemote": "推送到远程",
+  "pullConfirm": "拉取",
+  "pushConfirm": "推送",
+  "secretLabel": "访问令牌（可选，用于鉴权）",
+  "pullDone": "已从远程拉取",
+  "pushDone": "已推送到远程",
+  "syncFailed": "同步失败：{e}"
 }

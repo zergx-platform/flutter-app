@@ -819,4 +819,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String packPageOf(String arg1, String arg2, String arg3) {
     return '$arg1–$arg2 / 共$arg3';
   }
+
+  @override
+  String get syncRepo => '同步';
+
+  @override
+  String get pullFromRemote => '从远程拉取';
+
+  @override
+  String get pushToRemote => '推送到远程';
+
+  @override
+  String get pullConfirm => '拉取';
+
+  @override
+  String get pushConfirm => '推送';
+
+  @override
+  String get secretLabel => '访问令牌（可选，用于鉴权）';
+
+  @override
+  String get pullDone => '已从远程拉取';
+
+  @override
+  String get pushDone => '已推送到远程';
+
+  @override
+  String syncFailed(String e) {
+    return '同步失败：$e';
+  }
 }

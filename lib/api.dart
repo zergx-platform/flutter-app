@@ -529,8 +529,12 @@ class ZergxApi {
     return ((j['blame'] as List?) ?? []).map((e) => e.toString()).toList();
   }
 
-  Future<Map<String, dynamic>> mirrors() async =>
-      await _get('/api/v1/repos/mirrors') as Map<String, dynamic>;
+  Future<Map<String, dynamic>> mirrorSync(
+      String org, String repo, String kind, Map<String, dynamic> body) async {
+    return await _post(
+            '/api/v1/repos/${_enc(org)}/${_enc(repo)}/$kind', body)
+        as Map<String, dynamic>;
+  }
 
   // ---- config / providers / models / presets / tools ----
 
