@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../i18n.dart';
+import '../app_layout.dart';
 import '../messages.dart';
 import '../models.dart';
 import '../store.dart';
@@ -369,7 +370,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
-    final wide = MediaQuery.sizeOf(context).width >= 1024;
+    final layout = AppLayout(MediaQuery.sizeOf(context).width);
     return PopScope(
       // System back inside a conversation returns to the session list (or
       // closes the desktop overlay panel) instead of backgrounding the app.
@@ -388,24 +389,36 @@ class _ChatScreenState extends State<ChatScreen> {
             _topBar(context),
             Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
             Expanded(
-              child: Row(
-                children: [
-                  if (wide)
-                    SizedBox(
-                      width: 260,
-                      child: _sidebar(context),
-                    ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Expanded(child: _messageList()),
-                        _composer(context),
-                      ],
-                    ),
-                  ),
-                  if (store.sessionOverlay != null && wide)
-                    SizedBox(width: 440, child: _overlayPanel(context)),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Tablet/desktop: chat list (left) + messages (right)
+                  // simultaneously. Phones: single column.
+                  final showSidebar = layout.isTablet;
+                  final showOverlay =
+                      store.sessionOverlay != null && layout.isWide;
+                  return Row(
+                    children: [
+                      if (showSidebar)
+                        SizedBox(
+                          width: (constraints.maxWidth * 0.26).clamp(240.0, 320.0),
+                          child: _sidebar(context),
+                        ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(child: _messageList()),
+                            _composer(context),
+                          ],
+                        ),
+                      ),
+                      if (showOverlay)
+                        SizedBox(
+                          width: 440,
+                          child: _overlayPanel(context),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -530,7 +543,7 @@ class _ChatScreenState extends State<ChatScreen> {
   /// without this the overlay would be set but never rendered on mobile).
   void _openOverlay(SessionOverlay overlay) {
     store.openOverlay(overlay);
-    if (MediaQuery.sizeOf(context).width < 1024) {
+    if (!AppLayout(MediaQuery.sizeOf(context).width).isWide) {
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => _OverlayPage(store: store, overlay: overlay),
       ));

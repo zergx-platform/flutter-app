@@ -65,17 +65,22 @@ class _CodeScreenState extends State<CodeScreen> {
     return wide ? _desktop(context) : _mobile(context);
   }
 
+  /// Tablet/desktop: two simultaneously-visible columns — the repo's file
+  /// tree (with a repo picker in its header) on the left, file content on the
+  /// right. Native app feel (no three-panel browser column stack).
   Widget _desktop(BuildContext context) {
-    final colors = colorsOf(context);
     return Scaffold(
-      body: Row(
-        children: [
-          SizedBox(width: 200, child: _repoSelector(context)),
-          Container(width: 1, color: colors.border.withValues(alpha: 0.5)),
-          SizedBox(width: 260, child: _treeOrCommits(context)),
-          Container(width: 1, color: colors.border.withValues(alpha: 0.5)),
-          Expanded(child: _content(context)),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            SizedBox(
+              width: (constraints.maxWidth * 0.30).clamp(240.0, 360.0),
+              child: _treeOrCommits(context),
+            ),
+            const VerticalDivider(),
+            Expanded(child: _content(context)),
+          ],
+        ),
       ),
     );
   }
@@ -160,75 +165,6 @@ class _CodeScreenState extends State<CodeScreen> {
     );
   }
 
-  Widget _repoSelector(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    return Column(
-      children: [
-        Container(
-          height: AppBars.height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          alignment: Alignment.centerLeft,
-          child: Text(context.l10n.repositories,
-              style: text.meta.copyWith(fontWeight: FontWeight.w600)),
-        ),
-        Expanded(
-          child: ListView(
-            children: [
-              for (final org in store.orgs) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, 2),
-                  child: Text(org.org.toUpperCase(),
-                      style: text.micro.copyWith(
-                          fontWeight: FontWeight.w600, letterSpacing: 1)),
-                ),
-                for (final repo in org.repos) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                        20, AppSpacing.xs, AppSpacing.md, 2),
-                    child: Row(
-                      children: [
-                        Icon(Icons.folder_copy_outlined,
-                            size: 12, color: colors.primary),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                            child: Text(repo.repo,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.meta)),
-                      ],
-                    ),
-                  ),
-                  for (final bm in repo.bookmarks)
-                    ListTile(
-                      selected: store.codeOrg == org.org &&
-                          store.codeRepo == repo.repo &&
-                          store.codeBookmark == bm.bookmark,
-                      selectedTileColor: colors.primary.withValues(alpha: 0.10),
-                      contentPadding: const EdgeInsets.only(
-                          left: 32, right: AppSpacing.sm),
-                      leading: Icon(Icons.call_split_rounded,
-                          size: 14,
-                          color: colors.mutedForeground),
-                      title: Text(bm.bookmark, style: text.meta),
-                      onTap: () =>
-                          store.openRepo(org.org, repo.repo, bm.bookmark),
-                    ),
-                ],
-              ],
-              if (store.orgs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Text(context.l10n.noRepos,
-                      style: TextStyle(color: colors.mutedForeground)),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _treeOrCommits(BuildContext context) {
     final colors = colorsOf(context);
     final text = textOf(context);
@@ -243,10 +179,17 @@ class _CodeScreenState extends State<CodeScreen> {
                 child: Text(
                   store.codeRepo.isNotEmpty
                       ? '${store.codeOrg}/${store.codeRepo}'
+                          '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
                       : context.l10n.files,
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(fontWeight: FontWeight.w600),
                 ),
+              ),
+              // From the tree panel, tap to change repo (org → repo sheet)
+              IconButton(
+                icon: const Icon(Icons.folder_open_rounded, size: 16),
+                tooltip: context.l10n.pickRepo,
+                onPressed: _pickRepoSheet,
               ),
               if (store.codeRepo.isNotEmpty)
                 IconButton(
@@ -265,9 +208,7 @@ class _CodeScreenState extends State<CodeScreen> {
         ),
         Expanded(
           child: store.codeRepo.isEmpty
-              ? Center(
-                  child: Text(context.l10n.selectBranch,
-                      style: TextStyle(color: colors.mutedForeground)))
+              ? _emptyPicker(context)
               : _showCommits
                   ? _commitsList(context)
                   : store.codeLoading

@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'api.dart';
 import 'i18n.dart';
+import 'app_layout.dart';
 import 'prefs.dart';
 import 'store.dart';
 import 'theme/app_theme.dart';
@@ -272,10 +273,11 @@ class _Shell extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final tab = store.siderTab;
-        final compact = MediaQuery.sizeOf(context).width < 900;
-        // Inside a conversation the bottom bar is hidden — the chat screen
-        // owns the full height, like a native IM app.
-        final hideTabBar = tab == SiderTab.chat && store.activeSessionId != null;
+        final layout = AppLayout(MediaQuery.sizeOf(context).width);
+        // Inside a conversation the bottom bar is hidden on phones — the chat
+        // screen owns the full height, like a native IM app.
+        final hideBottomBar =
+            layout.isCompact && tab == SiderTab.chat && store.activeSessionId != null;
         Widget body = switch (tab) {
           SiderTab.chat => store.activeSessionId == null
               ? _SessionsHome(store: store)
@@ -291,11 +293,12 @@ class _Shell extends StatelessWidget {
           SiderTab.worksheets => WorksheetsScreen(store: store),
         };
         return Scaffold(
-          body: compact
+          body: layout.isCompact
               ? body
               : Row(
                   children: [
-                    _NavRail(
+                    AppNav(
+                      layout: layout,
                       tab: tab,
                       items: _navItems,
                       onTap: (tb) => store.switchTab(tb),
@@ -303,8 +306,9 @@ class _Shell extends StatelessWidget {
                     Expanded(child: body),
                   ],
                 ),
-          bottomNavigationBar: compact && !hideTabBar
-              ? _BottomBar(
+          bottomNavigationBar: layout.isCompact && !hideBottomBar
+              ? AppNav(
+                  layout: layout,
                   tab: tab,
                   items: _navItems,
                   onTap: (tb) => store.switchTab(tb),
@@ -314,146 +318,6 @@ class _Shell extends StatelessWidget {
       },
     );
   }
-}
-
-class _NavRail extends StatelessWidget {
-  final SiderTab tab;
-  final List<(SiderTab, IconData, String)> items;
-  final void Function(SiderTab) onTap;
-  const _NavRail(
-      {required this.tab, required this.items, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
-    return Container(
-      width: 56,
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border(
-          right: BorderSide(color: colors.border.withValues(alpha: 0.5)),
-        ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: AppSpacing.md),
-          for (final (tb, icon, labelKey) in items)
-            _RailItem(
-              icon: icon,
-              label: l10nString(labelKey),
-              selected: tab == tb,
-              onTap: () => onTap(tb),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RailItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _RailItem({
-      required this.icon,
-      required this.label,
-      required this.selected,
-      required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.rSm,
-        child: SizedBox(
-          width: 48,
-          height: 44,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 20,
-                  color: selected ? colors.primary : colors.mutedForeground),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: text.micro.copyWith(
-                  color:
-                      selected ? colors.primary : colors.mutedForeground,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomBar extends StatelessWidget {
-  final SiderTab tab;
-  final List<(SiderTab, IconData, String)> items;
-  final void Function(SiderTab) onTap;
-  const _BottomBar(
-      {required this.tab, required this.items, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border(
-          top: BorderSide(color: colors.border.withValues(alpha: 0.5)),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 56,
-          child: Row(
-            children: [
-              for (final (tb, icon, labelKey) in items)
-                Expanded(
-                  child: InkWell(
-                    onTap: () => onTap(tb),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(icon,
-                            size: 22,
-                            color: selected(tb, tab)
-                                ? colors.primary
-                                : colors.mutedForeground),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10nString(labelKey),
-                          style: text.micro.copyWith(
-                            color: selected(tb, tab)
-                                ? colors.primary
-                                : colors.mutedForeground,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static bool selected(SiderTab tb, SiderTab current) => tb == current;
 }
 
 /// Sessions list home — shown when no conversation is open. WeChat-style:
