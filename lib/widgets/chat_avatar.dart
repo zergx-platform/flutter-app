@@ -22,7 +22,7 @@ enum AvatarLevel { org, repo, branch }
 class ChatAvatar extends StatelessWidget {
   final String org;
   final String repo;
-  final String branch;
+  final String bookmark;
   final double radius;
   final AvatarLevel level;
 
@@ -30,7 +30,7 @@ class ChatAvatar extends StatelessWidget {
     super.key,
     required this.org,
     required this.repo,
-    required this.branch,
+    required this.bookmark,
     this.radius = 22,
     this.level = AvatarLevel.branch,
   });
@@ -55,14 +55,14 @@ class ChatAvatar extends StatelessWidget {
   // ---- hierarchy seeds ----
 
   String get _bgSeed =>
-      org.isNotEmpty ? org : (repo.isNotEmpty ? repo : branch);
+      org.isNotEmpty ? org : (repo.isNotEmpty ? repo : bookmark);
 
   /// Foreground comes from the repo (or, at org level, the org itself) so a
   /// single org's repos keep distinct hues on the same background.
   String get _fgSeed =>
-      repo.isNotEmpty ? repo : (org.isNotEmpty ? org : branch);
+      repo.isNotEmpty ? repo : (org.isNotEmpty ? org : bookmark);
 
-  String get _patternSeed => '$org/$repo/$branch';
+  String get _patternSeed => '$org/$repo/$bookmark';
 
   // ---- cells by level ----
 

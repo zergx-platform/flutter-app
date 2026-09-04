@@ -27,7 +27,7 @@ class AppStore extends ChangeNotifier {
 
   String codeOrg = '';
   String codeRepo = '';
-  String codeBranch = '';
+  String codeBookmark = '';
   Map<String, List<FileEntry>> treeCache = {};
   Set<String> expandedDirs = {'',};
   String? selectedFilePath;
@@ -90,7 +90,7 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
     try {
       final entries =
-          await api.listFiles(codeOrg, codeRepo, dir, codeBranch.isEmpty ? null : codeBranch);
+          await api.listFiles(codeOrg, codeRepo, dir, codeBookmark.isEmpty ? null : codeBookmark);
       treeCache[dir] = entries;
     } catch (_) {
       treeCache[dir] = [];
@@ -99,14 +99,14 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  String defaultBranchOf(String org, String repo) {
+  String defaultBookmarkOf(String org, String repo) {
     final bms =
         orgs
             .where((o) => o.org == org)
             .expand((o) => o.repos)
             .where((r) => r.repo == repo)
             .expand((r) => r.bookmarks)
-            .map((b) => b.branch)
+            .map((b) => b.bookmark)
             .toList();
     for (final pref in ['main', 'master', 'dev']) {
       if (bms.contains(pref)) return pref;
@@ -124,10 +124,10 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> openRepo(String org, String repo, [String? branch]) async {
+  Future<void> openRepo(String org, String repo, [String? bookmark]) async {
     codeOrg = org;
     codeRepo = repo;
-    codeBranch = branch ?? defaultBranchOf(org, repo);
+    codeBookmark = bookmark ?? defaultBookmarkOf(org, repo);
     selectedFilePath = null;
     fileContent = '';
     showFileHistory = false;
@@ -154,7 +154,7 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
     try {
       fileContent = await api.readFile(
-          codeOrg, codeRepo, path, codeBranch.isEmpty ? null : codeBranch);
+          codeOrg, codeRepo, path, codeBookmark.isEmpty ? null : codeBookmark);
     } catch (_) {
       fileContent = '';
     }
@@ -170,7 +170,7 @@ class AppStore extends ChangeNotifier {
       // change_id → current commit_id → unified diff (rebase-safe).
       final d = await api.changeDiff(
           codeOrg, codeRepo, changeId,
-          branch: codeBranch);
+          bookmark: codeBookmark);
       fileDiffs[changeId] = d;
       notifyListeners();
       return d;
@@ -186,7 +186,7 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
     try {
       fileHistory = await api.fileLog(codeOrg, codeRepo, selectedFilePath!,
-          codeBranch.isEmpty ? null : codeBranch);
+          codeBookmark.isEmpty ? null : codeBookmark);
     } catch (_) {
       fileHistory = [];
     }
@@ -229,7 +229,7 @@ class AppStore extends ChangeNotifier {
   }
 
   List<String> get existingBookmarks =>
-      sessions.map((s) => s.branch).toList();
+      sessions.map((s) => s.bookmark).toList();
 
   Future<void> deleteSession(String id) async {
     await api.deleteSession(id);
@@ -254,11 +254,11 @@ class AppStore extends ChangeNotifier {
     await refreshRepos();
   }
 
-  Future<bool> forkSession(String branch) async {
+  Future<bool> forkSession(String bookmark) async {
     final id = sessionById(activeSessionId ?? '')?.id;
     if (id == null) return false;
     try {
-      final s = await api.fork(id, branch);
+      final s = await api.fork(id, bookmark);
       activeSessionId = s.id;
       await refreshSessions();
       await refreshRepos();

@@ -29,7 +29,7 @@ class _FilesOverlayState extends State<FilesOverlay> {
     // independent Code tab's own selection.
     final s = store.activeSession;
     if (s != null && (store.codeOrg != s.org || store.codeRepo != s.repo)) {
-      store.openRepo(s.org, s.repo, s.branch);
+      store.openRepo(s.org, s.repo, s.bookmark);
     }
   }
 

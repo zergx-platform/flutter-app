@@ -105,7 +105,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
     final isActive = store.activeSessionId == s.id;
     final preview = s.lastMessagePreview.isNotEmpty
         ? s.lastMessagePreview
-        : (s.org.isNotEmpty ? '${s.org}/${s.repo}/${s.branch}' : s.id);
+        : (s.org.isNotEmpty ? '${s.org}/${s.repo}/${s.bookmark}' : s.id);
     return SessionRow(
       session: s,
       isActive: isActive,
@@ -151,7 +151,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
 
   Future<void> _deleteSessionFlow(Session s) async {
     final label = s.org.isNotEmpty
-        ? '${s.org}/${s.repo}/${s.branch}'
+        ? '${s.org}/${s.repo}/${s.bookmark}'
         : s.id;
     final ok = await confirmDialog(context,
         title: context.l10n.deleteSessionTitle,
@@ -159,7 +159,7 @@ class _ChatSidebarState extends State<ChatSidebar> {
     if (ok != true) return;
     try {
       if (s.org.isNotEmpty) {
-        await store.deleteBookmark(s.org, s.repo, s.branch);
+        await store.deleteBookmark(s.org, s.repo, s.bookmark);
       } else {
         await store.deleteSession(s.id);
       }

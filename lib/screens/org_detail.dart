@@ -97,7 +97,7 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
                   ChatAvatar(
                       org: widget.org,
                       repo: '',
-                      branch: widget.org,
+                      bookmark: widget.org,
                       radius: 28,
                       level: AvatarLevel.org),
                   const SizedBox(width: AppSpacing.md),
@@ -131,7 +131,7 @@ class _OrgDetailPageState extends State<OrgDetailPage> {
                   leading: ChatAvatar(
                       org: widget.org,
                       repo: repo.repo,
-                      branch: '',
+                      bookmark: '',
                       radius: 16,
                       level: AvatarLevel.repo),
                   title: Text(repo.repo, style: text.meta),

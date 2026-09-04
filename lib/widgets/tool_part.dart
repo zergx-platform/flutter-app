@@ -26,7 +26,7 @@ class ToolPartView extends StatefulWidget {
   final ZergxApi? api;
   final String? org;
   final String? repo;
-  final String? branch;
+  final String? bookmark;
   final void Function(String changeId)? onOpenChange;
   const ToolPartView({
     super.key,
@@ -35,7 +35,7 @@ class ToolPartView extends StatefulWidget {
     this.api,
     this.org,
     this.repo,
-    this.branch,
+    this.bookmark,
     this.onOpenChange,
   });
 
@@ -191,7 +191,7 @@ class _ToolPartViewState extends State<ToolPartView> {
           org: widget.org!,
           repo: widget.repo!,
           changeId: id,
-          branch: widget.branch ?? '',
+          bookmark: widget.bookmark ?? '',
         ),
       ));
       return;

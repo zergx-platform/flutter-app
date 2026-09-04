@@ -471,7 +471,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Text(
                   s != null
                       ? '${s.org}/${s.repo}'
-                          '${s.branch.isNotEmpty ? '/${s.branch}' : ''}'
+                          '${s.bookmark.isNotEmpty ? '/${s.bookmark}' : ''}'
                       : context.l10n.chatTitle,
                   overflow: TextOverflow.ellipsis,
                   style: text.meta.copyWith(
@@ -542,7 +542,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final s = store.activeSession;
     if (sid == null) return;
     final label = s != null && s.org.isNotEmpty
-        ? '${s.org}/${s.repo}/${s.branch}'
+        ? '${s.org}/${s.repo}/${s.bookmark}'
         : sid;
     final ok = await showDialog<bool>(
       context: context,
@@ -567,7 +567,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (ok == true) {
       try {
         if (s != null && s.org.isNotEmpty) {
-          await store.deleteBookmark(s.org, s.repo, s.branch);
+          await store.deleteBookmark(s.org, s.repo, s.bookmark);
         } else {
           await store.deleteSession(sid);
         }
@@ -769,7 +769,7 @@ class _ChatScreenState extends State<ChatScreen> {
           api: store.api,
           org: store.activeSession?.org ?? '',
           repo: store.activeSession?.repo ?? '',
-          branch: store.activeSession?.branch ?? '',
+          bookmark: store.activeSession?.bookmark ?? '',
         );
       },
     );
@@ -1073,7 +1073,7 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
       // on the jjlab that dropped that route (404 "not a git endpoint").
       final d = await widget.store.api.changeDiff(
           s.org, s.repo, widget.changeId,
-          branch: s.branch);
+          bookmark: s.bookmark);
       setState(() {
         _diff = d;
         if (d.isEmpty) _error = context.l10n.noChanges;
@@ -1096,7 +1096,7 @@ class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
         org: s.org,
         repo: s.repo,
         changeId: widget.changeId,
-        branch: s.branch,
+        bookmark: s.bookmark,
       ),
     ));
   }

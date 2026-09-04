@@ -15,14 +15,14 @@ class ChangeDiffScreen extends StatefulWidget {
   final String org;
   final String repo;
   final String changeId;
-  final String branch;
+  final String bookmark;
   const ChangeDiffScreen({
     super.key,
     required this.api,
     required this.org,
     required this.repo,
     required this.changeId,
-    this.branch = '',
+    this.bookmark = '',
   });
 
   @override
@@ -48,7 +48,7 @@ class _ChangeDiffScreenState extends State<ChangeDiffScreen> {
     try {
       final d = await widget.api.changeDiff(
           widget.org, widget.repo, widget.changeId,
-          branch: widget.branch);
+          bookmark: widget.bookmark);
       if (!mounted) return;
       setState(() {
         _diff = d;

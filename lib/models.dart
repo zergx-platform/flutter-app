@@ -22,7 +22,7 @@ class Session {
   final String id;
   final String org;
   final String repo;
-  final String branch;
+  final String bookmark;
   final String model;
   final String preset;
   final String? tipId;
@@ -44,7 +44,7 @@ class Session {
     required this.id,
     this.org = '',
     this.repo = '',
-    this.branch = '',
+    this.bookmark = '',
     this.model = '',
     this.preset = '',
     this.tipId,
@@ -67,7 +67,7 @@ class Session {
         id: j['id'] as String? ?? '',
         org: j['org'] as String? ?? '',
         repo: j['repo'] as String? ?? '',
-        branch: j['branch'] as String? ?? '',
+        bookmark: j['bookmark'] as String? ?? '',
         model: j['model'] as String? ?? '',
         preset: j['preset'] as String? ?? '',
         locale: j['locale'] as String?,
@@ -87,7 +87,7 @@ class Session {
       );
 
   String get sessionName =>
-      org.isNotEmpty ? '$org:$repo:$branch' : id;
+      org.isNotEmpty ? '$org:$repo:$bookmark' : id;
 
   Session copyWith({
     String? model,
@@ -100,7 +100,7 @@ class Session {
         id: id,
         org: org,
         repo: repo,
-        branch: branch,
+        bookmark: bookmark,
         model: model ?? this.model,
         preset: preset ?? this.preset,
         tipId: tipId,
@@ -121,7 +121,7 @@ class Session {
 
 class SessionInfo {
   final String sessionId;
-  final String branch;
+  final String bookmark;
   final int messageCount;
   final int? unread;
   final String model;
@@ -130,7 +130,7 @@ class SessionInfo {
 
   SessionInfo({
     required this.sessionId,
-    required this.branch,
+    required this.bookmark,
     required this.messageCount,
     this.unread,
     this.model = '',
@@ -140,7 +140,7 @@ class SessionInfo {
 
   factory SessionInfo.fromJson(Map<String, dynamic> j) => SessionInfo(
         sessionId: j['session_id'] as String? ?? '',
-        branch: j['branch'] as String? ?? '',
+        bookmark: j['bookmark'] as String? ?? '',
         messageCount: j['message_count'] as int? ?? 0,
         unread: j['unread'] as int?,
         model: j['model'] as String? ?? '',
@@ -152,11 +152,11 @@ class SessionInfo {
 // ---- repo tree ----
 
 class BookmarkNode {
-  final String branch;
+  final String bookmark;
   final SessionInfo? session;
-  BookmarkNode({required this.branch, this.session});
+  BookmarkNode({required this.bookmark, this.session});
   factory BookmarkNode.fromJson(Map<String, dynamic> j) => BookmarkNode(
-        branch: j['branch'] as String? ?? '',
+        bookmark: j['bookmark'] as String? ?? '',
         session: j['session'] == null
             ? null
             : SessionInfo.fromJson(j['session'] as Map<String, dynamic>),
@@ -1211,7 +1211,7 @@ class MirrorCfg {
     this.pushSecretSet = false,
   });
 }
-/// jj-lab branch (GET /repos/{org}/{repo}/branches).
+/// jj-lab bookmark (GET /repos/{org}/{repo}/bookmarks).
 class BranchInfo {
   final String name;
   final String sha;

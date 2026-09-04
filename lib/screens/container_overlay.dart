@@ -24,7 +24,7 @@ class _ContainerOverlayState extends State<ContainerOverlay> {
   String get sessionWorkerId {
     final s = store.activeSession;
     if (s == null) return '';
-    return '${s.org}:${s.repo}:${s.branch}';
+    return '${s.org}:${s.repo}:${s.bookmark}';
   }
 
   @override

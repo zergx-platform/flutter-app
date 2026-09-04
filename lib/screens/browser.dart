@@ -58,14 +58,14 @@ class _BrowserPageState extends State<BrowserPage> {
       final all = [...store.sessions];
       all.sort((a, b) => (b.updatedAt).compareTo(a.updatedAt));
       _hits = all.where((s) {
-        final hay = '${s.org}/${s.repo}/${s.branch} ${s.id}'.toLowerCase();
+        final hay = '${s.org}/${s.repo}/${s.bookmark} ${s.id}'.toLowerCase();
         return hay.contains(q);
       }).toList();
       _bmHits = [
         for (final org in store.orgs)
           for (final repo in org.repos)
             for (final bm in repo.bookmarks)
-              if ('${org.org}/${repo.repo}/${bm.branch}'
+              if ('${org.org}/${repo.repo}/${bm.bookmark}'
                   .toLowerCase()
                   .contains(q))
                 (org, repo, bm),
@@ -83,9 +83,9 @@ class _BrowserPageState extends State<BrowserPage> {
     Navigator.of(context).pop();
   }
 
-  Future<void> _adopt(String org, String repo, String branch) async {
+  Future<void> _adopt(String org, String repo, String bookmark) async {
     try {
-      final name = await store.api.adoptSession(org, repo, branch);
+      final name = await store.api.adoptSession(org, repo, bookmark);
       await store.refreshRepos();
       await store.refreshSessions();
       if (mounted) store.pickSession(name);
@@ -134,15 +134,15 @@ class _BrowserPageState extends State<BrowserPage> {
       ),
     );
     if (r != null && r.trim().isNotEmpty) {
-      final branch = r.trim();
-      if (store.existingBookmarks.contains(branch)) {
+      final bookmark = r.trim();
+      if (store.existingBookmarks.contains(bookmark)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(context.l10n.branchExists)));
         return;
       }
       store.activeSessionId = sessionId;
-      await store.forkSession(branch);
+      await store.forkSession(bookmark);
     }
   }
 
@@ -188,7 +188,7 @@ class _BrowserPageState extends State<BrowserPage> {
               session: s,
               isActive: store.activeSessionId == s.id,
               subtitle: s.org.isNotEmpty
-                  ? '${s.org}/${s.repo}/${s.branch}'
+                  ? '${s.org}/${s.repo}/${s.bookmark}'
                   : s.id,
               onTap: () => _pick(s),
             ),
@@ -254,7 +254,7 @@ class _BrowserPageState extends State<BrowserPage> {
                 horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             child: Row(
               children: [
-                ChatAvatar(org: org.org, repo: '', branch: org.org, radius: 16, level: AvatarLevel.org),
+                ChatAvatar(org: org.org, repo: '', bookmark: org.org, radius: 16, level: AvatarLevel.org),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(org.org,
@@ -298,7 +298,7 @@ class _BrowserPageState extends State<BrowserPage> {
             ChatAvatar(
                 org: org.org,
                 repo: repo.repo,
-                branch: '',
+                bookmark: '',
                 radius: 12,
                 level: AvatarLevel.repo),
             const SizedBox(width: AppSpacing.xs),
@@ -319,7 +319,7 @@ class _BrowserPageState extends State<BrowserPage> {
     final text = textOf(context);
     final bound = bm.session != null;
     return InkWell(
-      onTap: () => _openBookmark(org.org, repo.repo, bm.branch, bm.session?.sessionId),
+      onTap: () => _openBookmark(org.org, repo.repo, bm.bookmark, bm.session?.sessionId),
       onLongPress: bound
           ? () => _forkDialog(bm.session!.sessionId)
           : null,
@@ -341,7 +341,7 @@ class _BrowserPageState extends State<BrowserPage> {
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-                child: Text(bm.branch,
+                child: Text(bm.bookmark,
                     overflow: TextOverflow.ellipsis,
                     style: text.meta.copyWith(
                         color: bound ? null : colors.mutedForeground))),
@@ -357,13 +357,13 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 
   Future<void> _openBookmark(
-      String org, String repo, String branch, String? sessionId) async {
+      String org, String repo, String bookmark, String? sessionId) async {
     if (sessionId != null) {
       store.pickSession(sessionId);
       Navigator.of(context).pop();
       return;
     }
-    await _adopt(org, repo, branch);
+    await _adopt(org, repo, bookmark);
   }
 }
 

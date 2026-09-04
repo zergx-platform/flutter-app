@@ -191,7 +191,7 @@ class MessageBubble extends StatelessWidget {
   final ZergxApi api;
   final String org;
   final String repo;
-  final String branch;
+  final String bookmark;
   const MessageBubble({
     super.key,
     required this.msg,
@@ -200,7 +200,7 @@ class MessageBubble extends StatelessWidget {
     this.onOpenChange,
     this.org = '',
     this.repo = '',
-    this.branch = '',
+    this.bookmark = '',
   });
 
   ZergxApi get _api => api;
@@ -274,7 +274,7 @@ class MessageBubble extends StatelessWidget {
           api: _api,
           org: org,
           repo: repo,
-          branch: branch,
+          bookmark: bookmark,
           onOpenChange: onOpenChange,
         ));
       } else if (part.type == 'compaction') {

@@ -270,7 +270,7 @@ class _OverviewTabState extends State<_OverviewTab> {
   Future<void> _load() async {
     try {
       final results = await Future.wait([
-        widget.store.api.branches(widget.org, widget.repo),
+        widget.store.api.bookmarks(widget.org, widget.repo),
         widget.store.api.log(widget.org, widget.repo, limit: 20),
       ]);
       _branches = results[0] as List<BranchInfo>;
@@ -591,7 +591,7 @@ class _BranchesTabState extends State<_BranchesTab> {
 
   Future<void> _load() async {
     try {
-      _branches = await widget.store.api.branches(widget.org, widget.repo);
+      _branches = await widget.store.api.bookmarks(widget.org, widget.repo);
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }

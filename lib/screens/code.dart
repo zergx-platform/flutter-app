@@ -96,7 +96,7 @@ class _CodeScreenState extends State<CodeScreen> {
                       ? store.selectedFilePath!
                       : hasRepo
                           ? '${store.codeOrg}/${store.codeRepo}'
-                              '${store.codeBranch.isNotEmpty ? '@${store.codeBranch}' : ''}'
+                              '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
                           : context.l10n.tabCode,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -203,16 +203,16 @@ class _CodeScreenState extends State<CodeScreen> {
                     ListTile(
                       selected: store.codeOrg == org.org &&
                           store.codeRepo == repo.repo &&
-                          store.codeBranch == bm.branch,
+                          store.codeBookmark == bm.bookmark,
                       selectedTileColor: colors.primary.withValues(alpha: 0.10),
                       contentPadding: const EdgeInsets.only(
                           left: 32, right: AppSpacing.sm),
                       leading: Icon(Icons.call_split_rounded,
                           size: 14,
                           color: colors.mutedForeground),
-                      title: Text(bm.branch, style: text.meta),
+                      title: Text(bm.bookmark, style: text.meta),
                       onTap: () =>
-                          store.openRepo(org.org, repo.repo, bm.branch),
+                          store.openRepo(org.org, repo.repo, bm.bookmark),
                     ),
                 ],
               ],
@@ -529,7 +529,7 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
             ListTile(
               leading: ChatAvatar(org: org.org,
                     repo: '',
-                    branch: org.org,
+                    bookmark: org.org,
                     radius: 14,
                     level: AvatarLevel.org),
               title: Text(org.org,
@@ -554,7 +554,7 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
               leading: ChatAvatar(
                   org: _org!,
                   repo: repo.repo,
-                  branch: '',
+                  bookmark: '',
                   radius: 14,
                   level: AvatarLevel.repo),
               title: Text(repo.repo, style: text.meta),
@@ -575,14 +575,14 @@ class _RepoPickerSheetState extends State<_RepoPickerSheet> {
             for (final bm in repo.bookmarks)
               ListTile(
                 leading: ChatAvatar(
-                    org: _org!, repo: _repo!, branch: bm.branch, radius: 14),
-                title: Text(bm.branch, style: text.meta),
+                    org: _org!, repo: _repo!, bookmark: bm.bookmark, radius: 14),
+                title: Text(bm.bookmark, style: text.meta),
                 trailing: bm.session != null
                     ? Icon(Icons.chat_bubble_outline_rounded,
                         size: 14, color: colors.mutedForeground)
                     : null,
                 onTap: () {
-                  widget.store.openRepo(_org!, _repo!, bm.branch);
+                  widget.store.openRepo(_org!, _repo!, bm.bookmark);
                   Navigator.pop(context);
                 },
               ),

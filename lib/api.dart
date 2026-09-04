@@ -203,8 +203,8 @@ class ZergxApi {
     return Session.fromJson(j['session'] as Map<String, dynamic>);
   }
 
-  Future<Session> fork(String id, String branch) async {
-    final j = await _post('/api/v1/sessions/${_enc(id)}/fork', {'branch': branch})
+  Future<Session> fork(String id, String bookmark) async {
+    final j = await _post('/api/v1/sessions/${_enc(id)}/fork', {'bookmark': bookmark})
         as Map<String, dynamic>;
     return Session.fromJson(j['session'] as Map<String, dynamic>);
   }
@@ -331,25 +331,25 @@ class ZergxApi {
   }
 
   Future<List<FileEntry>> listFiles(String org, String repo, String dir,
-      [String? branch]) async {
+      [String? bookmark]) async {
     final query = <String, dynamic>{
       'org': org,
       'repo': repo,
       'path': dir,
       'depth': '1',
-      if (branch != null && branch.isNotEmpty) 'branch': branch,
+      if (bookmark != null && bookmark.isNotEmpty) 'bookmark': bookmark,
     };
     final j = await _get('/api/v1/fs/list', query) as Map<String, dynamic>;
     return _list(j, FileEntry.fromJson, 'entries');
   }
 
   Future<String> readFile(String org, String repo, String filePath,
-      [String? branch]) async {
+      [String? bookmark]) async {
     final query = <String, dynamic>{
       'org': org,
       'repo': repo,
       'path': filePath,
-      if (branch != null && branch.isNotEmpty) 'branch': branch,
+      if (bookmark != null && bookmark.isNotEmpty) 'bookmark': bookmark,
     };
     final j = await _get('/api/v1/fs/read', query) as Map<String, dynamic>;
     return j['content'] as String? ?? '';
@@ -405,11 +405,11 @@ class ZergxApi {
   ///
   /// Returns the raw unified diff string (parse with [parseDiff]).
   Future<String> changeDiff(String org, String repo, String changeId,
-      {String branch = ''}) async {
-    // 1) change_id -> commit_id via /changes?rev=<branch> (change-id dedup).
+      {String bookmark = ''}) async {
+    // 1) change_id -> commit_id via /changes?rev=<bookmark> (change-id dedup).
     final changes = await _get(
       '/api/v1/repos/${_enc(org)}/${_enc(repo)}/changes',
-      branch.isEmpty ? null : {'rev': branch},
+      bookmark.isEmpty ? null : {'rev': bookmark},
     ) as Map<String, dynamic>;
     String? commitId;
     for (final c in (changes['changes'] as List? ?? [])) {
@@ -442,10 +442,10 @@ class ZergxApi {
   }
 
   Future<List<FileCommit>> fileLog(String org, String repo, String filePath,
-      [String? branch, int? limit]) async {
+      [String? bookmark, int? limit]) async {
     final query = <String, dynamic>{
       'path': filePath,
-      if (branch != null && branch.isNotEmpty) 'branch': branch,
+      if (bookmark != null && bookmark.isNotEmpty) 'bookmark': bookmark,
       'limit': ?limit,
     };
     final j = await _get(
@@ -488,10 +488,10 @@ class ZergxApi {
     return _list(j, GitTag.fromJson, 'tags');
   }
 
-  Future<List<BranchInfo>> branches(String org, String repo) async {
-    final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/branches')
+  Future<List<BranchInfo>> bookmarks(String org, String repo) async {
+    final j = await _get('/api/v1/repos/${_enc(org)}/${_enc(repo)}/bookmarks')
         as Map<String, dynamic>;
-    return _list(j, BranchInfo.fromJson, 'branches');
+    return _list(j, BranchInfo.fromJson, 'bookmarks');
   }
 
   Future<List<Release>> releases(String org, String repo) async {

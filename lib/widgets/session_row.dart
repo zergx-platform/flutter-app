@@ -54,7 +54,7 @@ class SessionRow extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
           child: Row(
             children: [
-              ChatAvatar(org: s.org, repo: s.repo, branch: s.branch, radius: 20),
+              ChatAvatar(org: s.org, repo: s.repo, bookmark: s.bookmark, radius: 20),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -66,7 +66,7 @@ class SessionRow extends StatelessWidget {
                           child: Text(
                             s.org.isNotEmpty
                                 ? '${s.org}/${s.repo}'
-                                    '${s.branch.isNotEmpty ? '/${s.branch}' : ''}'
+                                    '${s.bookmark.isNotEmpty ? '/${s.bookmark}' : ''}'
                                 : s.id,
                             overflow: TextOverflow.ellipsis,
                             style: text.meta.copyWith(

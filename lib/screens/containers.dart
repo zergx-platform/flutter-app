@@ -182,16 +182,16 @@ class _ContainersScreenState extends State<ContainersScreen> {
     // Session names are org:repo:branch — render the human-readable triple
     // with an avatar instead of the hash-suffixed pod name.
     final parts = s.session.split(':');
-    final (org, repo, branch) = parts.length == 3
+    final (org, repo, bookmark) = parts.length == 3
         ? (parts[0], parts[1], parts[2])
         : ('', '', '');
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: ListTile(
         leading: org.isNotEmpty
-            ? ChatAvatar(org: org, repo: repo, branch: branch, radius: 20)
+            ? ChatAvatar(org: org, repo: repo, bookmark: bookmark, radius: 20)
             : null,
-        title: Text(branch.isNotEmpty ? branch : s.session,
+        title: Text(bookmark.isNotEmpty ? bookmark : s.session,
             style: text.meta.copyWith(fontWeight: FontWeight.w600)),
         subtitle: Text(
             org.isNotEmpty ? '$org/$repo\n${s.podName}' : s.podName,
