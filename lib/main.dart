@@ -416,6 +416,7 @@ class _SetupScreenState extends State<_SetupScreen> {
                     TextField(
                       controller: _base,
                       enabled: !_busy,
+                      onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
                           labelText: context.l10n.gatewayUrl),
                     ),
@@ -424,6 +425,7 @@ class _SetupScreenState extends State<_SetupScreen> {
                       controller: _token,
                       obscureText: !_showToken,
                       enabled: !_busy,
+                      onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
                         labelText: context.l10n.tokenLabel,
                         suffixIcon: IconButton(

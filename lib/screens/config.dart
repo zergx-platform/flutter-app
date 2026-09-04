@@ -520,6 +520,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
             const SizedBox(height: AppSpacing.md),
             TextField(
                 controller: _id,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                     labelText: context.l10n.providerIdReq)),
             const SizedBox(height: AppSpacing.md),
@@ -546,6 +547,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
             const SizedBox(height: AppSpacing.md),
             TextField(
                 controller: _url,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                     labelText: context.l10n.baseUrlReq)),
             const SizedBox(height: AppSpacing.md),
