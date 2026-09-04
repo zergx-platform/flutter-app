@@ -1057,9 +1057,10 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     // knobs render a provider/model cascade (even with no providers yet, to
     // mirror the web client); other knobs render a string/enum editor.
     final extConfigs = tool.config ?? [];
-    final requiredMissing = extConfigs.any((c) {
-      if (!c.required) return false;
-      final v = (_config[tool.name] ?? {})[c.name];
+    // `required_config` carries the "must be set" semantics: a tool that
+    // lists a config here shows the required badge while that value is unset.
+    final requiredMissing = tool.requiredConfig.any((name) {
+      final v = (_config[tool.name] ?? {})[name];
       return v == null || '$v'.isEmpty;
     });
     return Card(
