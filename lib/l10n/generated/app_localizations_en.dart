@@ -679,7 +679,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectFile => 'Select a file to view';
 
   @override
-  String get selectBranch => 'Select a branch to browse files';
+  String get selectBranch => 'Select a bookmark to browse files';
 
   @override
   String get noCommits => 'No commits';
@@ -783,7 +783,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickOrg => 'Pick an organization';
 
   @override
-  String get codeEmptyHint => 'Pick an org / repo / branch to browse code';
+  String get codeEmptyHint => 'Pick an org / repo / bookmark to browse code';
 
   @override
   String get backToList => 'Back to list';
@@ -959,4 +959,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noModelsForProvider => 'No models registered for this provider';
+
+  @override
+  String get selectBookmark => 'Select a bookmark to browse files';
+
+  @override
+  String get apiTypeOpenaiCompat => 'OpenAI Compatible';
 }

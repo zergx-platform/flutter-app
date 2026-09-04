@@ -76,6 +76,7 @@ final Map<String, String Function(AppLocalizations)> _resolve = {
   'presets': (l) => l.presets,
   'tools': (l) => l.tools,
   'language': (l) => l.language,
+  'agentLocale': (l) => l.agentLocale,
   'switchBackend': (l) => l.switchBackend,
   'timeline': (l) => l.timeline,
   'files': (l) => l.files,

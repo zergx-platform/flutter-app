@@ -280,6 +280,22 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+/// Map a raw API type string to its localized display label.
+String _apiTypeLabel(BuildContext context, String apiType) {
+  switch (apiType) {
+    case 'openai-compatible':
+      return context.l10n.apiTypeOpenaiCompat;
+    case 'openai':
+      return context.l10n.apiTypeOpenai;
+    case 'anthropic':
+      return context.l10n.apiTypeAnthropic;
+    case 'gemini':
+      return context.l10n.apiTypeGemini;
+    default:
+      return apiType;
+  }
+}
+
 /// Providers detail (recreates ProviderSection without models.dev template).
 class _ProvidersDetail extends StatefulWidget {
   final Map<String, ProviderInfo> providers;
@@ -307,7 +323,8 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
           Card(
             margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ListTile(
-              title: Text(context.l10n.providerTitle(e.key, e.value.apiType)),
+              title: Text(context.l10n.providerTitle(
+                  e.key, _apiTypeLabel(context, e.value.apiType))),
               subtitle: Text(e.value.baseUrl,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -527,9 +544,9 @@ class _AddProviderFormState extends State<_AddProviderForm> {
             DropdownButtonFormField<String>(
               initialValue: _apiType,
               items: [
-                const DropdownMenuItem(
+                DropdownMenuItem(
                     value: 'openai-compatible',
-                    child: Text('openai-compatible')),
+                    child: Text(context.l10n.apiTypeOpenaiCompat)),
                 DropdownMenuItem(
                     value: 'openai',
                     child: Text(context.l10n.apiTypeOpenai)),
@@ -1482,18 +1499,26 @@ class _TemplatePickerPageState extends State<_TemplatePickerPage> {
     final colors = colorsOf(context);
     final text = textOf(context);
     final q = _q.text.trim().toLowerCase();
+    // Fuzzy match: a provider matches when its name/id OR any of its models'
+    // names/ids contain the query (case-insensitive), so searching a model
+    // name finds the provider that provides it.
     final list = q.isEmpty
         ? _all
-        : _all
-            .where((p) =>
-                p.name.toLowerCase().contains(q) ||
-                p.id.toLowerCase().contains(q))
-            .toList();
+        : _all.where((p) {
+            if (p.name.toLowerCase().contains(q) ||
+                p.id.toLowerCase().contains(q)) {
+              return true;
+            }
+            return p.models.any((m) =>
+                m.name.toLowerCase().contains(q) ||
+                m.id.toLowerCase().contains(q));
+          }).toList();
     return Scaffold(
       appBar: AppBar(
         title: TextField(
           controller: _q,
           autofocus: false,
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             hintText: context.l10n.providerTemplateHint,
             border: InputBorder.none,

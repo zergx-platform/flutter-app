@@ -406,7 +406,7 @@
   "none": "无",
   "download": "下载",
   "selectFile": "选择一个文件查看",
-  "selectBranch": "选择分支浏览文件",
+  "selectBranch": "选择书签浏览文件",
   "noCommits": "暂无提交",
   "noHistory": "该文件暂无历史。",
   "noChangesYet": "暂无变更",
@@ -472,7 +472,7 @@
   "pickRepo": "选择仓库",
   "pickBranch": "选择分支",
   "pickOrg": "选择组织",
-  "codeEmptyHint": "先选一个 org / repo / 分支开始浏览代码",
+  "codeEmptyHint": "先选一个 org / repo / 书签开始浏览代码",
   "backToList": "返回列表",
   "timeJustNow": "刚刚",
   "timeMinAgo": "{arg1} 分钟前",
@@ -598,5 +598,7 @@
   "sysPromptByPreset": "系统提示由所选预设决定，不可直接修改。",
   "requiredConfig": "必需配置",
   "selectProviderFirst": "请先选择服务商",
-  "noModelsForProvider": "该服务商已注册暂无模型"
+  "noModelsForProvider": "该服务商已注册暂无模型",
+  "selectBookmark": "选择书签浏览文件",
+  "apiTypeOpenaiCompat": "OpenAI 兼容"
 }

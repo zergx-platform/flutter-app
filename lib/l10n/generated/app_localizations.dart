@@ -1331,7 +1331,7 @@ abstract class AppLocalizations {
   /// No description provided for @selectBranch.
   ///
   /// In zh, this message translates to:
-  /// **'选择分支浏览文件'**
+  /// **'选择书签浏览文件'**
   String get selectBranch;
 
   /// No description provided for @noCommits.
@@ -1517,7 +1517,7 @@ abstract class AppLocalizations {
   /// No description provided for @codeEmptyHint.
   ///
   /// In zh, this message translates to:
-  /// **'先选一个 org / repo / 分支开始浏览代码'**
+  /// **'先选一个 org / repo / 书签开始浏览代码'**
   String get codeEmptyHint;
 
   /// No description provided for @backToList.
@@ -1831,6 +1831,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'该服务商已注册暂无模型'**
   String get noModelsForProvider;
+
+  /// No description provided for @selectBookmark.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择书签浏览文件'**
+  String get selectBookmark;
+
+  /// No description provided for @apiTypeOpenaiCompat.
+  ///
+  /// In zh, this message translates to:
+  /// **'OpenAI 兼容'**
+  String get apiTypeOpenaiCompat;
 }
 
 class _AppLocalizationsDelegate

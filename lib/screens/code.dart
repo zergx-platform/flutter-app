@@ -299,7 +299,7 @@ class _CodeScreenState extends State<CodeScreen> {
         child: Text(
           store.codeRepo.isNotEmpty
               ? context.l10n.selectFile
-              : context.l10n.selectBranch,
+              : context.l10n.selectBookmark,
           style: TextStyle(color: colors.mutedForeground),
         ),
       );

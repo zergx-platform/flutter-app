@@ -677,7 +677,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectFile => '选择一个文件查看';
 
   @override
-  String get selectBranch => '选择分支浏览文件';
+  String get selectBranch => '选择书签浏览文件';
 
   @override
   String get noCommits => '暂无提交';
@@ -780,7 +780,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pickOrg => '选择组织';
 
   @override
-  String get codeEmptyHint => '先选一个 org / repo / 分支开始浏览代码';
+  String get codeEmptyHint => '先选一个 org / repo / 书签开始浏览代码';
 
   @override
   String get backToList => '返回列表';
@@ -953,4 +953,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noModelsForProvider => '该服务商已注册暂无模型';
+
+  @override
+  String get selectBookmark => '选择书签浏览文件';
+
+  @override
+  String get apiTypeOpenaiCompat => 'OpenAI 兼容';
 }

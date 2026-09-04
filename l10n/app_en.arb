@@ -406,7 +406,7 @@
   "none": "None",
   "download": "Download",
   "selectFile": "Select a file to view",
-  "selectBranch": "Select a branch to browse files",
+  "selectBranch": "Select a bookmark to browse files",
   "noCommits": "No commits",
   "noHistory": "No history for this file.",
   "noChangesYet": "No changes yet",
@@ -472,7 +472,7 @@
   "pickRepo": "Pick a repository",
   "pickBranch": "Pick a branch",
   "pickOrg": "Pick an organization",
-  "codeEmptyHint": "Pick an org / repo / branch to browse code",
+  "codeEmptyHint": "Pick an org / repo / bookmark to browse code",
   "backToList": "Back to list",
   "timeJustNow": "just now",
   "timeMinAgo": "{arg1} min ago",
@@ -598,5 +598,7 @@
   "sysPromptByPreset": "System prompt is determined by the selected preset.",
   "requiredConfig": "required config",
   "selectProviderFirst": "Select a provider first",
-  "noModelsForProvider": "No models registered for this provider"
+  "noModelsForProvider": "No models registered for this provider",
+  "selectBookmark": "Select a bookmark to browse files",
+  "apiTypeOpenaiCompat": "OpenAI Compatible"
 }
