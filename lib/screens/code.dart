@@ -70,16 +70,21 @@ class _CodeScreenState extends State<CodeScreen> {
   /// right. Native app feel (no three-panel browser column stack).
   Widget _desktop(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          children: [
-            SizedBox(
-              width: (constraints.maxWidth * 0.30).clamp(240.0, 360.0),
-              child: _treeOrCommits(context),
-            ),
-            const VerticalDivider(),
-            Expanded(child: _content(context)),
-          ],
+      body: SafeArea(
+        // Keep the panel headers (repo / file content toolbars) below the
+        // system status bar instead of sliding under it.
+        top: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            children: [
+              SizedBox(
+                width: (constraints.maxWidth * 0.30).clamp(240.0, 360.0),
+                child: _treeOrCommits(context),
+              ),
+              const VerticalDivider(),
+              Expanded(child: _content(context)),
+            ],
+          ),
         ),
       ),
     );
