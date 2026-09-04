@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG REGISTRY=artifact.zergx.svc.cluster.local
+ARG REGISTRY=jj-lab.temp.svc.cluster.local
 FROM ${REGISTRY}/library/nginx:stable-alpine
 
 COPY build/web /usr/share/nginx/html
