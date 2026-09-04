@@ -517,10 +517,12 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                 ),
               ),
             ),
+            const SizedBox(height: AppSpacing.md),
             TextField(
                 controller: _id,
                 decoration: InputDecoration(
                     labelText: context.l10n.providerIdReq)),
+            const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
               initialValue: _apiType,
               items: [
@@ -541,15 +543,18 @@ class _AddProviderFormState extends State<_AddProviderForm> {
               decoration:
                   InputDecoration(labelText: context.l10n.apiType),
             ),
+            const SizedBox(height: AppSpacing.md),
             TextField(
                 controller: _url,
                 decoration: InputDecoration(
                     labelText: context.l10n.baseUrlReq)),
+            const SizedBox(height: AppSpacing.md),
             TextField(
                 controller: _key,
                 obscureText: true,
                 decoration: InputDecoration(
                     labelText: context.l10n.apiKeyReq)),
+            const SizedBox(height: AppSpacing.md),
             if (_template == null)
               TextField(
                   controller: _models,
@@ -691,7 +696,10 @@ class _PresetsDetailState extends State<_PresetsDetail> {
     if (id.isEmpty) return;
     await widget.api.savePreset(
         Preset(id: id, systemPrompt: '', tools: [], maxTurns: 30));
-    setState(() => _showNew = false);
+    setState(() {
+      _showNew = false;
+      _editingId = null;
+    });
     _newId.clear();
     await _load();
   }
@@ -702,6 +710,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
         description: context.l10n.deletePresetBody(p.id));
     if (ok) {
       await widget.api.deletePreset(p.id);
+      setState(() => _editingId = null);
       await _load();
     }
   }
@@ -776,7 +785,6 @@ class _PresetsDetailState extends State<_PresetsDetail> {
 
   /// Editable view for a user-created preset (non-system).
   Widget _presetEditView(Preset p) {
-    final colors = colorsOf(context);
     final text = textOf(context);
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -964,9 +972,9 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   String? _vlmModel;
   bool _vlmLoading = false;
 
-  // Persistent text controllers per "tool.key" field so editing never
-  /// rebuilds a TextField with a fresh controller (cursor jump / leak).
-  final Map<String, TextEditingController> _ctrls = {};
+  /// A config knob whose name suggests a model selection (e.g. `vlm_model`)
+  /// renders the provider/model cascade, mirroring the web client.
+  bool isModelRef(String name) => name.toLowerCase().contains('model');
 
   @override
   void initState() {
@@ -976,17 +984,7 @@ class _ToolsDetailState extends State<_ToolsDetail> {
 
   @override
   void dispose() {
-    for (final c in _ctrls.values) {
-      c.dispose();
-    }
     super.dispose();
-  }
-
-  TextEditingController _ctrl(String tool, String key, String initial) {
-    return _ctrls.putIfAbsent('$tool.$key', () {
-      final c = TextEditingController(text: initial);
-      return c;
-    });
   }
 
   Future<void> _load() async {
@@ -1001,22 +999,28 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     try {
       _providers = await widget.api.providers();
     } catch (_) {}
+    // Seed the VLM provider/model cascade from a stored `vlm_model` ref
+    // (provider_id/model_id), mirroring the web client's on-mount behavior.
+    _seedVlmFromConfig();
     setState(() => _loading = false);
   }
 
-  Future<void> _save(String name) async {
-    try {
-      _config = await widget.api.setToolConfig(
-          {name: _config[name] ?? const <String, dynamic>{}});
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(context.l10n.saved)));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+  /// Restore `_vlmProvider`/`_vlmModel` from any `vlm_model` value already
+  /// present in `_config` for the first memory tool that carries it.
+  void _seedVlmFromConfig() {
+    String? provider;
+    String? model;
+    for (final t in _tools) {
+      final v = (_config[t.name] ?? const {})['vlm_model'];
+      if (v is String && v.contains('/')) {
+        final parts = v.split('/');
+        provider = parts[0];
+        model = parts.length > 1 ? parts[1] : '';
+        break;
       }
     }
+    _vlmProvider = (provider == null || provider.isEmpty) ? null : provider;
+    _vlmModel = (model == null || model.isEmpty) ? null : model;
   }
 
   @override
@@ -1047,29 +1051,38 @@ class _ToolsDetailState extends State<_ToolsDetail> {
   Widget _toolCard(ToolInfo tool) {
     final colors = colorsOf(context);
     final text = textOf(context);
-    final fields = tool.configFields ?? [];
     final hasConfig = (_config[tool.name] ?? {}).isNotEmpty;
     // A tool whose owning extension declares config knobs shows editors for
-    // the data-driven set (e.g. memory/vlm_model -> model picker). We render
-    // a provider/model cascade when the config name suggests a model selection
-    // ('model') and otherwise a plain string/enum field.
+    // the data-driven set (e.g. memory/vlm_model -> model picker). Model-ref
+    // knobs render a provider/model cascade (even with no providers yet, to
+    // mirror the web client); other knobs render a string/enum editor.
     final extConfigs = tool.config ?? [];
-    final withModelPicker = extConfigs.isNotEmpty && _providers.isNotEmpty;
+    final requiredMissing = extConfigs.any((c) {
+      if (!c.required) return false;
+      final v = (_config[tool.name] ?? {})[c.name];
+      return v == null || '$v'.isEmpty;
+    });
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         children: [
           ListTile(
             title: Text(tool.name, style: text.mono.copyWith(fontSize: 12)),
-            trailing: (fields.isEmpty && extConfigs.isEmpty)
+            trailing: extConfigs.isEmpty
                 ? Text(context.l10n.noConfig,
                     style: text.micro.copyWith(color: colors.mutedForeground))
                 : Text(
-                    hasConfig
-                        ? context.l10n.configured
-                        : context.l10n.needsConfig,
+                    requiredMissing
+                        ? context.l10n.requiredConfig
+                        : hasConfig
+                            ? context.l10n.configured
+                            : context.l10n.needsConfig,
                     style: text.micro.copyWith(
-                        color: hasConfig ? colors.success : colors.warning)),
+                        color: requiredMissing
+                            ? colors.destructive
+                            : hasConfig
+                                ? colors.success
+                                : colors.warning)),
             onTap: () => setState(
                 () => _expanded = _expanded == tool.name ? null : tool.name),
           ),
@@ -1084,7 +1097,12 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                         style: text.micro
                             .copyWith(color: colors.mutedForeground)),
                   // Data-driven config editors from the extension config.
-                  if (withModelPicker) ...[
+                  // A model-ref knob (name contains 'model') always renders
+                  // the provider/model cascade — even when no provider is
+                  // registered yet (mirrors the web client, which shows a
+                  // "Select a provider first" hint). Other knobs use a plain
+                  // string/enum editor.
+                  if (extConfigs.any((c) => isModelRef(c.name))) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(context.l10n.vlmModelLabel,
                         style: text.meta.copyWith(
@@ -1098,9 +1116,11 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                           onPressed: () => _saveVlmModel(tool.name),
                           child: Text(context.l10n.save)),
                     ),
-                  ]                   else if (extConfigs.isNotEmpty)
+                  ],
+                  if (extConfigs.any((c) => !isModelRef(c.name)))
                     for (final c in extConfigs)
-                      _extConfigEditor('${tool.category}~${tool.name}', c),
+                      if (!isModelRef(c.name))
+                        _extConfigEditor('${tool.category}~${tool.name}', c),
                   if (tool.params.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(context.l10n.toolParams,
@@ -1108,19 +1128,6 @@ class _ToolsDetailState extends State<_ToolsDetail> {
                             fontWeight: FontWeight.w600, fontSize: 13)),
                     const SizedBox(height: AppSpacing.xs),
                     _paramList(tool.params, 0),
-                  ],
-                  if (fields.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    for (final f in fields) _field(tool.name, f),
-                  ],
-                  if (fields.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton(
-                          onPressed: () => _save(tool.name),
-                          child: Text(context.l10n.save)),
-                    ),
                   ],
                 ],
               ),
@@ -1184,39 +1191,6 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     );
   }
 
-  Widget _field(String toolName, ToolConfigField f) {
-    final cfg = _config[toolName] ?? const <String, dynamic>{};
-    final current = cfg[f.key];
-    if (f.type == 'select-provider') {
-      return _dropdown(
-          f.label,
-          current,
-          [for (final e in widget.providers.entries) e.key],
-          (v) => _set(toolName, f.key, v));
-    }
-    if (f.type == 'select-model') {
-      final providerId = cfg[f.dependsOnProvider ?? 'provider_id'] ?? '';
-      final models = (providerId is String && widget.providers.containsKey(providerId))
-          ? widget.providers[providerId]!.models
-          : <ProviderModel>[];
-      return _dropdown(
-          f.label,
-          current,
-          [for (final m in models) m.id],
-          (v) => _set(toolName, f.key, v));
-    }
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: TextField(
-        controller: _ctrl(toolName, f.key, current == null ? '' : '$current'),
-        keyboardType: f.type == 'number' ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(labelText: f.label),
-        onChanged: (v) => _set(toolName, f.key,
-            f.type == 'number' ? (num.tryParse(v) ?? 0) : v),
-      ),
-    );
-  }
-
   /// Render an extension config knob that is NOT a model reference — a plain
   /// string / enum / number editor. Value is saved to the extId config.
   Widget _extConfigEditor(String toolName, ToolConfig c) {
@@ -1257,6 +1231,16 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.api.setToolConfigValue(extId, name, '$value');
+      setState(() {
+        // Reflect the saved knob locally so badges/required flags update
+        // immediately without a full reload.
+        for (final t in _tools) {
+          if (t.category != extId) continue;
+          final cfgMap = (_config[t.name] ?? const <String, dynamic>{});
+          final next = <String, dynamic>{...cfgMap, name: value};
+          _config = {..._config, t.name: next};
+        }
+      });
       messenger.showSnackBar(SnackBar(content: Text(context.l10n.saved)));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
@@ -1265,55 +1249,55 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     }
   }
 
-  void _set(String tool, String key, Object? value) {
-    setState(() {
-      _config = {
-        ..._config,
-        tool: {...(_config[tool] ?? const <String, dynamic>{}), key: value},
-      };
-    });
-  }
-
   /// Provider/model cascade for a VLM tool (image_read). The extension config
   /// knob `vlm_model` holds a `provider_id/model_id` reference; the agent
-  /// resolves it against the registered providers.
+  /// resolves it against the registered providers. Rendered as a single
+  /// dropdown over every registered model, labelled "model name —— provider".
   Widget _vlmModelPicker(String toolName) {
-    final providers = _providers.entries.toList();
-    final providerIds =
-        providers.map((e) => e.key).toList()..insert(0, '');
-    final models = _vlmProvider == null
-        ? const <String>[]
-        : (_providers[_vlmProvider]?.models ?? [])
-            .map((m) => m.id)
-            .toList();
+    // Flatten every registered provider's models into refs provider/model.
+    final refs = <(String, String, String)>[]; // (ref, modelName, provider)
+    for (final e in _providers.entries) {
+      for (final m in e.value.models) {
+        refs.add((
+          '${e.key}/${m.id}',
+          m.name.isNotEmpty ? m.name : m.id,
+          e.key,
+        ));
+      }
+    }
+    final selectedRef =
+        _vlmProvider != null && _vlmModel != null ? '$_vlmProvider/$_vlmModel' : '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
-          initialValue: _vlmProvider,
-          decoration: InputDecoration(labelText: context.l10n.providerId),
-          items: [
-            DropdownMenuItem(value: '', child: Text(context.l10n.none)),
-            for (final pid in providerIds.where((x) => x.isNotEmpty))
-              DropdownMenuItem(value: pid, child: Text(pid)),
-          ],
-          onChanged: (v) => setState(() {
-            _vlmProvider = (v == null || v.isEmpty) ? null : v;
-            _vlmModel = null;
-          }),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        DropdownButtonFormField<String>(
-          initialValue: _vlmModel,
+          initialValue: selectedRef.isEmpty ? null : selectedRef,
           decoration: InputDecoration(labelText: context.l10n.modelLabel),
           items: [
             DropdownMenuItem(value: '', child: Text(context.l10n.none)),
-            for (final mid in models)
-              DropdownMenuItem(value: mid, child: Text(mid)),
+            for (final (ref, name, prov) in refs)
+              DropdownMenuItem(value: ref, child: Text('$name —— $prov')),
           ],
-          onChanged: (v) =>
-              setState(() => _vlmModel = (v == null || v.isEmpty) ? null : v),
+          onChanged: (v) => setState(() {
+            final r = (v == null || v.isEmpty) ? '' : v;
+            if (r.isEmpty) {
+              _vlmProvider = null;
+              _vlmModel = null;
+            } else {
+              final parts = r.split('/');
+              _vlmProvider = parts[0];
+              _vlmModel = parts.length > 1 ? parts[1] : '';
+            }
+          }),
         ),
+        if (refs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(context.l10n.selectProviderFirst,
+                style: textOf(context)
+                    .micro
+                    .copyWith(color: colorsOf(context).mutedForeground)),
+          ),
       ],
     );
   }
@@ -1328,8 +1312,20 @@ class _ToolsDetailState extends State<_ToolsDetail> {
       await widget.api.setToolConfigValue(
         'memory',
         'vlm_model',
-        '${_vlmProvider}/${_vlmModel}',
+        '$_vlmProvider/$_vlmModel',
       );
+      setState(() {
+        // Reflect the saved ref locally so the badge flips to configured
+        // immediately, matching the per-knob `_saveExtConfig` path.
+        for (final t in _tools) {
+          if (t.category != 'memory') continue;
+          final next = <String, dynamic>{
+            ...(_config[t.name] ?? const <String, dynamic>{}),
+            'vlm_model': '$_vlmProvider/$_vlmModel',
+          };
+          _config = {..._config, t.name: next};
+        }
+      });
       messenger.showSnackBar(
           SnackBar(content: Text(context.l10n.saved)));
     } catch (e) {
@@ -1339,21 +1335,6 @@ class _ToolsDetailState extends State<_ToolsDetail> {
     if (mounted) setState(() => _vlmLoading = false);
   }
 
-  Widget _dropdown(String label, Object? current, List<String> options,
-      void Function(String?) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: DropdownButtonFormField<String>(
-        initialValue: current == null ? null : '$current',
-        items: [
-          DropdownMenuItem(value: '', child: Text(context.l10n.none)),
-          for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
-        ],
-        onChanged: onChanged,
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
-  }
 }
 
 /// Deep-parameter group: collapsed inline summary, tap to expand, tap again

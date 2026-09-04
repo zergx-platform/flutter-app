@@ -648,11 +648,6 @@ class ZergxApi {
   Future<Map<String, dynamic>> toolConfig() async =>
       await _get('/api/v1/tool-config') as Map<String, dynamic>;
 
-  Future<Map<String, dynamic>> setToolConfig(Map<String, dynamic> cfg) async {
-    final j = await _put('/api/v1/tool-config', cfg) as Map<String, dynamic>;
-    return (j['config'] as Map?)?.cast<String, dynamic>() ?? cfg;
-  }
-
   // ---- infra ----
 
   Future<Map<String, dynamic>> k8sConfig() async =>
@@ -692,8 +687,8 @@ class ZergxApi {
   Future<Map<String, dynamic>> deploy(Map<String, dynamic> body) async =>
       await _post('/api/v1/deployments', body) as Map<String, dynamic>;
 
-  Future<void> destroySandbox(String session) =>
-      _del('/api/v1/sandboxes/${_enc(session)}');
+  Future<void> destroySandbox(String id) =>
+      _del('/api/v1/sandboxes/${_enc(id)}');
 
   Future<void> destroyDeployment(String name) =>
       _del('/api/v1/deployments/${_enc(name)}');

@@ -685,6 +685,7 @@ class ToolConfig {
   final dynamic defaultValue;
   final String description;
   final String scope; // global | session
+  final bool required;
   ToolConfig({
     required this.name,
     required this.type,
@@ -692,6 +693,7 @@ class ToolConfig {
     this.defaultValue,
     this.description = '',
     this.scope = 'global',
+    this.required = false,
   });
   factory ToolConfig.fromJson(Map<String, dynamic> j) => ToolConfig(
         name: j['name'] as String? ?? '',
@@ -700,6 +702,7 @@ class ToolConfig {
         defaultValue: j['default'],
         description: j['description'] as String? ?? '',
         scope: j['scope'] as String? ?? 'global',
+        required: j['required'] as bool? ?? false,
       );
 }
 

@@ -595,5 +595,8 @@
   "configValueHint": "Enter to save",
   "systemPresetBadge": "System",
   "readOnlyPreset": "System preset: read-only",
-  "sysPromptByPreset": "System prompt is determined by the selected preset."
+  "sysPromptByPreset": "System prompt is determined by the selected preset.",
+  "requiredConfig": "required config",
+  "selectProviderFirst": "Select a provider first",
+  "noModelsForProvider": "No models registered for this provider"
 }

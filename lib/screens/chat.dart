@@ -622,6 +622,18 @@ class _ChatScreenState extends State<ChatScreen> {
             ..._models.map((m) => m.id),
             if (model.isNotEmpty && !_models.any((m) => m.id == model)) model,
           ];
+          // Display "model name —— provider" so the picker reflects where the
+          // model comes from; falls back to the model id when unnamed.
+          String modelLabel(String id) {
+            for (final m in _models) {
+              if (m.id == id) {
+                final name = m.name.isNotEmpty ? m.name : m.id;
+                final prov = m.providerId;
+                return prov.isNotEmpty ? '$name —— $prov' : name;
+              }
+            }
+            return id;
+          }
           final presetOptions = [
             ..._presets.map((p) => p.id),
             if (preset.isNotEmpty && !_presets.any((p) => p.id == preset))
@@ -647,7 +659,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     initialValue: model.isEmpty ? null : model,
                     items: [
                       for (final id in modelOptions)
-                        DropdownMenuItem(value: id, child: Text(id)),
+                        DropdownMenuItem(
+                            value: id, child: Text(modelLabel(id))),
                     ],
                     onChanged: (v) => setState(() => model = v ?? ''),
                     decoration: InputDecoration(labelText: ctx.l10n.modelLabel),

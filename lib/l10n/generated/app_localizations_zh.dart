@@ -944,4 +944,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sysPromptByPreset => '系统提示由所选预设决定，不可直接修改。';
+
+  @override
+  String get requiredConfig => '必需配置';
+
+  @override
+  String get selectProviderFirst => '请先选择服务商';
+
+  @override
+  String get noModelsForProvider => '该服务商已注册暂无模型';
 }

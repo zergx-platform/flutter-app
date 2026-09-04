@@ -950,4 +950,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sysPromptByPreset =>
       'System prompt is determined by the selected preset.';
+
+  @override
+  String get requiredConfig => 'required config';
+
+  @override
+  String get selectProviderFirst => 'Select a provider first';
+
+  @override
+  String get noModelsForProvider => 'No models registered for this provider';
 }

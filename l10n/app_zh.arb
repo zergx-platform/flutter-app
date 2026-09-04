@@ -595,5 +595,8 @@
   "configValueHint": "输入值后回车保存",
   "systemPresetBadge": "系统",
   "readOnlyPreset": "系统预设：只读，不可编辑",
-  "sysPromptByPreset": "系统提示由所选预设决定，不可直接修改。"
+  "sysPromptByPreset": "系统提示由所选预设决定，不可直接修改。",
+  "requiredConfig": "必需配置",
+  "selectProviderFirst": "请先选择服务商",
+  "noModelsForProvider": "该服务商已注册暂无模型"
 }

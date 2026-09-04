@@ -1813,6 +1813,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'系统提示由所选预设决定，不可直接修改。'**
   String get sysPromptByPreset;
+
+  /// No description provided for @requiredConfig.
+  ///
+  /// In zh, this message translates to:
+  /// **'必需配置'**
+  String get requiredConfig;
+
+  /// No description provided for @selectProviderFirst.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先选择服务商'**
+  String get selectProviderFirst;
+
+  /// No description provided for @noModelsForProvider.
+  ///
+  /// In zh, this message translates to:
+  /// **'该服务商已注册暂无模型'**
+  String get noModelsForProvider;
 }
 
 class _AppLocalizationsDelegate

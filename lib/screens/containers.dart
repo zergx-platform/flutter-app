@@ -51,8 +51,12 @@ class _ContainersScreenState extends State<ContainersScreen> {
         title: context.l10n.deleteSandboxTitle,
         description: context.l10n.deleteSandboxBody(s.podName));
     if (!ok) return;
+    // Always address the worker by its container id (pod short name): it is
+    // a stable, non-empty k8s label value that `labelKey` passes through
+    // verbatim. The `session` field may be empty (no zergx/session annotation),
+    // which would otherwise 404 on `DELETE /sandboxes/`.
     try {
-      await store.api.destroySandbox(s.session);
+      await store.api.destroySandbox(s.containerId);
     } catch (e) {
       _error = '$e';
       setState(() {});
