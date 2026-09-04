@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG REGISTRY=jj-lab.temp.svc.cluster.local
+ARG REGISTRY=docker.io
 FROM ${REGISTRY}/library/nginx:stable-alpine
 
 COPY build/web /usr/share/nginx/html
