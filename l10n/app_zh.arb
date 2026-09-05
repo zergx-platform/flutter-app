@@ -604,5 +604,6 @@
   "modelIdLabel": "模型 ID…",
   "contextLengthLabel": "上下文",
   "add": "添加",
-  "enterToAddHint": "回车添加模型标签"
+  "enterToAddHint": "回车添加模型标签",
+  "turnsByPreset": "最大轮数由所选预设决定。"
 }

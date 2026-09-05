@@ -971,4 +971,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get enterToAddHint => '回车添加模型标签';
+
+  @override
+  String get turnsByPreset => '最大轮数由所选预设决定。';
 }

@@ -1867,6 +1867,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'回车添加模型标签'**
   String get enterToAddHint;
+
+  /// No description provided for @turnsByPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'最大轮数由所选预设决定。'**
+  String get turnsByPreset;
 }
 
 class _AppLocalizationsDelegate

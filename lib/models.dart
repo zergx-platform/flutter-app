@@ -2,6 +2,8 @@
 /// gateway-go/web/schema.
 library;
 
+import 'dart:convert';
+
 // ---- enums / roles ----
 
 const kSessionRoles = [
@@ -594,15 +596,34 @@ class Todo {
       );
 }
 
+/// Parse a `{locale: text}` map (from JSON) into a String->String map.
+Map<String, String> _mapStringString(dynamic v) {
+  if (v is Map) {
+    return v.map((k, val) => MapEntry('$k', '$val'));
+  }
+  // system_prompt_i18n may arrive as a JSON string.
+  if (v is String && v.isNotEmpty && v != '{}') {
+    try {
+      final m = jsonDecode(v);
+      if (m is Map) {
+        return m.map((k, val) => MapEntry('$k', '$val'));
+      }
+    } catch (_) {}
+  }
+  return const {};
+}
+
 class Preset {
   final String id;
   final String systemPrompt;
+  final Map<String, String> systemPromptI18n;
   final List<String> tools;
   final int maxTurns;
   final bool isSystem;
   Preset({
     required this.id,
     required this.systemPrompt,
+    this.systemPromptI18n = const {},
     required this.tools,
     required this.maxTurns,
     this.isSystem = false,
@@ -610,10 +631,17 @@ class Preset {
   factory Preset.fromJson(Map<String, dynamic> j) => Preset(
         id: j['id'] as String? ?? '',
         systemPrompt: j['system_prompt'] as String? ?? '',
+        systemPromptI18n: _mapStringString(j['system_prompt_i18n']),
         tools: (j['tools'] as List? ?? []).map((e) => e.toString()).toList(),
         maxTurns: j['max_turns'] as int? ?? 30,
         isSystem: j['is_system'] as bool? ?? false,
       );
+  /// The system prompt localized for [locale] ('zh'/'en'), falling back to the
+  /// default prompt when the locale has no translation.
+  String localizedPrompt(String locale) {
+    if (systemPromptI18n.containsKey(locale)) return systemPromptI18n[locale]!;
+    return systemPrompt;
+  }
   Map<String, dynamic> toJson() => {
         'id': id,
         'system_prompt': systemPrompt,

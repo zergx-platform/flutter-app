@@ -977,4 +977,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enterToAddHint => 'Enter to add a model tag';
+
+  @override
+  String get turnsByPreset => 'Max turns is set by the selected preset.';
 }

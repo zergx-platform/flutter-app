@@ -38,6 +38,7 @@ class _ChatScreenState extends State<ChatScreen> {
   MessagesController? _msg;
   List<ModelInfo> _models = [];
   List<Preset> _presets = [];
+  Map<String, ProviderInfo> _providers = {};
   bool _initialScrollDone = false;
   // The session id the current _msg controller is bound to (set in _setup).
   String? _boundSid;
@@ -80,6 +81,9 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
     try {
       _presets = await widget.store.api.presets();
+    } catch (_) {}
+    try {
+      _providers = await widget.store.api.providers();
     } catch (_) {}
     if (mounted) setState(() {});
     // Do NOT hijack store.codeOrg/codeRepo here: the Code tab is an
@@ -652,9 +656,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showSettings() {
     final sid = store.activeSessionId;
     if (sid == null) return;
-    final maxTurns = TextEditingController(
-        text: store.activeSession?.maxTurns?.toString() ?? '');
-    maxTurns.addListener(() {});
     // Hold the editable model/preset/locale OUTSIDE the StatefulBuilder so a
     // rebuild (e.g. tapping a dropdown) does NOT re-seed them from the store
     // and discard the user's in-progress selection.
@@ -671,8 +672,9 @@ class _ChatScreenState extends State<ChatScreen> {
             ..._models.map((m) => m.id),
             if (model.isNotEmpty && !_models.any((m) => m.id == model)) model,
           ];
-          // Display "model name —— provider" so the picker reflects where the
-          // model comes from; falls back to the model id when unnamed.
+          // Display "model name —— provider". Models are sourced from the
+          // provider registry (each carries its provider_id); a model without
+          // a known provider simply shows its name.
           String modelLabel(String id) {
             for (final m in _models) {
               if (m.id == id) {
@@ -682,6 +684,13 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             }
             return id;
+          }
+          // Group the model dropdown options by provider so the user sees which
+          // provider each model belongs to.
+          final providerMap = <String, List<ModelInfo>>{};
+          for (final m in _models) {
+            final pid = m.providerId.isNotEmpty ? m.providerId : 'default';
+            (providerMap[pid] ??= []).add(m);
           }
           final presetOptions = [
             ..._presets.map((p) => p.id),
@@ -702,14 +711,38 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Model is the session's current model; the picker lists
-                  // registered provider models.
+                  // Model grouped by provider. The model dropdown lists each
+                  // registered provider's models under the provider label.
                   DropdownButtonFormField<String>(
                     initialValue: model.isEmpty ? null : model,
                     items: [
+                      if (providerMap.length > 1)
+                        const DropdownMenuItem(value: '', child: Text('')),
+                      for (final entry in providerMap.entries)
+                        ...[
+                          if (providerMap.length > 1)
+                            DropdownMenuItem(
+                              value: '',
+                              enabled: false,
+                              child: Text(
+                                  entry.key == 'default'
+                                      ? ctx.l10n.providers
+                                      : entry.key,
+                                  style: textOf(ctx)
+                                      .meta
+                                      .copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: colorsOf(ctx).mutedForeground)),
+                            ),
+                          for (final m in entry.value)
+                            DropdownMenuItem(
+                                value: m.id, child: Text(modelLabel(m.id))),
+                        ],
                       for (final id in modelOptions)
-                        DropdownMenuItem(
-                            value: id, child: Text(modelLabel(id))),
+                        if (!providerMap.keys.any((pid) =>
+                            providerMap[pid]?.any((m) => m.id == id) ?? false))
+                          DropdownMenuItem(
+                              value: id, child: Text(modelLabel(id))),
                     ],
                     onChanged: (v) => setState(() => model = v ?? ''),
                     decoration: InputDecoration(labelText: ctx.l10n.modelLabel),
@@ -725,9 +758,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: InputDecoration(labelText: ctx.l10n.presetLabel),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  // Per-session language override. '' = follow the global
-                  // agent locale (written by the config 'Agent language'
-                  // setting); zh/en pin this session's prompt language.
+                  // Per-session language override.
                   DropdownButtonFormField<String>(
                     initialValue: locale.isEmpty ? '' : locale,
                     items: localeOptions,
@@ -735,14 +766,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: InputDecoration(labelText: ctx.l10n.agentLocale),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    controller: maxTurns,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: ctx.l10n.maxTurnsLabel),
+                  // Max turns is governed by the preset (set when the preset is
+                  // customized) — not editable per session here.
+                  // System prompt is governed by the selected preset.
+                  Text(
+                    ctx.l10n.turnsByPreset,
+                    style: textOf(ctx)
+                        .micro
+                        .copyWith(color: colorsOf(ctx).mutedForeground),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  // System prompt is governed by the selected preset — we no
-                  // longer let the user set it directly per session.
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     ctx.l10n.sysPromptByPreset,
                     style: textOf(ctx)
@@ -766,9 +799,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Only send the per-session locale when explicitly chosen;
                   // '' (follow) is sent as empty to clear any override.
                   updates['locale'] = locale;
-                  if (maxTurns.text.isNotEmpty) {
-                    updates['max_turns'] = int.tryParse(maxTurns.text);
-                  }
                   try {
                     final updated = await store.api.settings(sid, updates);
                     _applySession(updated);

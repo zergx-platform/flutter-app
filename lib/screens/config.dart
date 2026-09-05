@@ -866,6 +866,9 @@ class _PresetsDetailState extends State<_PresetsDetail> {
   Widget _systemPresetView(Preset p) {
     final colors = colorsOf(context);
     final text = textOf(context);
+    // Display the preset's system prompt in the current agent locale (falling
+    // back to the default prompt when the locale has no translation).
+    final agentLocale = Prefs.effectiveAgentLocale(uiZh: I18n.isZh);
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -884,7 +887,7 @@ class _PresetsDetailState extends State<_PresetsDetail> {
               color: colors.muted.withValues(alpha: 0.4),
               borderRadius: AppRadius.rSm,
             ),
-            child: SelectableText(p.systemPrompt,
+            child: SelectableText(p.localizedPrompt(agentLocale),
                 style: text.mono.copyWith(fontSize: 11)),
           ),
           const SizedBox(height: AppSpacing.sm),
