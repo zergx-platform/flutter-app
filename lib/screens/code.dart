@@ -85,24 +85,51 @@ class _CodeScreenState extends State<CodeScreen> {
   //   level 1 (repo):     [ P1 org tree | P2 file list   ]
   //   level 2 (file):     [ P2 file list | P3 content    ]
   Widget _desktop(BuildContext context) {
+    return Scaffold(
+      // Animate the panel layout when the depth changes (1 → 1|2 → 2|3) with a
+      // gentle slide, so opening a repo / file feels like the panel glides in.
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(0.06, 0), end: Offset.zero)
+                .animate(animation),
+            child: child,
+          ),
+        ),
+        child: _desktopRow(key: ValueKey(_level)),
+      ),
+    );
+  }
+
+  int get _level {
+    if (store.selectedFilePath != null) return 2;
+    if (store.codeRepo.isNotEmpty) return 1;
+    return 0;
+  }
+
+  Widget _desktopRow({required Key key}) {
     final hasRepo = store.codeRepo.isNotEmpty;
     final hasFile = store.selectedFilePath != null;
-    return Scaffold(
-      body: Row(
-        children: [
-          if (!hasRepo) ...[
-            Expanded(child: _orgColumn()),
-          ],
-          if (hasRepo && !hasFile) ...[
-            Expanded(child: _orgColumn()),
-            Expanded(child: _fileColumn(asDetail: true)),
-          ],
-          if (hasFile) ...[
-            Expanded(child: _fileColumn(asDetail: false)),
-            Expanded(child: _content(context)),
-          ],
+    // showBack on P2 is true only when P2 is the CURRENT detail panel, i.e.
+    // level 1 (repo selected, no file yet). At level 2, P2 is the nav companion
+    // (no back) and only P3 (content) owns a back arrow.
+    final fileIsDetail = hasRepo && !hasFile;
+    return Row(
+      key: key,
+      children: [
+        if (!hasRepo)
+          Expanded(child: _orgColumn()),
+        if (hasRepo) ...[
+          Expanded(child: _orgColumn()),
+          Expanded(child: _fileColumn(showBack: fileIsDetail)),
         ],
-      ),
+        if (hasFile)
+          Expanded(child: _content(context)),
+      ],
     );
   }
 
@@ -120,16 +147,18 @@ class _CodeScreenState extends State<CodeScreen> {
     );
   }
 
-  /// Interface 2 (file tree / commits). The back button appears only when it
-  /// is the current detail panel ([asDetail]); when it is the nav companion
-  /// (level 2) it shows only the repo path label, so no duplicated back bars.
-  Widget _fileColumn({bool asDetail = true}) {
+  /// Interface 2 (file tree / commits). Every level >= 1 shows a single back
+  /// arrow on this panel: at level 1 it closes the repo (→ P1), at level 2 it
+  /// closes the file (→ back to 1|2). The back button ALWAYS appears when a
+  /// repo is selected, so the 2|3 layout keeps its back (no duplicated bars —
+  /// only [_repoHeader] is rendered here; the body is [_treeBody]).
+  Widget _fileColumn({bool showBack = true}) {
     return SafeArea(
       child: Column(
         children: [
-          _repoHeader(showBack: asDetail, panelHeaderPrefix: context.l10n.files),
+          _repoHeader(showBack: showBack, panelHeaderPrefix: context.l10n.files),
           const Divider(height: 1),
-          Expanded(child: _treeOrCommits(context)),
+          Expanded(child: _treeBody(context)),
         ],
       ),
     );
@@ -155,26 +184,28 @@ class _CodeScreenState extends State<CodeScreen> {
       ),
     );
   }
+  /// P1/P2 detail body — used inside [_fileColumn] (already has its header).
+  /// Rendered as the bare content (tree or commits) with no extra bar.
+  Widget _treeBody(BuildContext context) {
+    if (store.codeRepo.isEmpty) return _emptyHint(context);
+    if (_showCommits) return _commitsList(context);
+    if (store.codeLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      children: [TreeNode(store: store, path: '')],
+    );
+  }
 
-  // ---- File tree / commits list ------------------------------------------
-
+  /// Mobile (P2) — file tree level. Unlike the tablet split column, mobile
+  /// renders its own header here because it is the whole screen.
   Widget _treeOrCommits(BuildContext context) {
     return Column(
       children: [
         _repoHeader(),
         const Divider(height: 1),
-        Expanded(
-          child: store.codeRepo.isEmpty
-              ? _emptyHint(context)
-              : _showCommits
-                  ? _commitsList(context)
-                  : store.codeLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView(
-                          padding: const EdgeInsets.all(AppSpacing.xs),
-                          children: [TreeNode(store: store, path: '')],
-                        ),
-        ),
+        Expanded(child: _treeBody(context)),
       ],
     );
   }
