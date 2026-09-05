@@ -979,4 +979,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String testModelOk(Object arg1) {
     return '模型可用：$arg1';
   }
+
+  @override
+  String get connected => '已连接';
+
+  @override
+  String connectionError(Object arg1) {
+    return '连接错误：$arg1';
+  }
 }

@@ -606,5 +606,7 @@
   "add": "Add",
   "enterToAddHint": "Enter to add a model tag",
   "turnsByPreset": "Max turns is set by the selected preset.",
-  "testModelOk": "Model OK: {arg1}"
+  "testModelOk": "Model OK: {arg1}",
+  "connected": "Connected",
+  "connectionError": "Connection error: {arg1}"
 }

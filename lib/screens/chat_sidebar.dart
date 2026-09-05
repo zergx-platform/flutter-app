@@ -67,37 +67,84 @@ class _ChatSidebarState extends State<ChatSidebar> {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     final recent = _recent;
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        children: [
-          if (store.sessionError.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-              child: Text(
-                context.l10n.loadError(store.sessionError),
-                style: textOf(context)
-                    .micro
-                    .copyWith(color: colors.destructive),
+    final connected = store.sessionError.isEmpty;
+    return Column(
+      children: [
+        // Connection status light (top-right): green = healthy, amber/red =
+        // failing. No raw error text on the list — tap for details.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(l10nString('recent'),
+                    style: textOf(context).micro.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        color: colors.mutedForeground)),
               ),
-            ),
-          if (recent.isNotEmpty) ...[
-            _HeaderKey('recent'),
-            for (final s in recent) _sessionRow(s),
-          ],
-          if (recent.isEmpty && store.sessionError.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Center(
-                child: Text(context.l10n.noRepos,
-                    style: TextStyle(color: colors.mutedForeground)),
+              Tooltip(
+                message: connected
+                    ? context.l10n.connected
+                    : context.l10n.connectionError(store.sessionError),
+                child: InkWell(
+                  onTap: connected
+                      ? null
+                      : () => ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(store.sessionError,
+                                    style: const TextStyle(fontSize: 12))),
+                          ),
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    margin: const EdgeInsets.only(left: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: connected
+                          ? colors.success
+                          : colors.destructive,
+                      boxShadow: connected
+                          ? []
+                          : [
+                              BoxShadow(
+                                  color: colors.destructive
+                                      .withValues(alpha: 0.4),
+                                  blurRadius: 4)
+                            ],
+                    ),
+                  ),
+                ),
               ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              children: [
+                if (recent.isNotEmpty) ...[
+                  const _HeaderKey('recent'),
+                  for (final s in recent) _sessionRow(s),
+                ],
+                if (recent.isEmpty && connected)
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Center(
+                      child: Text(context.l10n.noRepos,
+                          style: TextStyle(color: colors.mutedForeground)),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 

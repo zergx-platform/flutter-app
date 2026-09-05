@@ -1879,6 +1879,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'模型可用：{arg1}'**
   String testModelOk(Object arg1);
+
+  /// No description provided for @connected.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连接'**
+  String get connected;
+
+  /// No description provided for @connectionError.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接错误：{arg1}'**
+  String connectionError(Object arg1);
 }
 
 class _AppLocalizationsDelegate

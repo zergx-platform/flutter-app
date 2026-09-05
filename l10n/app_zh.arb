@@ -606,5 +606,7 @@
   "add": "添加",
   "enterToAddHint": "回车添加模型标签",
   "turnsByPreset": "最大轮数由所选预设决定。",
-  "testModelOk": "模型可用：{arg1}"
+  "testModelOk": "模型可用：{arg1}",
+  "connected": "已连接",
+  "connectionError": "连接错误：{arg1}"
 }

@@ -985,4 +985,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String testModelOk(Object arg1) {
     return 'Model OK: $arg1';
   }
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String connectionError(Object arg1) {
+    return 'Connection error: $arg1';
+  }
 }

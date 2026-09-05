@@ -138,7 +138,7 @@ class _ToolPartViewState extends State<ToolPartView> {
         return 'build ${_s(inp['tag'])} ← ${_s(inp['dockerfile_path'])}';
       case 'package-publish':
         return 'publish ${_s(inp['protocol'])} ${_s(inp['name'])}';
-      case 'container-deploy':
+      case 'service-deploy':
         return 'deploy ${_s(inp['image'])}';
       case 'pull-oci-image':
         return 'pull image ${_s(inp['image'])}';
