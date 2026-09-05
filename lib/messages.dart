@@ -83,6 +83,9 @@ class MessagesController extends ChangeNotifier {
       hasMore = more;
     } catch (_) {}
     loading = false;
+    // Safety net: if the stream missed the terminal event (drop / reconnect),
+    // converge sending -> idle so the UI never stays "running".
+    _syncIdle();
     notifyListeners();
   }
 
@@ -110,7 +113,16 @@ class MessagesController extends ChangeNotifier {
   void _connect(String sid) {
     _sub?.cancel();
     _sub = api.streamEvents(sid).listen(_handleEvent,
-        onError: (_) {}, onDone: () {});
+        onError: (_) => _syncIdle(), onDone: () => _syncIdle());
+  }
+
+  /// Converge to idle if the stream ended without a terminal `status idle` /
+  /// `turn-complete`. The backend sends both; a dropped/reconnected stream is
+  /// the only path that could leave `sending` stuck true.
+  void _syncIdle() {
+    if (!sending) return;
+    _finishStreaming();
+    notifyListeners();
   }
 
   void _handleEvent(StreamEvent ev) {
