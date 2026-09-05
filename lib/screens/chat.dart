@@ -39,6 +39,8 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ModelInfo> _models = [];
   List<Preset> _presets = [];
   bool _initialScrollDone = false;
+  // The session id the current _msg controller is bound to (set in _setup).
+  String? _boundSid;
 
   @override
   void initState() {
@@ -64,8 +66,10 @@ class _ChatScreenState extends State<ChatScreen> {
     final sid = store.activeSessionId;
     final m = _msg;
     if (m == null || sid == null) return;
-    // re-init if session (or identity) changed
-    if (m.getSessionId() != sid) {
+    // re-init if session changed. Compare the CONTROLLER's bound session, not
+    // the dynamic getSessionId() (which always reads the latest id and would
+    // make this comparison a no-op when picking a new session).
+    if (_boundSid != sid) {
       _setup();
     }
   }
@@ -87,9 +91,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _setup() async {
     final sid = store.activeSessionId;
     if (sid == null) return;
+    _boundSid = sid;
     _msg?.dispose();
     final m = MessagesController(
-        api: store.api, getSessionId: () => store.activeSessionId ?? sid);
+        api: store.api, getSessionId: () => sid);
     m.onSessionEvent((event, params) {
       if (event == 'todos-updated' || event == 'turn-complete') {
         store.bumpSessionRevision();
@@ -365,6 +370,9 @@ class _ChatScreenState extends State<ChatScreen> {
     store.sessions =
         store.sessions.map((s) => s.id == updated.id ? updated : s).toList();
     store.notifyObservers();
+    // Rebuild the chat screen so the header (model/preset indicator) and any
+    // activeSession-dependent widgets reflect the just-applied settings.
+    if (mounted) setState(() {});
   }
 
   @override
@@ -492,6 +500,27 @@ class _ChatScreenState extends State<ChatScreen> {
                       color: colors.mutedForeground),
                 ),
               ),
+              // Current model / preset — visible feedback that session
+              // settings applied (the picker also re-seeds these next open).
+              if (s != null && (s.model.isNotEmpty || s.preset.isNotEmpty))
+                Container(
+                  margin: const EdgeInsets.only(right: AppSpacing.xs),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.muted.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    [
+                      if (s.model.isNotEmpty) s.model,
+                      if (s.preset.isNotEmpty) s.preset,
+                    ].join(' · '),
+                    overflow: TextOverflow.ellipsis,
+                    style: text.micro.copyWith(
+                        color: colors.mutedForeground, fontSize: 10),
+                  ),
+                ),
               PopupMenuButton<String>(
                 onSelected: (v) => _menuAction(v),
                 itemBuilder: (context) => [
