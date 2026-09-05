@@ -651,13 +651,16 @@ class _ChatScreenState extends State<ChatScreen> {
     final maxTurns = TextEditingController(
         text: store.activeSession?.maxTurns?.toString() ?? '');
     maxTurns.addListener(() {});
+    // Hold the editable model/preset/locale OUTSIDE the StatefulBuilder so a
+    // rebuild (e.g. tapping a dropdown) does NOT re-seed them from the store
+    // and discard the user's in-progress selection.
+    String model = store.activeSession?.model ?? '';
+    String preset = store.activeSession?.preset ?? '';
+    String locale = store.activeSession?.locale ?? '';
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
-          String model = store.activeSession?.model ?? '';
-          String preset = store.activeSession?.preset ?? '';
-          String locale = store.activeSession?.locale ?? '';
           // Include the session's current value even if it is not among the
           // registered options, otherwise the dropdown asserts.
           final modelOptions = [
