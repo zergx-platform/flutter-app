@@ -70,11 +70,17 @@ class _CodeScreenState extends State<CodeScreen> {
   /// right. Native app feel (no three-panel browser column stack).
   Widget _desktop(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        // Keep the panel headers (repo / file content toolbars) below the
-        // system status bar instead of sliding under it.
-        top: true,
-        child: LayoutBuilder(
+      appBar: AppBar(
+        title: Text(context.l10n.tabCode),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.folder_open_rounded, size: 20),
+            tooltip: context.l10n.pickRepo,
+            onPressed: _pickRepoSheet,
+          ),
+        ],
+      ),
+      body: LayoutBuilder(
           builder: (context, constraints) => Row(
             children: [
               SizedBox(
@@ -86,7 +92,6 @@ class _CodeScreenState extends State<CodeScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -171,7 +176,6 @@ class _CodeScreenState extends State<CodeScreen> {
   }
 
   Widget _treeOrCommits(BuildContext context) {
-    final colors = colorsOf(context);
     final text = textOf(context);
     return Column(
       children: [

@@ -14,7 +14,6 @@ import 'screens/chat_sidebar.dart';
 import 'screens/code.dart';
 import 'screens/config.dart';
 import 'screens/containers.dart';
-import 'screens/packages.dart';
 import 'screens/worksheets.dart';
 
 const defaultBaseUrl = 'https://platform.zergx.10.199.64.20.nip.io';
@@ -330,7 +329,7 @@ class _SessionsHome extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ZergX'),
+        title: Text(context.l10n.tabChat),
         actions: [
           IconButton(
             icon: Icon(Icons.search_rounded, color: colorsOf(context).primary),

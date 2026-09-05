@@ -73,7 +73,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
               : null,
           title: Text(_stack.isNotEmpty
               ? _titleOf(_stack.last)
-              : context.l10n.settings),
+              : context.l10n.tabConfig),
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())

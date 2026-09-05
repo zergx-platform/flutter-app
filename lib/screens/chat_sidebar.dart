@@ -70,11 +70,9 @@ class _ChatSidebarState extends State<ChatSidebar> {
     final connected = store.sessionError.isEmpty;
     return Column(
       children: [
-        // Connection status light (top-right): green = healthy, amber/red =
-        // failing. No raw error text on the list — tap for details.
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+              AppSpacing.lg, AppSpacing.sm, AppSpacing.md, 0),
           child: Row(
             children: [
               Expanded(
@@ -83,40 +81,6 @@ class _ChatSidebarState extends State<ChatSidebar> {
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
                         color: colors.mutedForeground)),
-              ),
-              Tooltip(
-                message: connected
-                    ? context.l10n.connected
-                    : context.l10n.connectionError(store.sessionError),
-                child: InkWell(
-                  onTap: connected
-                      ? null
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(store.sessionError,
-                                    style: const TextStyle(fontSize: 12))),
-                          ),
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    margin: const EdgeInsets.only(left: AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: connected
-                          ? colors.success
-                          : colors.destructive,
-                      boxShadow: connected
-                          ? []
-                          : [
-                              BoxShadow(
-                                  color: colors.destructive
-                                      .withValues(alpha: 0.4),
-                                  blurRadius: 4)
-                            ],
-                    ),
-                  ),
-                ),
               ),
             ],
           ),
@@ -128,10 +92,8 @@ class _ChatSidebarState extends State<ChatSidebar> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
               children: [
-                if (recent.isNotEmpty) ...[
-                  const _HeaderKey('recent'),
+                if (recent.isNotEmpty)
                   for (final s in recent) _sessionRow(s),
-                ],
                 if (recent.isEmpty && connected)
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
@@ -213,32 +175,5 @@ class _ChatSidebarState extends State<ChatSidebar> {
     } catch (_) {
       await store.deleteSession(s.id);
     }
-  }
-}
-
-class _Header extends StatelessWidget {
-  final String text;
-  const _Header(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
-      child: Text(text.toUpperCase(),
-          style: textOf(context).micro.copyWith(
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: colorsOf(context).mutedForeground)),
-    );
-  }
-}
-
-/// Header fed by an i18n key (recent / allRepos).
-class _HeaderKey extends StatelessWidget {
-  final String textKey;
-  const _HeaderKey(this.textKey);
-  @override
-  Widget build(BuildContext context) {
-    return _Header(l10nString(textKey));
   }
 }

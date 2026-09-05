@@ -38,7 +38,6 @@ class _ChatScreenState extends State<ChatScreen> {
   MessagesController? _msg;
   List<ModelInfo> _models = [];
   List<Preset> _presets = [];
-  Map<String, ProviderInfo> _providers = {};
   bool _initialScrollDone = false;
   // The session id the current _msg controller is bound to (set in _setup).
   String? _boundSid;
@@ -81,9 +80,6 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
     try {
       _presets = await widget.store.api.presets();
-    } catch (_) {}
-    try {
-      _providers = await widget.store.api.providers();
     } catch (_) {}
     if (mounted) setState(() {});
     // Do NOT hijack store.codeOrg/codeRepo here: the Code tab is an

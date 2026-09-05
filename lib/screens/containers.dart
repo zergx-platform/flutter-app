@@ -84,7 +84,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
     final text = textOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.containersTitle),
+        title: Text(context.l10n.tabContainers),
         actions: [
           IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
           IconButton(
