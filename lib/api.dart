@@ -174,6 +174,20 @@ class ZergxApi {
     return r.bodyBytes;
   }
 
+  /// Lightweight HEAD over a stored file to learn its content-type + length
+  /// without downloading the body. Used to render historical attachments that
+  /// were stored without name/mime metadata.
+  Future<({String? contentType, int length})> fileHead(String code) async {
+    final req = http.Request('HEAD', _u('/api/v1/files/$code'));
+    req.headers.addAll(_headers);
+    final streamed = await client.send(req);
+    final resp = await http.Response.fromStream(streamed);
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    final ct = resp.headers['content-type'];
+    final len = int.tryParse(resp.headers['content-length'] ?? '') ?? 0;
+    return (contentType: ct, length: len);
+  }
+
   /// Platform-relative path of a stored file (for streaming download +
   /// save-to-Downloads).
   String filePath(String code) => '/api/v1/files/$code';

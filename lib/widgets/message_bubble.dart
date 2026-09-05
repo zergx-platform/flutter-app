@@ -17,13 +17,26 @@ class _FileAttachment extends StatelessWidget {
   final ZergxApi api;
   const _FileAttachment({required this.part, required this.api});
 
-  bool get _isImage => (part.mime ?? '').startsWith('image/');
+  /// Historical attachments were often stored without name/mime/size (only
+  /// `code`). Fall back to a HEAD probe of the file to learn its content type,
+  /// so images render as thumbnails and files show a sensible name/size.
+  Future<({String? mime, int size, String name})> _resolved() async {
+    final code = part.code ?? '';
+    final probe = await api.fileHead(code);
+    return (
+      mime: part.mime?.isNotEmpty == true ? part.mime : probe.contentType,
+      size: (part.size ?? 0) != 0 ? part.size! : probe.length,
+      name: part.name?.isNotEmpty == true ? part.name! : code,
+    );
+  }
 
-  Future<void> _open(BuildContext context) async {
+  bool _isImageMime(String? mime) => (mime ?? '').startsWith('image/');
+
+  Future<void> _open(BuildContext context, String mime) async {
     final code = part.code ?? '';
     if (code.isEmpty) return;
     try {
-      if (_isImage) {
+      if (_isImageMime(mime)) {
         final bytes = await api.fetchFileBytes(code);
         if (!context.mounted) return;
         // ignore: use_build_context_synchronously
@@ -40,7 +53,7 @@ class _FileAttachment extends StatelessWidget {
         final where = await DownloadService(api).download(
           path: api.filePath(code),
           displayName: part.name ?? code,
-          mimeType: part.mime ?? 'application/octet-stream',
+          mimeType: mime ?? 'application/octet-stream',
         );
         if (!context.mounted) return;
         // ignore: use_build_context_synchronously
@@ -62,54 +75,62 @@ class _FileAttachment extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
     final text = textOf(context);
-    final name = part.name ?? part.code ?? '';
-    final sizeLabel = part.size != null ? _formatBytes(part.size!) : '';
-    if (_isImage) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-        child: GestureDetector(
-          onTap: () => _open(context),
-          child: ClipRRect(
-            borderRadius: AppRadius.rMd,
-            child: SizedBox(
-              width: 220,
-              height: 140,
-              child: _ImageToolImage(code: part.code!, api: api),
+    return FutureBuilder<({String? mime, int size, String name})>(
+      future: _resolved(),
+      builder: (context, snap) {
+        final data = snap.data;
+        final name = data?.name ?? part.code ?? '';
+        final mime = data?.mime;
+        final size = data?.size ?? 0;
+        final sizeLabel = size > 0 ? _formatBytes(size) : '';
+        if (_isImageMime(mime)) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: GestureDetector(
+              onTap: () => _open(context, mime ?? ''),
+              child: ClipRRect(
+                borderRadius: AppRadius.rMd,
+                child: SizedBox(
+                  width: 220,
+                  height: 140,
+                  child: _ImageToolImage(code: part.code!, api: api),
+                ),
+              ),
+            ),
+          );
+        }
+        return Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
+          decoration: BoxDecoration(
+            color: colors.muted.withValues(alpha: 0.5),
+            borderRadius: AppRadius.rSm,
+            border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+          ),
+          child: InkWell(
+            borderRadius: AppRadius.rSm,
+            onTap: () => _open(context, mime ?? ''),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.attach_file_rounded,
+                    size: 14, color: colors.mutedForeground),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(name,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.micro.copyWith(color: colors.foreground)),
+                ),
+                if (sizeLabel.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text(sizeLabel,
+                      style: text.micro.copyWith(color: colors.mutedForeground)),
+                ],
+              ],
             ),
           ),
-        ),
-      );
-    }
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
-      decoration: BoxDecoration(
-        color: colors.muted.withValues(alpha: 0.5),
-        borderRadius: AppRadius.rSm,
-        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
-      ),
-      child: InkWell(
-        borderRadius: AppRadius.rSm,
-        onTap: () => _open(context),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.attach_file_rounded,
-                size: 14, color: colors.mutedForeground),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(name,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.micro.copyWith(color: colors.foreground)),
-            ),
-            if (sizeLabel.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Text(sizeLabel,
-                  style: text.micro.copyWith(color: colors.mutedForeground)),
-            ],
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

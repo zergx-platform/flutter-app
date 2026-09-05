@@ -517,20 +517,16 @@ class MessagesController extends ChangeNotifier {
   }
 
   Future<void> revert(String messageId) async {
-    final current = sorted;
     if (sending) {
       await api.interrupt(getSessionId());
     }
+    // Undo moves the backend tip back (append-only chain). Re-fetch the whole
+    // chain rather than locally truncating: the server is authoritative and
+    // re-reading it avoids resurrecting withdrawn messages or racing a
+    // mid-stream turn.
     await api.revert(getSessionId(), messageId);
-    final idx = current.indexWhere((m) => m.id == messageId);
-    final keep = idx >= 0 ? current.sublist(0, idx) : current;
-    messages = keep
-        .map((m) =>
-            m.status == 'streaming' ? m.copyWith(status: 'complete') : m)
-        .toList();
     _streamingId = null;
     sending = false;
-    notifyListeners();
     await _fetchMessages();
   }
 
