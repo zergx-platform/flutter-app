@@ -605,5 +605,6 @@
   "contextLengthLabel": "上下文",
   "add": "添加",
   "enterToAddHint": "回车添加模型标签",
-  "turnsByPreset": "最大轮数由所选预设决定。"
+  "turnsByPreset": "最大轮数由所选预设决定。",
+  "testModelOk": "模型可用：{arg1}"
 }

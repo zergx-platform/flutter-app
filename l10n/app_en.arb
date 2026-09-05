@@ -605,5 +605,6 @@
   "contextLengthLabel": "context",
   "add": "Add",
   "enterToAddHint": "Enter to add a model tag",
-  "turnsByPreset": "Max turns is set by the selected preset."
+  "turnsByPreset": "Max turns is set by the selected preset.",
+  "testModelOk": "Model OK: {arg1}"
 }

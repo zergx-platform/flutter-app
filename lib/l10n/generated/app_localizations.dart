@@ -1873,6 +1873,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'最大轮数由所选预设决定。'**
   String get turnsByPreset;
+
+  /// No description provided for @testModelOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型可用：{arg1}'**
+  String testModelOk(Object arg1);
 }
 
 class _AppLocalizationsDelegate

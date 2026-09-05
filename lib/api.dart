@@ -623,11 +623,13 @@ class ZergxApi {
   Future<Map<String, dynamic>> testProvider(
           {required String apiType,
           required String baseUrl,
-          required String apiKey}) async =>
+          required String apiKey,
+          String? model}) async =>
       await _post('/api/v1/providers/test', {
         'api_type': apiType,
         'base_url': baseUrl,
         'api_key': apiKey,
+        if (model != null && model.isNotEmpty) 'model': model,
       }) as Map<String, dynamic>;
 
   Future<List<ModelInfo>> models() async {

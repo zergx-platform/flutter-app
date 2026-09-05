@@ -974,4 +974,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get turnsByPreset => '最大轮数由所选预设决定。';
+
+  @override
+  String testModelOk(Object arg1) {
+    return '模型可用：$arg1';
+  }
 }

@@ -335,6 +335,25 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
                   Text(context.l10n.modelsCount('${e.value.models.length}'),
                       style: text.micro.copyWith(color: colors.mutedForeground)),
                   IconButton(
+                    icon: Icon(Icons.edit_outlined,
+                        size: 18, color: colors.mutedForeground),
+                    onPressed: () async {
+                      final updated = await showDialog<ProviderInfo>(
+                        context: context,
+                        builder: (_) => _AddProviderForm(
+                          api: widget.api,
+                          initial: e.value,
+                          onRegistered: () {},
+                          onCancel: () => Navigator.pop(context),
+                        ),
+                      );
+                      if (updated != null) {
+                        await widget.api.registerProvider(updated);
+                        widget.onChanged();
+                      }
+                    },
+                  ),
+                  IconButton(
                     icon: Icon(Icons.delete_outline_rounded,
                         size: 18, color: colors.mutedForeground),
                     onPressed: () async {
@@ -391,10 +410,12 @@ class _AddProviderForm extends StatefulWidget {
   final ZergxApi api;
   final VoidCallback onRegistered;
   final VoidCallback onCancel;
+  final ProviderInfo? initial;
   const _AddProviderForm(
       {required this.api,
       required this.onRegistered,
-      required this.onCancel});
+      required this.onCancel,
+      this.initial});
 
   @override
   State<_AddProviderForm> createState() => _AddProviderFormState();
@@ -408,6 +429,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   String _testMsg = '';
   bool _testing = false;
   bool _registering = false;
+  bool _editing = false;
 
   // models.dev template prefill (lazy-loaded on first picker open).
   MdProvider? _template;
@@ -418,6 +440,23 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   final List<_ModelEntry> _modelEntries = [];
   final _modelIdCtrl = TextEditingController();
   final _modelCtxCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initial;
+    if (init != null) {
+      _editing = true;
+      _id.text = init.providerId;
+      _url.text = init.baseUrl;
+      _key.text = init.apiKey;
+      _apiType = init.apiType;
+      for (final m in init.models) {
+        _modelEntries.add(
+            _ModelEntry(id: m.id, name: m.name, context: m.contextLimit));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -535,29 +574,58 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   }
 
   Future<void> _test() async {
-    if (_buildModels().isEmpty) return;
+    final models = _buildModels();
+    if (models.isEmpty) return;
     setState(() {
       _testing = true;
       _testMsg = '';
     });
+    final messenger = ScaffoldMessenger.of(context);
     try {
+      // If exactly one model is chosen, test that model with a real 1-turn
+      // generation (proves it is usable); otherwise probe the provider.
+      final model = models.length == 1 ? models.first.id : null;
       final r = await widget.api.testProvider(
-          apiType: _apiType, baseUrl: _url.text, apiKey: _key.text);
+          apiType: _apiType,
+          baseUrl: _url.text,
+          apiKey: _key.text,
+          model: model);
+      if (!mounted) return;
       setState(() {
         _testing = false;
-        _testMsg = r['ok'] == true ? (r['detail'] ?? 'OK') : (r['error'] ?? 'Failed');
+        _testMsg = r['ok'] == true
+            ? (model != null
+                ? context.l10n.testModelOk('${r['text'] ?? ''}')
+                : (r['detail'] ?? 'OK'))
+            : (r['error'] ?? 'Failed');
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _testing = false;
         _testMsg = '$e';
       });
+    } finally {
+      messenger.hideCurrentSnackBar();
     }
   }
 
   Future<void> _register() async {
     setState(() => _registering = true);
     final modelList = _buildModels();
+    // Editing an existing provider → pop the dialog back with the updated
+    // ProviderInfo (the caller persists it). Adding → save directly.
+    if (_editing) {
+      final updated = ProviderInfo(
+        providerId: _id.text.trim(),
+        apiType: _apiType,
+        baseUrl: _url.text.trim(),
+        apiKey: _key.text,
+        models: modelList,
+      );
+      Navigator.of(context).pop(updated);
+      return;
+    }
     try {
       await widget.api.registerProvider(ProviderInfo(
         providerId: _id.text.trim(),
@@ -611,38 +679,40 @@ class _AddProviderFormState extends State<_AddProviderForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // models.dev template prefill: fills id / base URL / api type
-            // and swaps the models CSV for a searchable multi-select.
-            InkWell(
-              borderRadius: AppRadius.rSm,
-              onTap: _pickTemplate,
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: context.l10n.providerTemplate,
-                  prefixIcon: const Icon(Icons.auto_awesome_outlined,
-                      size: 18),
-                  suffixIcon: _template == null
-                      ? const Icon(Icons.chevron_right_rounded, size: 18)
-                      : IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 16),
-                          tooltip: context.l10n.none,
-                          onPressed: () => setState(() {
-                            _template = null;
-                            _selectedModels.clear();
-                          }),
-                        ),
-                ),
-                child: Text(
-                  _template == null
-                      ? context.l10n.providerTemplateHint
-                      : _template!.name,
-                  style: text.meta.copyWith(
-                      color: _template == null
-                          ? colors.mutedForeground
-                          : null),
-                  overflow: TextOverflow.ellipsis,
+            // and swaps the models CSV for a searchable multi-select. Hidden
+            // while editing an existing provider (its fields are already set).
+            if (!_editing)
+              InkWell(
+                borderRadius: AppRadius.rSm,
+                onTap: _pickTemplate,
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: context.l10n.providerTemplate,
+                    prefixIcon: const Icon(Icons.auto_awesome_outlined,
+                        size: 18),
+                    suffixIcon: _template == null
+                        ? const Icon(Icons.chevron_right_rounded, size: 18)
+                        : IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 16),
+                            tooltip: context.l10n.none,
+                            onPressed: () => setState(() {
+                              _template = null;
+                              _selectedModels.clear();
+                            }),
+                          ),
+                  ),
+                  child: Text(
+                    _template == null
+                        ? context.l10n.providerTemplateHint
+                        : _template!.name,
+                    style: text.meta.copyWith(
+                        color: _template == null
+                            ? colors.mutedForeground
+                            : null),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: AppSpacing.md),
             TextField(
                 controller: _id,

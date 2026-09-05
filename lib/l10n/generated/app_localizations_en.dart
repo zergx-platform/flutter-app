@@ -980,4 +980,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get turnsByPreset => 'Max turns is set by the selected preset.';
+
+  @override
+  String testModelOk(Object arg1) {
+    return 'Model OK: $arg1';
+  }
 }
