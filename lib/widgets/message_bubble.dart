@@ -9,6 +9,144 @@ import '../services/download_service.dart';
 import '../theme/app_theme.dart';
 import 'tool_part.dart';
 
+/// A structured attachment (own `file` part from `/messages` or the send
+/// flow). Images render an inline thumbnail (tap to view full) fetched with
+/// the auth header; other files render a card that saves to Downloads.
+class _FileAttachment extends StatelessWidget {
+  final ChatPart part;
+  final ZergxApi api;
+  const _FileAttachment({required this.part, required this.api});
+
+  bool get _isImage => (part.mime ?? '').startsWith('image/');
+
+  Future<void> _open(BuildContext context) async {
+    final code = part.code ?? '';
+    if (code.isEmpty) return;
+    try {
+      if (_isImage) {
+        final bytes = await api.fetchFileBytes(code);
+        if (!context.mounted) return;
+        // ignore: use_build_context_synchronously
+        showDialog<void>(
+          context: context,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            child: InteractiveViewer(
+              child: Image.memory(Uint8List.fromList(bytes)),
+            ),
+          ),
+        );
+      } else {
+        final where = await DownloadService(api).download(
+          path: api.filePath(code),
+          displayName: part.name ?? code,
+          mimeType: part.mime ?? 'application/octet-stream',
+        );
+        if (!context.mounted) return;
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.savedToDownloads(where)),
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.sendFailed('$e')),
+          duration: const Duration(seconds: 2)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final name = part.name ?? part.code ?? '';
+    final sizeLabel = part.size != null ? _formatBytes(part.size!) : '';
+    if (_isImage) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: GestureDetector(
+          onTap: () => _open(context),
+          child: ClipRRect(
+            borderRadius: AppRadius.rMd,
+            child: SizedBox(
+              width: 220,
+              height: 140,
+              child: _ImageToolImage(code: part.code!, api: api),
+            ),
+          ),
+        ),
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 2),
+      decoration: BoxDecoration(
+        color: colors.muted.withValues(alpha: 0.5),
+        borderRadius: AppRadius.rSm,
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+      ),
+      child: InkWell(
+        borderRadius: AppRadius.rSm,
+        onTap: () => _open(context),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.attach_file_rounded,
+                size: 14, color: colors.mutedForeground),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(name,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.micro.copyWith(color: colors.foreground)),
+            ),
+            if (sizeLabel.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(sizeLabel,
+                  style: text.micro.copyWith(color: colors.mutedForeground)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// An image fetch with the auth header, showing a placeholder while loading.
+class _ImageToolImage extends StatelessWidget {  final String code;
+  final ZergxApi api;
+  const _ImageToolImage({required this.code, required this.api});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<int>>(
+      future: api.fetchFileBytes(code),
+      builder: (context, snap) {
+        if (snap.hasData) {
+          return Image.memory(Uint8List.fromList(snap.data!),
+              fit: BoxFit.cover);
+        }
+        if (snap.hasError) {
+          return const Center(child: Icon(Icons.broken_image_rounded, size: 28));
+        }
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+  }
+}
+
+/// Pretty-print a byte count (B/KB/MB/GB).
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(1)} GB';
+}
+
 /// A file chip surfaced from a text part that carries the
 /// `[附件 <name> | file:<code> | <mime> | <size>]` reference we embed in the
 /// prompt. Clicking it opens an inline image preview (by [code]) or triggers
@@ -265,6 +403,8 @@ class MessageBubble extends StatelessWidget {
     for (final part in msg.parts) {
       if (part.type == 'text') {
         parts.add(_FileRefsText(text: part.text, api: _api));
+      } else if (part.type == 'file') {
+        parts.add(_FileAttachment(part: part, api: _api));
       } else if (part.type == 'reasoning') {
         parts.add(_ReasoningBlock(text: part.text, streaming: isStreaming));
       } else if (part.type == 'tool' && part.state != null) {

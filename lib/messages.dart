@@ -461,18 +461,31 @@ class MessagesController extends ChangeNotifier {
     // The platform splices attachment codes into `[附件 …file:<code>…]`
     // references; the client only sends the codes, never the rendered text.
     final codes = attachments.map((a) => a.code).toList();
+    // Optimistic user message: file parts first (rendered as attachments),
+    // then the text. Mirrors how the backend persists them.
+    final userParts = <ChatPart>[
+      for (final a in attachments)
+        ChatPart(
+          id: 'f${a.code}',
+          type: 'file',
+          code: a.code,
+          name: a.name,
+          mime: a.mime,
+          size: a.size,
+        ),
+      if (trimmed.isNotEmpty)
+        ChatPart(
+          id: 'p${DateTime.now().microsecondsSinceEpoch}',
+          type: 'text',
+          text: trimmed),
+    ];
     messages = [
       ...messages.where((m) => m.status != 'streaming'),
       ChatMessage(
           id: 'u${DateTime.now().microsecondsSinceEpoch}',
           role: 'user',
           status: 'pending',
-          parts: [
-            ChatPart(
-                id: 'p${DateTime.now().microsecondsSinceEpoch}',
-                type: 'text',
-                text: trimmed)
-          ],
+          parts: userParts,
           createdAt: DateTime.now().toIso8601String(),
           seq: _allocSeq()),
     ];
@@ -575,6 +588,10 @@ ChatMessage _toChat(Message m, int i) {
           text: p.text ?? '',
           tool: p.tool ?? '',
           state: p.state,
+          code: p.code,
+          name: p.name,
+          mime: p.mime,
+          size: p.size,
         ),
     ],
   );

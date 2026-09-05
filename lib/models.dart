@@ -264,12 +264,17 @@ class ToolState {
 
 class MessagePart {
   final String id;
-  final String type; // text | reasoning | tool | compaction | ...
+  final String type; // text | reasoning | tool | compaction | file | ...
   final String? text;
   final String? tool;
   final String? toolCallId;
   final ToolState? state;
   final Map<String, dynamic>? metadata;
+  // Attachment fields (type == 'file')
+  final String? code;
+  final String? name;
+  final String? mime;
+  final int? size;
 
   MessagePart({
     required this.id,
@@ -279,6 +284,10 @@ class MessagePart {
     this.toolCallId,
     this.state,
     this.metadata,
+    this.code,
+    this.name,
+    this.mime,
+    this.size,
   });
 
   factory MessagePart.fromJson(Map<String, dynamic> j) => MessagePart(
@@ -291,6 +300,10 @@ class MessagePart {
             ? null
             : ToolState.fromJson(j['state'] as Map<String, dynamic>),
         metadata: (j['metadata'] as Map?)?.cast<String, dynamic>(),
+        code: j['code'] as String?,
+        name: j['name'] as String?,
+        mime: j['mime'] as String?,
+        size: j['size'] as int?,
       );
 
   MessagePart copyWith({
@@ -306,6 +319,10 @@ class MessagePart {
         toolCallId: toolCallId,
         state: state ?? this.state,
         metadata: metadata,
+        code: code,
+        name: name,
+        mime: mime,
+        size: size,
       );
 }
 
@@ -418,6 +435,11 @@ class ChatPart {
   final String text;
   final String tool;
   final ToolState? state;
+  // Attachment fields (type == 'file')
+  final String? code;
+  final String? name;
+  final String? mime;
+  final int? size;
 
   ChatPart({
     required this.id,
@@ -425,6 +447,10 @@ class ChatPart {
     this.text = '',
     this.tool = '',
     this.state,
+    this.code,
+    this.name,
+    this.mime,
+    this.size,
   });
 
   ChatPart copyWith({String? text, ToolState? state, String? type, String? tool}) =>
@@ -434,6 +460,10 @@ class ChatPart {
         text: text ?? this.text,
         tool: tool ?? this.tool,
         state: state ?? this.state,
+        code: code,
+        name: name,
+        mime: mime,
+        size: size,
       );
 }
 
