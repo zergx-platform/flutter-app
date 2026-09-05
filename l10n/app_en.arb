@@ -243,7 +243,6 @@
   "apiTypeGemini": "Gemini",
   "baseUrl": "Base URL",
   "apiKey": "API Key",
-  "modelsCsv": "Models (comma-separated IDs)",
   "test": "Test",
   "testing": "Testing...",
   "register": "Register",
@@ -600,5 +599,10 @@
   "selectProviderFirst": "Select a provider first",
   "noModelsForProvider": "No models registered for this provider",
   "selectBookmark": "Select a bookmark to browse files",
-  "apiTypeOpenaiCompat": "OpenAI Compatible"
+  "apiTypeOpenaiCompat": "OpenAI Compatible",
+  "modelsLabel": "Models",
+  "modelIdLabel": "model id…",
+  "contextLengthLabel": "context",
+  "add": "Add",
+  "enterToAddHint": "Enter to add a model tag"
 }

@@ -908,12 +908,6 @@ abstract class AppLocalizations {
   /// **'API 密钥'**
   String get apiKey;
 
-  /// No description provided for @modelsCsv.
-  ///
-  /// In zh, this message translates to:
-  /// **'模型（逗号分隔 ID）'**
-  String get modelsCsv;
-
   /// No description provided for @test.
   ///
   /// In zh, this message translates to:
@@ -1843,6 +1837,36 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'OpenAI 兼容'**
   String get apiTypeOpenaiCompat;
+
+  /// No description provided for @modelsLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get modelsLabel;
+
+  /// No description provided for @modelIdLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型 ID…'**
+  String get modelIdLabel;
+
+  /// No description provided for @contextLengthLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文'**
+  String get contextLengthLabel;
+
+  /// No description provided for @add.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加'**
+  String get add;
+
+  /// No description provided for @enterToAddHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'回车添加模型标签'**
+  String get enterToAddHint;
 }
 
 class _AppLocalizationsDelegate

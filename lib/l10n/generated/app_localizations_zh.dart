@@ -443,9 +443,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get apiKey => 'API 密钥';
 
   @override
-  String get modelsCsv => '模型（逗号分隔 ID）';
-
-  @override
   String get test => '测试';
 
   @override
@@ -959,4 +956,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get apiTypeOpenaiCompat => 'OpenAI 兼容';
+
+  @override
+  String get modelsLabel => '模型';
+
+  @override
+  String get modelIdLabel => '模型 ID…';
+
+  @override
+  String get contextLengthLabel => '上下文';
+
+  @override
+  String get add => '添加';
+
+  @override
+  String get enterToAddHint => '回车添加模型标签';
 }

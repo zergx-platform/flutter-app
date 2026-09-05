@@ -444,9 +444,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiKey => 'API Key';
 
   @override
-  String get modelsCsv => 'Models (comma-separated IDs)';
-
-  @override
   String get test => 'Test';
 
   @override
@@ -965,4 +962,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apiTypeOpenaiCompat => 'OpenAI Compatible';
+
+  @override
+  String get modelsLabel => 'Models';
+
+  @override
+  String get modelIdLabel => 'model id…';
+
+  @override
+  String get contextLengthLabel => 'context';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get enterToAddHint => 'Enter to add a model tag';
 }

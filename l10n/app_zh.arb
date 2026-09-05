@@ -243,7 +243,6 @@
   "apiTypeGemini": "Gemini",
   "baseUrl": "基础地址",
   "apiKey": "API 密钥",
-  "modelsCsv": "模型（逗号分隔 ID）",
   "test": "测试",
   "testing": "测试中…",
   "register": "注册",
@@ -600,5 +599,10 @@
   "selectProviderFirst": "请先选择服务商",
   "noModelsForProvider": "该服务商已注册暂无模型",
   "selectBookmark": "选择书签浏览文件",
-  "apiTypeOpenaiCompat": "OpenAI 兼容"
+  "apiTypeOpenaiCompat": "OpenAI 兼容",
+  "modelsLabel": "模型",
+  "modelIdLabel": "模型 ID…",
+  "contextLengthLabel": "上下文",
+  "add": "添加",
+  "enterToAddHint": "回车添加模型标签"
 }

@@ -379,6 +379,14 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
   }
 }
 
+/// A manual model entry (tag + optional context length).
+class _ModelEntry {
+  final String id;
+  final String name;
+  final int? context;
+  _ModelEntry({required this.id, required this.name, this.context});
+}
+
 class _AddProviderForm extends StatefulWidget {
   final ZergxApi api;
   final VoidCallback onRegistered;
@@ -396,7 +404,6 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   final _id = TextEditingController();
   final _url = TextEditingController();
   final _key = TextEditingController();
-  final _models = TextEditingController();
   String _apiType = 'openai-compatible';
   String _testMsg = '';
   bool _testing = false;
@@ -407,16 +414,128 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   final Set<String> _selectedModels = {};
   String _modelQuery = '';
 
+  // Manual model tags (the "tag + label" entry, no comma-separated CSV).
+  final List<_ModelEntry> _modelEntries = [];
+  final _modelIdCtrl = TextEditingController();
+  final _modelCtxCtrl = TextEditingController();
+
   @override
   void dispose() {
     _id.dispose();
     _url.dispose();
     _key.dispose();
-    _models.dispose();
+    _modelIdCtrl.dispose();
+    _modelCtxCtrl.dispose();
     super.dispose();
   }
 
+  void _addModelTag() {
+    final mid = _modelIdCtrl.text.trim();
+    if (mid.isEmpty) return;
+    _modelEntries.add(_ModelEntry(
+      id: mid,
+      name: mid,
+      context: int.tryParse(_modelCtxCtrl.text.trim()),
+    ));
+    _modelIdCtrl.clear();
+    _modelCtxCtrl.clear();
+    setState(() {});
+  }
+
+  /// Selected models → [ProviderModel], auto-filling context length from the
+  /// models.dev template when it came from a preset provider.
+  List<ProviderModel> _buildModels() {
+    if (_template != null) {
+      final byId = {for (final m in _template!.models) m.id: m};
+      return _selectedModels
+          .map((id) {
+            final m = byId[id];
+            return ProviderModel(
+              id: id,
+              name: m?.name.isNotEmpty == true ? m!.name : id,
+              contextLimit: m?.contextLimit,
+            );
+          })
+          .toList();
+    }
+    return _modelEntries
+        .map((e) =>
+            ProviderModel(id: e.id, name: e.name, contextLimit: e.context))
+        .toList();
+  }
+
+  /// Manual model entry: tag-style chips (one per model id) + a context
+  /// length field. Context auto-fills when the model came from a template.
+  Widget _manualModelEditor(BuildContext context) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(context.l10n.modelsLabel,
+            style: text.meta.copyWith(fontWeight: FontWeight.w600, fontSize: 12)),
+        const SizedBox(height: AppSpacing.xs),
+        if (_modelEntries.isNotEmpty)
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final e in _modelEntries)
+                Chip(
+                  label: Text(
+                    e.context != null ? '${e.id} · ${e.context}' : e.id,
+                    style: text.micro.copyWith(fontSize: 10),
+                  ),
+                  onDeleted: () => setState(() {
+                    _modelEntries.remove(e);
+                  }),
+                  deleteIcon: const Icon(Icons.close_rounded, size: 14),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                controller: _modelIdCtrl,
+                decoration: InputDecoration(
+                  hintText: context.l10n.modelIdLabel,
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: _modelCtxCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: context.l10n.contextLengthLabel,
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            IconButton.filledTonal(
+              tooltip: context.l10n.add,
+              onPressed: _addModelTag,
+              icon: const Icon(Icons.add_rounded, size: 18),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(context.l10n.enterToAddHint,
+            style: text.micro.copyWith(color: colors.mutedForeground)),
+      ],
+    );
+  }
+
   Future<void> _test() async {
+    if (_buildModels().isEmpty) return;
     setState(() {
       _testing = true;
       _testMsg = '';
@@ -438,17 +557,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
 
   Future<void> _register() async {
     setState(() => _registering = true);
-    final modelList = _template != null
-        ? _template!.models
-            .where((m) => _selectedModels.contains(m.id))
-            .map((m) => ProviderModel(id: m.id, name: m.name))
-            .toList()
-        : _models.text
-            .split(',')
-            .map((m) => m.trim())
-            .where((m) => m.isNotEmpty)
-            .map((id) => ProviderModel(id: id, name: id))
-            .toList();
+    final modelList = _buildModels();
     try {
       await widget.api.registerProvider(ProviderInfo(
         providerId: _id.text.trim(),
@@ -575,10 +684,7 @@ class _AddProviderFormState extends State<_AddProviderForm> {
                     labelText: context.l10n.apiKeyReq)),
             const SizedBox(height: AppSpacing.md),
             if (_template == null)
-              TextField(
-                  controller: _models,
-                  decoration: InputDecoration(
-                      labelText: context.l10n.modelsCsv))
+              _manualModelEditor(context)
             else ...[
               TextField(
                 decoration: InputDecoration(
@@ -627,7 +733,9 @@ class _AddProviderFormState extends State<_AddProviderForm> {
             Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: _testing ? null : _test,
+                  onPressed: (_testing || _buildModels().isEmpty)
+                      ? null
+                      : _test,
                   icon: const Icon(Icons.science_outlined, size: 14),
                   label: Text(_testing ? context.l10n.testing : context.l10n.test),
                 ),
