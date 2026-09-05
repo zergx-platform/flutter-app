@@ -400,15 +400,22 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       },
       child: Scaffold(
-        body: Column(
-          children: [
-            _topBar(context),
-            Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
-            Expanded(
-              child: LayoutBuilder(
+        body: layout.isCompact
+            // Phone: single column — chat header + messages + composer.
+            ? Column(
+                children: [
+                  _topBar(context),
+                  Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
+                  Expanded(child: _messageList()),
+                  _composer(context),
+                ],
+              )
+            // Tablet/desktop: two independent pages side-by-side. Left is the
+            // sessions list (same as before opening a chat, just narrower);
+            // right is the chat detail with its OWN header (back button only
+            // on the right), messages, and composer.
+            : LayoutBuilder(
                 builder: (context, constraints) {
-                  // Tablet/desktop: chat list (left) + messages (right)
-                  // simultaneously. Phones: single column.
                   final showSidebar = layout.isTablet;
                   final showOverlay =
                       store.sessionOverlay != null && layout.isWide;
@@ -422,6 +429,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       Expanded(
                         child: Column(
                           children: [
+                            _topBar(context),
+                            Divider(height: 1,
+                                color: colors.border.withValues(alpha: 0.5)),
                             Expanded(child: _messageList()),
                             _composer(context),
                           ],
@@ -436,9 +446,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 },
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

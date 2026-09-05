@@ -310,6 +310,9 @@ class _ProvidersDetail extends StatefulWidget {
 
 class _ProvidersDetailState extends State<_ProvidersDetail> {
   bool _showAdd = false;
+  // Provider id being edited inline (mirrors the "add" inline panel). Keeping
+  // edit and add the same presentation keeps the UI consistent.
+  String? _editingKey;
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +322,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        for (final e in entries)
+        for (final e in entries) ...[
           Card(
             margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ListTile(
@@ -337,21 +340,7 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
                   IconButton(
                     icon: Icon(Icons.edit_outlined,
                         size: 18, color: colors.mutedForeground),
-                    onPressed: () async {
-                      final updated = await showDialog<ProviderInfo>(
-                        context: context,
-                        builder: (_) => _AddProviderForm(
-                          api: widget.api,
-                          initial: e.value,
-                          onRegistered: () {},
-                          onCancel: () => Navigator.pop(context),
-                        ),
-                      );
-                      if (updated != null) {
-                        await widget.api.registerProvider(updated);
-                        widget.onChanged();
-                      }
-                    },
+                    onPressed: () => setState(() => _editingKey = e.key),
                   ),
                   IconButton(
                     icon: Icon(Icons.delete_outline_rounded,
@@ -371,6 +360,17 @@ class _ProvidersDetailState extends State<_ProvidersDetail> {
               ),
             ),
           ),
+          if (_editingKey == e.key)
+            _AddProviderForm(
+              api: widget.api,
+              initial: e.value,
+              onRegistered: () {
+                setState(() => _editingKey = null);
+                widget.onChanged();
+              },
+              onCancel: () => setState(() => _editingKey = null),
+            ),
+        ],
         if (widget.providers.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AppSpacing.sm),
@@ -613,28 +613,17 @@ class _AddProviderFormState extends State<_AddProviderForm> {
   Future<void> _register() async {
     setState(() => _registering = true);
     final modelList = _buildModels();
-    // Editing an existing provider → pop the dialog back with the updated
-    // ProviderInfo (the caller persists it). Adding → save directly.
-    if (_editing) {
-      final updated = ProviderInfo(
-        providerId: _id.text.trim(),
-        apiType: _apiType,
-        baseUrl: _url.text.trim(),
-        apiKey: _key.text,
-        models: modelList,
-      );
-      Navigator.of(context).pop(updated);
-      return;
-    }
+    final updated = ProviderInfo(
+      providerId: _id.text.trim(),
+      apiType: _apiType,
+      baseUrl: _url.text.trim(),
+      apiKey: _key.text,
+      models: modelList,
+    );
     try {
-      await widget.api.registerProvider(ProviderInfo(
-        providerId: _id.text.trim(),
-        apiType: _apiType,
-        baseUrl: _url.text.trim(),
-        apiKey: _key.text,
-        models: modelList,
-      ));
+      await widget.api.registerProvider(updated);
       widget.onRegistered();
+      if (!_editing) return;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
