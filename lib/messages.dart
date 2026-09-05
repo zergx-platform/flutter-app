@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -24,6 +25,20 @@ class MessagesController extends ChangeNotifier {
   int _nextSeq = 1000000;
   final List<void Function(String event, Map<String, dynamic> params)>
       _sessionListeners = [];
+
+  // Reconnect state (single long-lived SSE per active session, IM-style).
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
+  String? _subSid;
+
+  static const int _maxReconnectAttempts = 10;
+  static const Duration _initialReconnect = Duration(seconds: 1);
+  static const Duration _maxReconnect = Duration(seconds: 30);
+  // Idle probe cadence: refreshes the stream/server-side so a half-open
+  // connection is detected before the UI can get stuck.
+  static const Duration _idleProbeEvery = Duration(seconds: 30);
+  Timer? _idleProbeTimer;
+  DateTime _lastActivity = DateTime.now();
 
   List<ChatMessage> get sorted {
     final m = [...messages];
@@ -56,8 +71,16 @@ class MessagesController extends ChangeNotifier {
     _connect(sid);
   }
 
+  void _markActivity() {
+    _lastActivity = DateTime.now();
+  }
+
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _idleProbeTimer?.cancel();
+    _idleProbeTimer = null;
     _sub?.cancel();
     _sub = null;
     super.dispose();
@@ -111,9 +134,57 @@ class MessagesController extends ChangeNotifier {
   }
 
   void _connect(String sid) {
+    // Single long-lived SSE per active session (IM-style). Cancel any prior
+    // stream + reconnect timers before opening the new one so a rapid
+    // session switch never leaves a duplicate connection behind.
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _sub?.cancel();
-    _sub = api.streamEvents(sid).listen(_handleEvent,
-        onError: (_) => _syncIdle(), onDone: () => _syncIdle());
+    _sub = null;
+    _subSid = sid;
+    _reconnectAttempt = 0;
+    _lastActivity = DateTime.now();
+    _idleProbeTimer?.cancel();
+    _sub = api.streamEvents(sid).listen(
+      _handleEvent,
+      onError: (_) => _onStreamClosed(sid),
+      onDone: () => _onStreamClosed(sid),
+      cancelOnError: false,
+    );
+    _startIdleProbe();
+  }
+
+  /// One stream closed (done/error). If it's still the active session, re-arm
+  /// the SSE with exponential backoff and re-sync the conversation state so a
+  /// half-open connection never leaves the UI stuck.
+  void _onStreamClosed(String sid) {
+    // Defensive: a stale/closed stream for a previous session must not touch
+    // the current one's state.
+    if (_subSid != null && _subSid != sid) return;
+    _syncIdle();
+    if (sid != getSessionId()) return;
+    if (_reconnectAttempt >= _maxReconnectAttempts) return;
+    final delay = _initialReconnect * pow(2, _reconnectAttempt).toInt();
+    final capped = delay > _maxReconnect ? _maxReconnect : delay;
+    _reconnectAttempt++;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(capped, () => _connect(sid));
+  }
+
+  void _startIdleProbe() {
+    _idleProbeTimer?.cancel();
+    _idleProbeTimer = Timer.periodic(_idleProbeEvery, (_) {
+      if (DateTime.now().difference(_lastActivity) < _idleProbeEvery) return;
+      // No events for a while: poke the session state so a half-open server
+      // connection is detected / the server re-emits a status.
+      api.state(getSessionId()).then((r) {
+        final (st, _) = r;
+        if (st == 'busy' || st == 'running') {
+          sending = true;
+          notifyListeners();
+        }
+      }).catchError((_) {});
+    });
   }
 
   /// Converge to idle if the stream ended without a terminal `status idle` /
@@ -126,6 +197,7 @@ class MessagesController extends ChangeNotifier {
   }
 
   void _handleEvent(StreamEvent ev) {
+    _markActivity();
     for (final cb in _sessionListeners) {
       try {
         cb(ev.event, ev.params);

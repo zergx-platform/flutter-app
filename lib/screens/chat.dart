@@ -91,6 +91,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _setup() async {
     final sid = store.activeSessionId;
     if (sid == null) return;
+    // Same-session reuse: keep the existing MessagesController (and its
+    // long-lived SSE) when the active session id hasn't actually changed.
+    // Recreating would tear down and reopen the stream unnecessarily.
+    if (_boundSid == sid && _msg != null) return;
     _boundSid = sid;
     _msg?.dispose();
     final m = MessagesController(

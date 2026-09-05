@@ -281,11 +281,6 @@ class MessageBubble extends StatelessWidget {
         parts.add(_CompactionBlock(text: part.text));
       }
     }
-    if (isStreaming && parts.isEmpty) {
-      parts.add(Text(context.l10n.thinking,
-          style: text.meta
-              .copyWith(color: colors.mutedForeground, fontStyle: FontStyle.italic)));
-    }
     if (isError) {
       parts.insert(
         0,
