@@ -987,4 +987,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String connectionError(Object arg1) {
     return '连接错误：$arg1';
   }
+
+  @override
+  String get toolInputParams => '输入参数';
 }

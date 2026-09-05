@@ -1891,6 +1891,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'连接错误：{arg1}'**
   String connectionError(Object arg1);
+
+  /// No description provided for @toolInputParams.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入参数'**
+  String get toolInputParams;
 }
 
 class _AppLocalizationsDelegate

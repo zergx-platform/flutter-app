@@ -608,5 +608,6 @@
   "turnsByPreset": "Max turns is set by the selected preset.",
   "testModelOk": "Model OK: {arg1}",
   "connected": "Connected",
-  "connectionError": "Connection error: {arg1}"
+  "connectionError": "Connection error: {arg1}",
+  "toolInputParams": "Input"
 }

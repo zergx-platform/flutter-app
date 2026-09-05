@@ -993,4 +993,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String connectionError(Object arg1) {
     return 'Connection error: $arg1';
   }
+
+  @override
+  String get toolInputParams => 'Input';
 }

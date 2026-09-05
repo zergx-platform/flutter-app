@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -45,6 +46,8 @@ class ToolPartView extends StatefulWidget {
 
 class _ToolPartViewState extends State<ToolPartView> {
   bool _open = true;
+  // Toggle for the input-params JSON panel only (independent of card _open).
+  bool _paramsOpen = true;
 
   String _s(Object? v) => v is String ? v : '';
 
@@ -362,79 +365,69 @@ class _ToolPartViewState extends State<ToolPartView> {
     final colors = colorsOf(context);
     final text = textOf(context);
     final children = <Widget>[];
-    if (state?.error != null) {
-      children.add(Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: colors.destructive.withValues(alpha: 0.12),
-          borderRadius: AppRadius.rSm,
-        ),
-        child: SelectableText(state!.error!,
-            style: text.mono.copyWith(
-                fontSize: 11, color: colors.destructive)),
-      ));
-    }
-    if (changeId != null) {
-      children.add(_code(context, 'change ${changeId!.substring(0, 12)}'));
-    }
-    final summary = inputSummary(input);
-    final fam = family;
 
-    // Family-specific input blocks.
-    if (fam == 'file' || fam == 'git') {
-      final path = _s(input['path']);
-      if (_s(input['pattern']).isNotEmpty && toolId == 'grep') {
-        children.add(_code(context, 'grep ${input['pattern']}'));
-      } else if (path.isNotEmpty) {
-        children.add(_code(context, path));
-      } else if (summary.isNotEmpty) {
-        children.add(_code(context, '$tool $summary'));
-      }
-    } else if (fam == 'sandbox') {
-      if (toolId == 'sandbox-run' || toolId == 'sandbox-write') {
-        if (input['command'] is String) {
-          children.add(_code(context, '\$ ${input['command']}'));
-        }
-      } else if (_s(input['path']).isNotEmpty) {
-        children.add(_code(context, _s(input['path'])));
-      } else if (summary.isNotEmpty) {
-        children.add(_code(context, '$tool $summary'));
-      }
-    } else if (fam == 'browser') {
-      if (summary.isNotEmpty) children.add(_code(context, summary));
-    } else if (fam == 'memory') {
-      if (toolId == 'image_read' || toolId == 'image-read') {
-        children.add(_InputImage(
-          code: _s(input['code']),
-          api: widget.api,
-          maxWidth: 160,
+    // Error: only the input parameters + the error message.
+    if (hasError) {
+      if (input.isNotEmpty) children.add(_inputParamsPanel(input, _paramsOpen));
+      if (state?.error != null) {
+        children.add(Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: colors.destructive.withValues(alpha: 0.12),
+            borderRadius: AppRadius.rSm,
+          ),
+          child: SelectableText(state!.error!,
+              style: text.mono.copyWith(
+                  fontSize: 11, color: colors.destructive)),
         ));
-      } else if (summary.isNotEmpty) {
-        children.add(_code(context, '$tool $summary'));
       }
-    } else if (fam == 'deploy' || fam == 'package') {
-      if (_buildId != null) {
-        children.add(_code(context, 'task $_buildId'));
-      } else if (summary.isNotEmpty) {
-        children.add(_code(context, '$tool $summary'));
-      }
-    } else {
-      if (summary.isNotEmpty) children.add(_code(context, '$tool $summary'));
+      return Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: children);
     }
 
-    // New: inline the unified diff the edit/write/delete tools produce (they
-    // now return `diff` in metadata), with a changeId badge linking to the
-    // full change-comparison screen.
-    final toolDiff = _toolDiff;
-    if (toolDiff != null && toolDiff.isNotEmpty) {
+    // Success: input parameters → result metadata → result content.
+    if (input.isNotEmpty) children.add(_inputParamsPanel(input, _paramsOpen));
+
+    // Result metadata (change_id / diff / additions-deletions).
+    if (changeId != null) {
       children.add(Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-        child: _InlineDiff(diffText: toolDiff),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.commit_rounded, size: 13, color: colors.primary),
+            const SizedBox(width: AppSpacing.xs),
+            Text(changeId!.substring(0, 8),
+                style: text.mono.copyWith(fontSize: 11, color: colors.primary)),
+          ],
+        ),
+      ));
+    }
+    if (state?.diff != null && (state!.diff?.isNotEmpty ?? false)) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: _InlineDiff(diffText: state!.diff!),
+      ));
+    }
+    final additions = state?.additions;
+    final deletions = state?.deletions;
+    if ((additions != null && additions > 0) ||
+        (deletions != null && deletions > 0)) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: Text(
+          '+${additions ?? 0} -${deletions ?? 0}',
+          style: text.mono.copyWith(
+              fontSize: 11,
+              color: (deletions ?? 0) > 0
+                  ? colors.destructive
+                  : colors.success),
+        ),
       ));
     }
 
-    // Output block (collapsible, monospace scroll).
+    // Result content.
     final output = state?.output;
     if (output != null && output.isNotEmpty) {
       children.add(Container(
@@ -455,6 +448,7 @@ class _ToolPartViewState extends State<ToolPartView> {
                 fontStyle: FontStyle.italic)),
       ));
     }
+
     return Column(
         crossAxisAlignment: CrossAxisAlignment.start, children: children);
   }
@@ -472,6 +466,70 @@ class _ToolPartViewState extends State<ToolPartView> {
       child: SelectableText(text,
           style: textOf(context).mono.copyWith(fontSize: 11)),
     );
+  }
+
+  /// A compact collapsible panel showing a tool call's input parameters JSON.
+  Widget _inputParamsPanel(Map<String, dynamic> input, bool expanded) {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final json = _prettyJson(input);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        borderRadius: AppRadius.rSm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppRadius.sm)),
+            onTap: () => setState(() => _paramsOpen = !_paramsOpen),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              child: Row(
+                children: [
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_right_rounded,
+                    size: 14,
+                    color: colors.mutedForeground,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(Icons.data_object_rounded,
+                      size: 13, color: colors.primary),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(context.l10n.toolInputParams,
+                      style: text.micro.copyWith(color: colors.mutedForeground)),
+                ],
+              ),
+            ),
+          ),
+          if (expanded)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: SingleChildScrollView(
+                child: SelectableText(json,
+                    style: text.mono.copyWith(fontSize: 11)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _prettyJson(Map<String, dynamic> m) {
+    try {
+      return const JsonEncoder.withIndent('  ').convert(m);
+    } catch (_) {
+      return m.toString();
+    }
   }
 }
 
