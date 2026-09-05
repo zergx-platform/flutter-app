@@ -10,6 +10,9 @@ import 'chat_avatar.dart';
 /// The selected bookmark drives `store.openRepo`. Unlike the old bottom-sheet
 /// picker, this stays inline (useful on tablets and as the phone's first
 /// column), with each level expanding/collapsing in place.
+///
+/// Default state: every org is collapsed. Tap an org to reveal its repos, a
+/// repo to reveal its bookmarks, a bookmark to open the repo in the browser.
 class OrgTree extends StatefulWidget {
   final AppStore store;
   const OrgTree({super.key, required this.store});
@@ -20,6 +23,7 @@ class OrgTree extends StatefulWidget {
 
 class _OrgTreeState extends State<OrgTree> {
   AppStore get store => widget.store;
+  final Set<String> _openOrgs = {};
   final Set<String> _openRepos = {};
 
   @override
@@ -30,7 +34,19 @@ class _OrgTreeState extends State<OrgTree> {
     });
   }
 
+  String _keyOrg(OrgNode o) => o.org;
   String _keyRepo(OrgNode o, RepoNode r) => '${o.org}/${r.repo}';
+
+  void _toggleOrg(OrgNode o) {
+    setState(() {
+      final k = _keyOrg(o);
+      if (_openOrgs.contains(k)) {
+        _openOrgs.remove(k);
+      } else {
+        _openOrgs.add(k);
+      }
+    });
+  }
 
   void _toggleRepo(OrgNode o, RepoNode r) {
     setState(() {
@@ -73,59 +89,70 @@ class _OrgTreeState extends State<OrgTree> {
 
   Widget _org(OrgNode o, AppColors colors) {
     final text = textOf(context);
-    return InkWell(
-      onTap: () {
-        // A repo with a single bookmark auto-opens; 0/#m is filtered so a
-        // bare click on an org does nothing destructive.
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final open = _openOrgs.contains(_keyOrg(o));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => _toggleOrg(o),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.md),
+            child: Row(
               children: [
+                Icon(open
+                    ? Icons.keyboard_arrow_down_rounded
+                    : Icons.keyboard_arrow_right_rounded,
+                    size: 18, color: colors.mutedForeground),
+                const SizedBox(width: AppSpacing.xs),
                 ChatAvatar(org: o.org, repo: '', bookmark: o.org,
                     radius: 14, level: AvatarLevel.org),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(o.org,
+                      overflow: TextOverflow.ellipsis,
                       style: text.meta.copyWith(fontWeight: FontWeight.w700)),
                 ),
                 Text('${o.repos.length}',
                     style: text.micro.copyWith(color: colors.mutedForeground)),
               ],
             ),
-            for (final r in o.repos) _repo(o, r, colors),
-          ],
+          ),
         ),
-      ),
+        if (open)
+          Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final r in o.repos) _repo(o, r, colors),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
   Widget _repo(OrgNode o, RepoNode r, AppColors colors) {
     final text = textOf(context);
-    final k = _keyRepo(o, r);
-    final open = _openRepos.contains(k);
+    final open = _openRepos.contains(_keyRepo(o, r));
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InkWell(
           onTap: () => _toggleRepo(o, r),
           child: Padding(
-            padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             child: Row(
               children: [
-                InkWell(
-                  onTap: () => _toggleRepo(o, r),
-                  child: Icon(
-                      open
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 16, color: colors.mutedForeground),
-                ),
-                Icon(Icons.folder_rounded, size: 15, color: colors.primary),
+                Icon(open
+                    ? Icons.keyboard_arrow_down_rounded
+                    : Icons.keyboard_arrow_right_rounded,
+                    size: 16, color: colors.mutedForeground),
+                const SizedBox(width: AppSpacing.xs),
+                ChatAvatar(org: o.org, repo: r.repo, bookmark: '',
+                    radius: 13, level: AvatarLevel.repo),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(r.repo,
@@ -133,18 +160,14 @@ class _OrgTreeState extends State<OrgTree> {
                 ),
                 if (r.bookmarks.isEmpty)
                   Text('0',
-                      style: text.micro.copyWith(color: colors.mutedForeground)),
+                      style:
+                          text.micro.copyWith(color: colors.mutedForeground)),
               ],
             ),
           ),
         ),
-        if (open) ...[
-          for (final b in r.bookmarks)
-            Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.md),
-              child: _bookmark(o, r, b, colors),
-            ),
-        ],
+        if (open)
+          for (final b in r.bookmarks) _bookmark(o, r, b, colors),
       ],
     );
   }
@@ -158,11 +181,13 @@ class _OrgTreeState extends State<OrgTree> {
         store.openRepo(o.org, r.repo, b.bookmark);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
         child: Row(
           children: [
-            const SizedBox(width: 16),
-            ChatAvatar(org: o.org, repo: r.repo, bookmark: b.bookmark, radius: 12),
+            const SizedBox(width: 24),
+            ChatAvatar(org: o.org, repo: r.repo, bookmark: b.bookmark,
+                radius: 12),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(

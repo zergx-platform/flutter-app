@@ -17,10 +17,13 @@ import '../widgets/commit_diff_page.dart';
 ///   2. FileTree  — the selected repo's cached file tree (or commit log).
 ///   3. Content   — the selected file's highlighted content (or history/diff).
 ///
-/// Only two adjacent panels are ever visible at once:
-///   Tablet/desktop (>=1024): 1 | 2  → 2 | 3  (the tree stays, the file panel
-///   slides in). No repo selected → just panel 1.
-///   Phone (<1024): 1 → 2 → 3 as a single pushed column with a back button.
+/// Only two adjacent panels are ever visible at once, each 50% wide:
+///   Tablet/desktop (>=1024): 1 | 2  → 2 | 3. No repo → just panel 1.
+///   Phone (<1024): 1 → 2 → 3 as a single pushed column.
+///
+/// The "代码" title bar is bound to interface 1 (the org tree) only, mirroring
+/// the chat screen: each panel owns its own header, and there is exactly one
+/// back bar on panels 2/3 (no duplicated app bar).
 class CodeScreen extends StatefulWidget {
   final AppStore store;
   const CodeScreen({super.key, required this.store});
@@ -75,38 +78,39 @@ class _CodeScreenState extends State<CodeScreen> {
 
   // ---- Tablet/desktop: sliding 1|2 → 2|3 ---------------------------------
 
+  // The "代码" title bar is bound to interface 1 (org tree). Like the chat
+  // screen, only the CURRENT detail panel carries a back button, so there is
+  // exactly one back bar (never a duplicated app bar + back):
+  //   level 0 (no repo): [ P1 org tree ]
+  //   level 1 (repo):     [ P1 org tree | P2 file list   ]
+  //   level 2 (file):     [ P2 file list | P3 content    ]
   Widget _desktop(BuildContext context) {
     final hasRepo = store.codeRepo.isNotEmpty;
     final hasFile = store.selectedFilePath != null;
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.tabCode)),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final panel = (constraints.maxWidth * 0.32).clamp(260.0, 390.0);
-          final children = <Widget>[
-            if (!hasRepo) _orgColumn(panel),
-            if (hasRepo && !hasFile) ...[
-              _orgColumn(panel),
-              _fileColumn(panel),
-            ],
-            if (hasFile) ...[
-              _fileColumn(panel),
-              Expanded(child: _content(context)),
-            ],
-            const VerticalDivider(),
-          ];
-          // Rightmost panel stretches; leftmost panel in a pair uses [panel].
-          return Row(children: children);
-        },
+      body: Row(
+        children: [
+          if (!hasRepo) ...[
+            Expanded(child: _orgColumn()),
+          ],
+          if (hasRepo && !hasFile) ...[
+            Expanded(child: _orgColumn()),
+            Expanded(child: _fileColumn(asDetail: true)),
+          ],
+          if (hasFile) ...[
+            Expanded(child: _fileColumn(asDetail: false)),
+            Expanded(child: _content(context)),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _orgColumn(double panel) {
-    return SizedBox(
-      width: panel,
+  /// Interface 1 (org tree) — owns the "代码" title bar, no back button.
+  Widget _orgColumn() {
+    return SafeArea(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _panelHeader(context.l10n.tabCode),
           const Divider(height: 1),
@@ -116,53 +120,16 @@ class _CodeScreenState extends State<CodeScreen> {
     );
   }
 
-  Widget _fileColumn(double panel) {
-    return SizedBox(
-      width: panel,
+  /// Interface 2 (file tree / commits). The back button appears only when it
+  /// is the current detail panel ([asDetail]); when it is the nav companion
+  /// (level 2) it shows only the repo path label, so no duplicated back bars.
+  Widget _fileColumn({bool asDetail = true}) {
+    return SafeArea(
       child: Column(
         children: [
-          _repoHeader(panelHeaderPrefix: context.l10n.files),
+          _repoHeader(showBack: asDetail, panelHeaderPrefix: context.l10n.files),
           const Divider(height: 1),
           Expanded(child: _treeOrCommits(context)),
-        ],
-      ),
-    );
-  }
-
-  Widget _repoHeader({String panelHeaderPrefix = ''}) {
-    final text = textOf(context);
-    return Container(
-      height: AppBars.height,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, size: 18),
-            tooltip: context.l10n.back,
-            onPressed: () => store.closeRepo(),
-          ),
-          Expanded(
-            child: Text(
-              store.codeRepo.isNotEmpty
-                  ? '${store.codeOrg}/${store.codeRepo}'
-                      '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
-                  : panelHeaderPrefix,
-              overflow: TextOverflow.ellipsis,
-              style: text.meta.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          IconButton(
-            icon: Icon(_showCommits ? Icons.folder_rounded : Icons.history_rounded,
-                size: 16),
-            tooltip: context.l10n.history,
-            onPressed: () {
-              if (_showCommits) {
-                setState(() => _showCommits = false);
-              } else {
-                _loadCommits();
-              }
-            },
-          ),
         ],
       ),
     );
@@ -171,15 +138,21 @@ class _CodeScreenState extends State<CodeScreen> {
   // ---- Phone: single pushed column 1 → 2 → 3 ------------------------------
 
   Widget _mobile(BuildContext context) {
-    final hasRepo = store.codeRepo.isNotEmpty;
     final hasFile = store.selectedFilePath != null;
+    final hasRepo = store.codeRepo.isNotEmpty;
+    // Level 1 (org tree) shows the "代码" app bar; deeper levels show a single
+    // back bar instead (no duplicated title bar on top).
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.tabCode)),
-      body: hasFile
-          ? _contentMobile(context)
-          : hasRepo
-              ? _treeOrCommits(context)
-              : OrgTree(store: store),
+      appBar: !hasFile && !hasRepo
+          ? AppBar(title: Text(context.l10n.tabCode))
+          : null,
+      body: SafeArea(
+        child: hasFile
+            ? _contentMobile(context)
+            : hasRepo
+                ? _treeOrCommits(context)
+                : OrgTree(store: store),
+      ),
     );
   }
 
@@ -282,7 +255,7 @@ class _CodeScreenState extends State<CodeScreen> {
     ));
   }
 
-  // ---- File content -------------------------------------------------------
+  // ---- File content (interface 3) ----------------------------------------
 
   Widget _content(BuildContext context) {
     final colors = colorsOf(context);
@@ -298,47 +271,50 @@ class _CodeScreenState extends State<CodeScreen> {
         ),
       );
     }
-    return Column(
-      children: [
-        Container(
-          height: AppBars.height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              Icon(Icons.insert_drive_file_outlined,
-                  size: 14, color: colors.mutedForeground),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(p,
-                    overflow: TextOverflow.ellipsis, style: text.mono),
-              ),
-              if (store.activeDiffChangeId != null)
+    return SafeArea(
+      child: Column(
+        children: [
+          Container(
+            height: AppBars.height,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
                 IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () => store.closeFileDiff())
-              else ...[
-                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  tooltip: context.l10n.back,
+                  onPressed: () => store.stepFileBack(),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(Icons.insert_drive_file_outlined,
+                    size: 14, color: colors.mutedForeground),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(p,
+                      overflow: TextOverflow.ellipsis, style: text.mono),
+                ),
+                if (store.codeRepo.isNotEmpty)
+                  IconButton(
                     icon: Icon(
                         store.showFileHistory
                             ? Icons.description_outlined
                             : Icons.history_rounded,
                         size: 16),
+                    tooltip: context.l10n.history,
                     onPressed: () {
                       if (store.showFileHistory) {
                         setState(() => store.showFileHistory = false);
                       } else {
                         store.loadFileHistory();
                       }
-                    }),
-                IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () => store.stepFileBack()),
+                    },
+                  ),
               ],
-            ],
+            ),
           ),
-        ),
-        Expanded(child: _contentBody(context, p)),
-      ],
+          const Divider(height: 1),
+          Expanded(child: _contentBody(context, p)),
+        ],
+      ),
     );
   }
 
@@ -392,46 +368,93 @@ class _CodeScreenState extends State<CodeScreen> {
             store.activeDiffChangeId = null;
             store.showFileHistory = false;
           }, '$p — ${store.activeDiffChangeId!.substring(0, 8)}'),
+          const Divider(height: 1),
           Expanded(
             child: DiffView(
                 diffText: store.fileDiffs[store.activeDiffChangeId] ?? ''),
           ),
         ] else ...[
           _bar(context, () => store.stepFileBack(), p),
+          const Divider(height: 1),
           Expanded(child: _contentBody(context, p)),
         ],
       ],
     );
   }
 
-  Widget _bar(BuildContext context, VoidCallback onBack, String label) {
+  // ---- shared bars -------------------------------------------------------
+
+  /// Panel 1 title bar (org tree) — mirrors the themed AppBar of the other tabs.
+  Widget _panelHeader(String label) {
     final text = textOf(context);
-    return SizedBox(
+    return Container(
       height: AppBars.height,
-      child: Row(
-        children: [
-          IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, size: 18),
-              onPressed: onBack),
-          Expanded(
-            child: Text(label,
-                overflow: TextOverflow.ellipsis, style: text.meta),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      alignment: Alignment.centerLeft,
+      child: Text(label,
+          style: text.meta.copyWith(fontWeight: FontWeight.w600)),
     );
   }
 
-  Widget _panelHeader(String label) {
+  /// Panel 2 header: back arrow (only when it is the current detail) + repo
+  /// path + history toggle.
+  Widget _repoHeader({bool showBack = true, String panelHeaderPrefix = ''}) {
     final text = textOf(context);
     return Container(
       height: AppBars.height,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
+          if (showBack)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              tooltip: context.l10n.back,
+              onPressed: () => store.closeRepo(),
+            ),
+          Expanded(
+            child: Text(
+              store.codeRepo.isNotEmpty
+                  ? '${store.codeOrg}/${store.codeRepo}'
+                      '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
+                  : panelHeaderPrefix,
+              overflow: TextOverflow.ellipsis,
+              style: text.meta.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (store.codeRepo.isNotEmpty)
+            IconButton(
+              icon: Icon(
+                  _showCommits ? Icons.folder_rounded : Icons.history_rounded,
+                  size: 16),
+              tooltip: context.l10n.history,
+              onPressed: () {
+                if (_showCommits) {
+                  setState(() => _showCommits = false);
+                } else {
+                  _loadCommits();
+                }
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Simple back bar used on the phone content level.
+  Widget _bar(BuildContext context, VoidCallback onBack, String label) {
+    final text = textOf(context);
+    return Container(
+      height: AppBars.height,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        children: [
+          IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              onPressed: onBack),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(label,
-                style: text.meta.copyWith(fontWeight: FontWeight.w600)),
+                overflow: TextOverflow.ellipsis, style: text.meta),
           ),
         ],
       ),
