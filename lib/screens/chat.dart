@@ -13,6 +13,7 @@ import '../store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/diff_view.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/session_list_header.dart';
 import 'chat_sidebar.dart';
 import 'container_overlay.dart';
 import 'files_overlay.dart';
@@ -452,7 +453,12 @@ class _ChatScreenState extends State<ChatScreen> {
       decoration: BoxDecoration(
           border: Border(
               right: BorderSide(color: colors.border.withValues(alpha: 0.5)))),
-      child: ChatSidebar(store: store),
+      child: Column(
+        children: [
+          SessionListHeader(store: store),
+          Expanded(child: ChatSidebar(store: store)),
+        ],
+      ),
     );
   }
 

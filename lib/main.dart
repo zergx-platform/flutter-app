@@ -7,9 +7,8 @@ import 'app_layout.dart';
 import 'prefs.dart';
 import 'store.dart';
 import 'theme/app_theme.dart';
-import 'widgets/create_menu.dart';
+import 'widgets/session_list_header.dart';
 import 'screens/chat.dart';
-import 'screens/browser.dart';
 import 'screens/chat_sidebar.dart';
 import 'screens/code.dart';
 import 'screens/config.dart';
@@ -328,21 +327,7 @@ class _SessionsHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.tabChat),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search_rounded, color: colorsOf(context).primary),
-            tooltip: context.l10n.search,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => BrowserPage(store: store),
-              ));
-            },
-          ),
-          CreateMenu(store: store, iconColor: colorsOf(context).primary),
-        ],
-      ),
+      appBar: SessionListHeader(store: store),
       body: ChatSidebar(store: store),
     );
   }
