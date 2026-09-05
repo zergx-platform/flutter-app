@@ -28,12 +28,35 @@ import 'package:re_highlight/languages/sql.dart';
 import 'package:re_highlight/languages/dockerfile.dart';
 import 'package:re_highlight/languages/makefile.dart';
 import 'package:re_highlight/languages/plaintext.dart';
+import 'package:re_highlight/languages/scala.dart';
+import 'package:re_highlight/languages/lua.dart';
+import 'package:re_highlight/languages/r.dart';
+import 'package:re_highlight/languages/julia.dart';
+import 'package:re_highlight/languages/elixir.dart';
+import 'package:re_highlight/languages/erlang.dart';
+import 'package:re_highlight/languages/clojure.dart';
+import 'package:re_highlight/languages/fsharp.dart';
+import 'package:re_highlight/languages/vbnet.dart';
+import 'package:re_highlight/languages/haskell.dart';
+import 'package:re_highlight/languages/ocaml.dart';
+import 'package:re_highlight/languages/nim.dart';
+import 'package:re_highlight/languages/objectivec.dart';
+import 'package:re_highlight/languages/latex.dart';
+import 'package:re_highlight/languages/scss.dart';
+import 'package:re_highlight/languages/less.dart';
+import 'package:re_highlight/languages/graphql.dart';
+import 'package:re_highlight/languages/protobuf.dart';
+import 'package:re_highlight/languages/properties.dart';
+import 'package:re_highlight/languages/powershell.dart';
+import 'package:re_highlight/languages/cmake.dart';
+import 'package:re_highlight/languages/gradle.dart';
+import 'package:re_highlight/languages/nix.dart';
 
 /// Bundle only the languages the app actually highlights, keyed by the
 /// names returned from [languageFor]. Keeping this small avoids shipping all
 /// ~190 highlight.js language grammars.
 Map<String, Mode> builtinLanguagesFor(String path) {
-  final lang = {
+  return {
     'dart': langDart,
     'go': langGo,
     'rust': langRust,
@@ -60,8 +83,30 @@ Map<String, Mode> builtinLanguagesFor(String path) {
     'dockerfile': langDockerfile,
     'makefile': langMakefile,
     'plaintext': langPlaintext,
+    'scala': langScala,
+    'lua': langLua,
+    'r': langR,
+    'julia': langJulia,
+    'elixir': langElixir,
+    'erlang': langErlang,
+    'clojure': langClojure,
+    'fsharp': langFsharp,
+    'vbnet': langVbnet,
+    'haskell': langHaskell,
+    'ocaml': langOcaml,
+    'nim': langNim,
+    'objectivec': langObjectivec,
+    'latex': langLatex,
+    'scss': langScss,
+    'less': langLess,
+    'graphql': langGraphql,
+    'protobuf': langProtobuf,
+    'properties': langProperties,
+    'powershell': langPowershell,
+    'cmake': langCmake,
+    'gradle': langGradle,
+    'nix': langNix,
   };
-  return lang;
 }
 
 /// Resolved theme for a dark/light renderer. `scopes` is the highlight.js

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
+import 'file_icon.dart';
 
 String formatSize(int bytes) {
   if (bytes < 1024) return '${bytes}B';
@@ -97,7 +98,7 @@ class TreeNode extends StatelessWidget {
           children: [
             Text(prefix, style: text.mono.copyWith(fontSize: 11)),
             const SizedBox(width: AppSpacing.lg),
-            Icon(Icons.insert_drive_file_outlined,
+            Icon(fileIconFor(entry.name, isDir: false),
                 size: 14, color: colors.mutedForeground),
             const SizedBox(width: AppSpacing.xs),
             Expanded(

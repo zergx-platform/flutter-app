@@ -86,32 +86,11 @@ class _CodeScreenState extends State<CodeScreen> {
   //   level 2 (file):     [ P2 file list | P3 content    ]
   Widget _desktop(BuildContext context) {
     return Scaffold(
-      // Animate the panel layout when the depth changes (1 → 1|2 → 2|3) with a
-      // gentle slide, so opening a repo / file feels like the panel glides in.
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween(begin: const Offset(0.06, 0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          ),
-        ),
-        child: _desktopRow(key: ValueKey(_level)),
-      ),
+      body: _desktopRow(),
     );
   }
 
-  int get _level {
-    if (store.selectedFilePath != null) return 2;
-    if (store.codeRepo.isNotEmpty) return 1;
-    return 0;
-  }
-
-  Widget _desktopRow({required Key key}) {
+  Widget _desktopRow() {
     final hasRepo = store.codeRepo.isNotEmpty;
     final hasFile = store.selectedFilePath != null;
     // showBack on P2 is true only when P2 is the CURRENT detail panel, i.e.
@@ -119,7 +98,6 @@ class _CodeScreenState extends State<CodeScreen> {
     // (no back) and only P3 (content) owns a back arrow.
     final fileIsDetail = hasRepo && !hasFile;
     return Row(
-      key: key,
       children: [
         if (!hasRepo)
           Expanded(child: _orgColumn()),
