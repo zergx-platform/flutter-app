@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../i18n.dart';
-
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/code_view.dart';
-import '../widgets/chat_avatar.dart';
 import '../widgets/diff_view.dart';
+import '../widgets/org_tree.dart';
 import '../widgets/tree_node.dart';
 import '../widgets/commit_diff_page.dart';
 
-/// Recreates CodePage.svelte: 3-panel repository browser (org/repo/branch,
-/// file tree or commits, file content with history/diff).
+/// Recreates CodePage.svelte as a sliding-panel repository browser.
+///
+/// There are three conceptual panels:
+///   1. OrgTree   — the persistent org → repo → bookmark tree (repo picker).
+///   2. FileTree  — the selected repo's cached file tree (or commit log).
+///   3. Content   — the selected file's highlighted content (or history/diff).
+///
+/// Only two adjacent panels are ever visible at once:
+///   Tablet/desktop (>=1024): 1 | 2  → 2 | 3  (the tree stays, the file panel
+///   slides in). No repo selected → just panel 1.
+///   Phone (<1024): 1 → 2 → 3 as a single pushed column with a back button.
 class CodeScreen extends StatefulWidget {
   final AppStore store;
   const CodeScreen({super.key, required this.store});
@@ -65,159 +73,126 @@ class _CodeScreenState extends State<CodeScreen> {
     return wide ? _desktop(context) : _mobile(context);
   }
 
-  /// Tablet/desktop: two simultaneously-visible columns — the repo's file
-  /// tree (with a repo picker in its header) on the left, file content on the
-  /// right. Native app feel (no three-panel browser column stack).
+  // ---- Tablet/desktop: sliding 1|2 → 2|3 ---------------------------------
+
   Widget _desktop(BuildContext context) {
+    final hasRepo = store.codeRepo.isNotEmpty;
+    final hasFile = store.selectedFilePath != null;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.tabCode),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.folder_open_rounded, size: 20),
-            tooltip: context.l10n.pickRepo,
-            onPressed: _pickRepoSheet,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(context.l10n.tabCode)),
       body: LayoutBuilder(
-          builder: (context, constraints) => Row(
-            children: [
-              SizedBox(
-                width: (constraints.maxWidth * 0.30).clamp(240.0, 360.0),
-                child: _treeOrCommits(context),
-              ),
-              const VerticalDivider(),
+        builder: (context, constraints) {
+          final panel = (constraints.maxWidth * 0.32).clamp(260.0, 390.0);
+          final children = <Widget>[
+            if (!hasRepo) _orgColumn(panel),
+            if (hasRepo && !hasFile) ...[
+              _orgColumn(panel),
+              _fileColumn(panel),
+            ],
+            if (hasFile) ...[
+              _fileColumn(panel),
               Expanded(child: _content(context)),
             ],
-          ),
-        ),
+            const VerticalDivider(),
+          ];
+          // Rightmost panel stretches; leftmost panel in a pair uses [panel].
+          return Row(children: children);
+        },
+      ),
     );
   }
 
-  Widget _mobile(BuildContext context) {
-    final showFile = store.selectedFilePath != null;
-    final hasRepo = store.codeRepo.isNotEmpty;
-    return Scaffold(
-      appBar: AppBar(
-        title: GestureDetector(
-          onTap: _pickRepoSheet,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  showFile
-                      ? store.selectedFilePath!
-                      : hasRepo
-                          ? '${store.codeOrg}/${store.codeRepo}'
-                              '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
-                          : context.l10n.tabCode,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: colorsOf(context).mutedForeground),
-            ],
-          ),
-        ),
-        actions: [
+  Widget _orgColumn(double panel) {
+    return SizedBox(
+      width: panel,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _panelHeader(context.l10n.tabCode),
+          const Divider(height: 1),
+          Expanded(child: OrgTree(store: store)),
+        ],
+      ),
+    );
+  }
+
+  Widget _fileColumn(double panel) {
+    return SizedBox(
+      width: panel,
+      child: Column(
+        children: [
+          _repoHeader(panelHeaderPrefix: context.l10n.files),
+          const Divider(height: 1),
+          Expanded(child: _treeOrCommits(context)),
+        ],
+      ),
+    );
+  }
+
+  Widget _repoHeader({String panelHeaderPrefix = ''}) {
+    final text = textOf(context);
+    return Container(
+      height: AppBars.height,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        children: [
           IconButton(
-            icon: const Icon(Icons.folder_open_rounded, size: 20),
-            tooltip: context.l10n.pickRepo,
-            onPressed: _pickRepoSheet,
+            icon: const Icon(Icons.arrow_back_rounded, size: 18),
+            tooltip: context.l10n.back,
+            onPressed: () => store.closeRepo(),
+          ),
+          Expanded(
+            child: Text(
+              store.codeRepo.isNotEmpty
+                  ? '${store.codeOrg}/${store.codeRepo}'
+                      '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
+                  : panelHeaderPrefix,
+              overflow: TextOverflow.ellipsis,
+              style: text.meta.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          IconButton(
+            icon: Icon(_showCommits ? Icons.folder_rounded : Icons.history_rounded,
+                size: 16),
+            tooltip: context.l10n.history,
+            onPressed: () {
+              if (_showCommits) {
+                setState(() => _showCommits = false);
+              } else {
+                _loadCommits();
+              }
+            },
           ),
         ],
       ),
-      body: showFile
+    );
+  }
+
+  // ---- Phone: single pushed column 1 → 2 → 3 ------------------------------
+
+  Widget _mobile(BuildContext context) {
+    final hasRepo = store.codeRepo.isNotEmpty;
+    final hasFile = store.selectedFilePath != null;
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.tabCode)),
+      body: hasFile
           ? _contentMobile(context)
           : hasRepo
               ? _treeOrCommits(context)
-              : _emptyPicker(context),
+              : OrgTree(store: store),
     );
   }
 
-  /// Mobile has no side selector column — this sheet is the repo picker
-  /// (org → repo → branch drill-down), mirroring the desktop _repoSelector.
-  Future<void> _pickRepoSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) => SizedBox(
-        height: MediaQuery.of(ctx).size.height * 0.7,
-        child: _RepoPickerSheet(store: store),
-      ),
-    );
-  }
-
-  Widget _emptyPicker(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.folder_open_rounded,
-              size: 44, color: colors.mutedForeground),
-          const SizedBox(height: AppSpacing.md),
-          Text(context.l10n.codeEmptyHint,
-              style: text.meta.copyWith(color: colors.mutedForeground)),
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton.icon(
-            onPressed: _pickRepoSheet,
-            icon: const Icon(Icons.search_rounded, size: 18),
-            label: Text(context.l10n.pickRepo),
-          ),
-        ],
-      ),
-    );
-  }
+  // ---- File tree / commits list ------------------------------------------
 
   Widget _treeOrCommits(BuildContext context) {
-    final text = textOf(context);
     return Column(
       children: [
-        Container(
-          height: AppBars.height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  store.codeRepo.isNotEmpty
-                      ? '${store.codeOrg}/${store.codeRepo}'
-                          '${store.codeBookmark.isNotEmpty ? '@${store.codeBookmark}' : ''}'
-                      : context.l10n.files,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.meta.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-              // From the tree panel, tap to change repo (org → repo sheet)
-              IconButton(
-                icon: const Icon(Icons.folder_open_rounded, size: 16),
-                tooltip: context.l10n.pickRepo,
-                onPressed: _pickRepoSheet,
-              ),
-              if (store.codeRepo.isNotEmpty)
-                IconButton(
-                  icon: Icon(_showCommits ? Icons.folder_rounded : Icons.history_rounded,
-                      size: 16),
-                  onPressed: () {
-                    if (_showCommits) {
-                      setState(() => _showCommits = false);
-                    } else {
-                      _loadCommits();
-                    }
-                  },
-                ),
-            ],
-          ),
-        ),
+        _repoHeader(),
+        const Divider(height: 1),
         Expanded(
           child: store.codeRepo.isEmpty
-              ? _emptyPicker(context)
+              ? _emptyHint(context)
               : _showCommits
                   ? _commitsList(context)
                   : store.codeLoading
@@ -288,6 +263,14 @@ class _CodeScreenState extends State<CodeScreen> {
     );
   }
 
+  Widget _emptyHint(BuildContext context) {
+    final colors = colorsOf(context);
+    return Center(
+      child: Text(context.l10n.codeEmptyHint,
+          style: TextStyle(color: colors.mutedForeground)),
+    );
+  }
+
   /// Open the full diff of a repository commit in a dedicated page.
   void _openCommitDiff(FileCommit c) {
     Navigator.of(context).push(MaterialPageRoute(
@@ -298,6 +281,8 @@ class _CodeScreenState extends State<CodeScreen> {
           commit: c),
     ));
   }
+
+  // ---- File content -------------------------------------------------------
 
   Widget _content(BuildContext context) {
     final colors = colorsOf(context);
@@ -347,7 +332,7 @@ class _CodeScreenState extends State<CodeScreen> {
                     }),
                 IconButton(
                     icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () => store.clearFileView()),
+                    onPressed: () => store.stepFileBack()),
               ],
             ],
           ),
@@ -436,135 +421,17 @@ class _CodeScreenState extends State<CodeScreen> {
       ),
     );
   }
-}
 
-/// Three-level (org → repo → branch) bottom-sheet picker for the mobile
-/// Code tab. Selecting a branch opens the repo in the code browser.
-class _RepoPickerSheet extends StatefulWidget {
-  final AppStore store;
-  const _RepoPickerSheet({required this.store});
-
-  @override
-  State<_RepoPickerSheet> createState() => _RepoPickerSheetState();
-}
-
-class _RepoPickerSheetState extends State<_RepoPickerSheet> {
-  String? _org;
-  String? _repo;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.store.refreshRepos();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
+  Widget _panelHeader(String label) {
     final text = textOf(context);
-    final orgs = widget.store.orgs;
-    Widget body;
-    if (_org == null) {
-      body = ListView(
-        children: [
-          _sheetHeader(context.l10n.pickOrg, showBack: false),
-          if (orgs.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Center(
-                  child: Text(context.l10n.noRepos,
-                      style: TextStyle(color: colors.mutedForeground))),
-            ),
-          for (final org in orgs)
-            ListTile(
-              leading: ChatAvatar(org: org.org,
-                    repo: '',
-                    bookmark: org.org,
-                    radius: 14,
-                    level: AvatarLevel.org),
-              title: Text(org.org,
-                  style: text.meta.copyWith(fontWeight: FontWeight.w600)),
-              trailing: Text(context.l10n.reposCount('${org.repos.length}'),
-                  style: text.micro
-                      .copyWith(color: colors.mutedForeground)),
-              onTap: () => setState(() => _org = org.org),
-            ),
-        ],
-      );
-    } else if (_repo == null) {
-      final node = orgs
-          .where((o) => o.org == _org!)
-          .expand((o) => o.repos)
-          .toList();
-      body = ListView(
-        children: [
-          _sheetHeader('$_org', showBack: true),
-          for (final repo in node)
-            ListTile(
-              leading: ChatAvatar(
-                  org: _org!,
-                  repo: repo.repo,
-                  bookmark: '',
-                  radius: 14,
-                  level: AvatarLevel.repo),
-              title: Text(repo.repo, style: text.meta),
-              onTap: () => setState(() => _repo = repo.repo),
-            ),
-        ],
-      );
-    } else {
-      final node = orgs
-          .where((o) => o.org == _org!)
-          .expand((o) => o.repos)
-          .where((r) => r.repo == _repo!)
-          .toList();
-      body = ListView(
-        children: [
-          _sheetHeader('$_org/$_repo', showBack: true),
-          for (final repo in node)
-            for (final bm in repo.bookmarks)
-              ListTile(
-                leading: ChatAvatar(
-                    org: _org!, repo: _repo!, bookmark: bm.bookmark, radius: 14),
-                title: Text(bm.bookmark, style: text.meta),
-                trailing: bm.session != null
-                    ? Icon(Icons.chat_bubble_outline_rounded,
-                        size: 14, color: colors.mutedForeground)
-                    : null,
-                onTap: () {
-                  widget.store.openRepo(_org!, _repo!, bm.bookmark);
-                  Navigator.pop(context);
-                },
-              ),
-        ],
-      );
-    }
-    return body;
-  }
-
-  Widget _sheetHeader(String label, {required bool showBack}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm,
-          AppSpacing.md, AppSpacing.xs),
+    return Container(
+      height: AppBars.height,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
-          if (showBack)
-            IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, size: 18),
-              onPressed: () => setState(() {
-                if (_repo != null) {
-                  _repo = null;
-                } else {
-                  _org = null;
-                }
-              }),
-            ),
           Expanded(
             child: Text(label,
-                overflow: TextOverflow.ellipsis,
-                style: textOf(context)
-                    .meta
-                    .copyWith(fontWeight: FontWeight.w600)),
+                style: text.meta.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),

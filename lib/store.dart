@@ -144,6 +144,24 @@ class AppStore extends ChangeNotifier {
     await loadTreeDir('');
   }
 
+  /// Clear the current repo selection back to the org tree (used by the code
+  /// screen's back button when no file is open, and by the mobile stack).
+  void closeRepo() {
+    codeOrg = '';
+    codeRepo = '';
+    codeBookmark = '';
+    selectedFilePath = null;
+    fileContent = '';
+    showFileHistory = false;
+    fileHistory = [];
+    expandedCommits = {};
+    fileDiffs = {};
+    activeDiffChangeId = null;
+    treeCache = {};
+    expandedDirs = {'',};
+    notifyListeners();
+  }
+
   Future<void> openFile(String path) async {
     selectedFilePath = path;
     showFileHistory = false;
