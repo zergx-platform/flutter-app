@@ -99,7 +99,7 @@ class TreeNode extends StatelessWidget {
             Text(prefix, style: text.mono.copyWith(fontSize: 11)),
             const SizedBox(width: AppSpacing.lg),
             Icon(fileIconFor(entry.name, isDir: false),
-                size: 14, color: colors.mutedForeground),
+                size: 16, color: colors.mutedForeground),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(entry.name,
