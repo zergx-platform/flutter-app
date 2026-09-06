@@ -93,20 +93,23 @@ class _CodeScreenState extends State<CodeScreen> {
   Widget _desktopRow() {
     final hasRepo = store.codeRepo.isNotEmpty;
     final hasFile = store.selectedFilePath != null;
-    // showBack on P2 is true only when P2 is the CURRENT detail panel, i.e.
-    // level 1 (repo selected, no file yet). At level 2, P2 is the nav companion
-    // (no back) and only P3 (content) owns a back arrow.
-    final fileIsDetail = hasRepo && !hasFile;
+    // Two adjacent panels only (1|2 → 2|3). When a file is open the org tree
+    // (P1) slides out; only the file list + content remain.
+    //   level 0 (no repo):  [ P1 org tree ]
+    //   level 1 (repo):     [ P1 org tree | P2 file list ]
+    //   level 2 (file):     [ P2 file list | P3 content ]
     return Row(
       children: [
         if (!hasRepo)
           Expanded(child: _orgColumn()),
-        if (hasRepo) ...[
+        if (hasRepo && !hasFile) ...[
           Expanded(child: _orgColumn()),
-          Expanded(child: _fileColumn(showBack: fileIsDetail)),
+          Expanded(child: _fileColumn(showBack: true)),
         ],
-        if (hasFile)
+        if (hasFile) ...[
+          Expanded(child: _fileColumn(showBack: false)),
           Expanded(child: _content(context)),
+        ],
       ],
     );
   }
