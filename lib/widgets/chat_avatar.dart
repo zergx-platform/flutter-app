@@ -8,17 +8,18 @@ enum AvatarLevel { org, repo, branch }
 /// Chat avatar with a 3-level hierarchy:
 ///
 ///   - [AvatarLevel.org]   → a SOLID circle tinted by the org name (no
-///                           pattern). Same org ⇒ same solid color.
-///   - [AvatarLevel.repo]  → the org background + a FIXED pattern shared by
-///                           every repo (geometry constant; foreground hue
-///                           derived from the repo, auto-contrasted).
-///   - [AvatarLevel.branch]→ the org background + a UNIQUE pattern per
-///                           bookmark (foreground hue from the repo).
+///                           pattern). Same org ⇒ same same color.
+///   - [AvatarLevel.repo]  → the org background + a FIXED honeycomb pattern
+///                           shared by every repo (foreground hue from repo).
+///   - [AvatarLevel.branch]→ the org background + a UNIQUE honeycomb pattern
+///                           per bookmark (foreground hue from the repo).
 ///
-/// Rendering is circle-native: the pattern is drawn through a circular clip
-/// (rim cells end in a smooth arc) and cells outside the rim are dropped, so
-/// nothing is ever chopped by an outer mask. Fallbacks: empty org → repo →
-/// branch for the color seed.
+/// Pattern is a regular-hexagon (honeycomb) tiling, all hexes strictly inside
+/// the circle. Hexagon circumradius ≈ 1/2 the old 5×5 square side, so the
+/// honeycomb is finer than the previous pixel grid. The pattern seed is the
+/// *bookmark name*, so every occurrence of e.g. "main" renders identically
+/// regardless of org/repo (colors still vary by org/repo). Rendering is
+/// circle-native: hexes whose circumcircle would leave the disc are dropped.
 class ChatAvatar extends StatelessWidget {
   final String org;
   final String repo;
@@ -39,13 +40,13 @@ class ChatAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = _bgColor();
     final fg = _fgColor(bg);
-    final cells = _cells();
+    final hexes = _hexes();
     return SizedBox(
       width: radius * 2,
       height: radius * 2,
       child: ClipOval(
         child: CustomPaint(
-          painter: _IdenticonPainter(bg: bg, fg: fg, cells: cells),
+          painter: _IdenticonPainter(bg: bg, fg: fg, hexes: hexes),
           size: Size.infinite,
         ),
       ),
@@ -62,31 +63,34 @@ class ChatAvatar extends StatelessWidget {
   String get _fgSeed =>
       repo.isNotEmpty ? repo : (org.isNotEmpty ? org : bookmark);
 
-  String get _patternSeed => '$org/$repo/$bookmark';
-
-  // ---- cells by level ----
-
-  List<bool> _cells() {
+  /// Pattern seed: the bookmark name (so "main" always matches), falling back
+  /// to the full path only when a bookmark is absent. Repos share one fixed
+  /// pattern; orgs are solid (empty pattern).
+  String get _patternSeed {
     switch (level) {
       case AvatarLevel.org:
-        // Solid: no pattern at all — the background is the whole avatar.
-        return List.filled(25, false);
+        return '';
       case AvatarLevel.repo:
-        // Fixed geometry shared by EVERY repo (a symmetric "plus").
-        return _fixedRepoCells;
+        return '!repo';
       case AvatarLevel.branch:
-        return identiconCells(_patternSeed);
+        return bookmark.isNotEmpty ? bookmark : '$org/$repo/$bookmark';
     }
   }
 
-  /// The one fixed pattern used for every repository row.
-  static const List<bool> _fixedRepoCells = [
-    false, false, true, false, false,
-    false, false, true, false, false,
-    true, true, true, true, true,
-    false, false, true, false, false,
-    false, false, true, false, false,
-  ];
+  // ---- honeycomb cells by level ----
+
+  List<HexCell> _hexes() {
+    switch (level) {
+      case AvatarLevel.org:
+        // Solid: no pattern.
+        return const [];
+      case AvatarLevel.repo:
+        // A fixed, symmetric honeycomb shared by every repo.
+        return honeycombCells('!repo');
+      case AvatarLevel.branch:
+        return honeycombCells(_patternSeed);
+    }
+  }
 
   // ---- colors ----
 
@@ -131,38 +135,58 @@ class ChatAvatar extends StatelessWidget {
 
   static double _hue(String source) => _fnv(source) % 360.toDouble();
 
-  /// 25 mirrored cells (row-major, 5x5). Left 3 columns hash; columns 3/4
-  /// mirror columns 1/0. Degenerate patterns are rehashed. Density counts
-  /// only circle-visible cells so an all-corner seed can't render empty.
-  static List<bool> identiconCells(String seed) {
-    var h = _fnv(seed);
-    for (var attempt = 0; attempt < 8; attempt++) {
-      final left = List.generate(15, (i) => ((h >> i) & 1) == 1);
-      final visibleOn = _visibleOnCount(left);
-      if (visibleOn >= 4 && visibleOn <= 11) {
-        return [
-          for (var r = 0; r < 5; r++)
-            for (var c = 0; c < 5; c++)
-              left[r * 3 + (c <= 2 ? c : 4 - c)],
-        ];
+  /// Cell size as a fraction of the avatar diameter: the hexagon
+  /// circumradius is 1/2 of the old 5×5 square side, so the honeycomb reads
+  /// finer. (Old square side = D/5 → hex circumradius = D/(5*2) = D/10.)
+  static double get _hexSize => 0.10;
+
+  /// A prettier, denser honeycomb than a plain grid: pick a hexagon *center*
+  /// on a pointy-top hex lattice and mark it on when the seed bit is set.
+  /// Only hexes whose circumcircle lies fully inside the disc are kept so no
+  /// tile pokes outside the circle. The seed is the bookmark name (stable).
+  static List<HexCell> honeycombCells(String seed) {
+    final R = _hexSize; // circumradius as a fraction of the diameter
+    final s = _fnv(seed);
+    final out = <HexCell>[];
+
+    // Pointy-top hexagon lattice: horizontal spacing = sqrt(3)*R, vertical
+    // spacing = 1.5*R, every other row offset by half a step.
+    final stepX = sqrt(3) * R;
+    final stepY = 1.5 * R;
+    // Cover a square of side 1 (normalized), centered at 0,0.
+    for (var row = -8; row <= 8; row++) {
+      final y = row * stepY;
+      final xOff = row.isOdd ? stepX / 2 : 0.0;
+      for (var col = -8; col <= 8; col++) {
+        final x = col * stepX + xOff;
+        // Hexagon is fully inside the unit disc (radius 0.5) when its
+        // circumcircle (center distance + circumradius) stays within 0.5.
+        if (x * x + y * y > 1.0) continue;
+        // Each hexagon has a circumradius R; require center + R ≤ 0.5.
+        if (sqrt(x * x + y * y) > 0.5 - R) continue;
+
+        // Mark with a deterministic bit from the seed hash.
+        final bit = _bitAt(s, out.length);
+        out.add(HexCell(x, y, R, bit));
       }
-      h = _fnv('$seed#$attempt');
     }
-    bool x(int r, int c) => (r - c).abs() == 2 || r == c;
-    return [
-      for (var r = 0; r < 5; r++) for (var c = 0; c < 5; c++) x(r, c <= 2 ? c : 4 - c),
-    ];
+    return out;
   }
 
-  /// Count 'on' cells that are visible inside the circle (corners never
-  /// render — their centers lie outside the inscribed circle).
-  static int _visibleOnCount(List<bool> left) {
-    var n = 0;
-    for (var i = 0; i < left.length; i++) {
-      if (i == 0 || i == 12) continue;
-      if (left[i]) n++;
-    }
-    return n;
+  /// Deterministic on/off for hexagon [i], derived from the seed hash mixed
+  /// with the index via a small avalanche (hash → xorshift), so adjacent
+  /// hexes differ enough to read as a pattern while every identical bookmark
+  /// renders identically.
+  static bool _bitAt(int h, int i) {
+    if (h == 0) return (i & 1) == 0;
+    var v = (h ^ (i * 0x9E3779B9)) & 0x7fffffff;
+    // xorshift + multiply to scatter nearby indices.
+    v ^= v << 13;
+    v &= 0x7fffffff;
+    v ^= v >> 17;
+    v ^= v << 5;
+    v &= 0x7fffffff;
+    return (v & 1) == 1;
   }
 
   // ---- WCAG contrast math ----
@@ -184,15 +208,26 @@ class ChatAvatar extends StatelessWidget {
   }
 }
 
+/// A single honeycomb cell: a regular hexagon at normalized center (x,y),
+/// with circumradius [r] (fraction of diameter) and a fill flag.
+class HexCell {
+  final double x;
+  final double y;
+  final double r;
+  final bool on;
+  const HexCell(this.x, this.y, this.r, this.on);
+}
+
 /// Paints the identicon natively in the circle: background fills the whole
-/// circle; on-cells are drawn through a circular clip so rim cells finish in
-/// a smooth arc. Cells whose center lies outside the circle are skipped.
+/// circle; on-hexes are drawn through a circular clip so rim hexes finish in a
+/// smooth arc. Hexes whose circumcircle would leave the disc were dropped when
+/// generated, so nothing pokes outside the circle.
 class _IdenticonPainter extends CustomPainter {
   final Color bg;
   final Color fg;
-  final List<bool> cells;
+  final List<HexCell> hexes;
   _IdenticonPainter(
-      {required this.bg, required this.fg, required this.cells});
+      {required this.bg, required this.fg, required this.hexes});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -200,22 +235,36 @@ class _IdenticonPainter extends CustomPainter {
     canvas.drawOval(rect, Paint()..color = bg);
     canvas.save();
     canvas.clipPath(Path()..addOval(rect));
-    final cell = size.shortestSide / 5;
+    final d = size.shortestSide; // diameter
     final center = rect.center;
-    final radius = size.shortestSide / 2;
     final paint = Paint()..color = fg;
-    for (var r = 0; r < 5; r++) {
-      for (var c = 0; c < 5; c++) {
-        if (!cells[r * 5 + c]) continue;
-        final cellRect = Rect.fromLTWH(c * cell, r * cell, cell, cell);
-        if ((cellRect.center - center).distance > radius) continue;
-        canvas.drawRect(cellRect, paint);
+    for (final h in hexes) {
+      if (!h.on) continue;
+      final cx = center.dx + h.x * d;
+      final cy = center.dy + h.y * d;
+      final r = h.r * d;
+      // Pointy-top hexagon vertices.
+      final path = Path();
+      for (var k = 0; k < 6; k++) {
+        final a = pi / 6 + k * pi / 3; // 30° offset ⇒ flat sides left/right
+        final px = cx + r * cos(a);
+        final py = cy + r * sin(a);
+        if (k == 0) {
+          path.moveTo(px, py);
+        } else {
+          path.lineTo(px, py);
+        }
       }
+      path.close();
+      canvas.drawPath(path, paint);
     }
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(_IdenticonPainter old) =>
-      old.bg != bg || old.fg != fg || !listEquals(old.cells, cells);
+      old.bg != bg ||
+      old.fg != fg ||
+      !listEquals(old.hexes.map((e) => e.on).toList(),
+          hexes.map((e) => e.on).toList());
 }
