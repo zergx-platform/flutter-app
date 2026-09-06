@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'api.dart';
+import 'enums.dart';
 import 'i18n.dart';
 import 'app_layout.dart';
+import 'page_builder.dart';
 import 'prefs.dart';
 import 'store.dart';
 import 'theme/app_theme.dart';
-import 'widgets/session_list_header.dart';
-import 'screens/chat.dart';
-import 'screens/chat_sidebar.dart';
-import 'screens/code.dart';
 import 'screens/config.dart';
-import 'screens/containers.dart';
-import 'screens/worksheets.dart';
 
 const defaultBaseUrl = 'https://platform.zergx.10.199.64.20.nip.io';
 
@@ -272,24 +268,9 @@ class _Shell extends StatelessWidget {
       builder: (context, _) {
         final tab = store.siderTab;
         final layout = AppLayout(MediaQuery.sizeOf(context).width);
-        // Inside a conversation the bottom bar is hidden on phones — the chat
-        // screen owns the full height, like a native IM app.
         final hideBottomBar =
             layout.isCompact && tab == SiderTab.chat && store.activeSessionId != null;
-        Widget body = switch (tab) {
-          SiderTab.chat => store.activeSessionId == null
-              ? _SessionsHome(store: store)
-              : ChatScreen(store: store),
-          SiderTab.code => CodeScreen(store: store),
-          SiderTab.config => ConfigScreen(
-              store: store,
-              darkMode: darkMode,
-              onDarkMode: onDarkMode,
-              onSwitchBackend: onSwitchBackend,
-            ),
-          SiderTab.containers => ContainersScreen(store: store),
-          SiderTab.worksheets => WorksheetsScreen(store: store),
-        };
+        final body = layout.isCompact ? _phoneBody(tab) : _tabletBody(tab);
         return Scaffold(
           body: layout.isCompact
               ? body
@@ -316,19 +297,42 @@ class _Shell extends StatelessWidget {
       },
     );
   }
-}
 
-/// Sessions list home — shown when no conversation is open. WeChat-style:
-/// AppBar title, a search icon button, a "+" create menu, then the chat list.
-class _SessionsHome extends StatelessWidget {
-  final AppStore store;
-  const _SessionsHome({required this.store});
+  /// Phone: a single stack-mounted page, with back-gesture pop.
+  Widget _phoneBody(SiderTab tab) {
+    if (tab == SiderTab.config) return _configBody();
+    final stack = store.currentStack;
+    final pages = buildStackPages(store, stack, lastCount: 1);
+    return PopScope(
+      canPop: !store.canPopPage,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        store.popPage();
+      },
+      child: pages.isEmpty ? const SizedBox.shrink() : pages.last,
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: SessionListHeader(store: store),
-      body: ChatSidebar(store: store),
+  /// Tablet: the last two pages of the stack, side by side, 50/50.
+  Widget _tabletBody(SiderTab tab) {
+    // Config owns its layout (internal sub-page stack); keep it full width.
+    if (tab == SiderTab.config) return _configBody();
+    final stack = store.currentStack;
+    final pages = buildStackPages(store, stack, lastCount: 2);
+    if (pages.length == 1) return pages.first;
+    return Row(
+      children: [
+        for (final p in pages) Expanded(child: p),
+      ],
+    );
+  }
+
+  Widget _configBody() {
+    return ConfigScreen(
+      store: store,
+      darkMode: darkMode,
+      onDarkMode: onDarkMode,
+      onSwitchBackend: onSwitchBackend,
     );
   }
 }

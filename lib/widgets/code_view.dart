@@ -4,9 +4,12 @@ import 'package:re_highlight/re_highlight.dart';
 import '../theme/app_theme.dart';
 import 'highlight_theme.dart';
 
-/// Line-numbered, syntax-highlighted code viewer. Uses re_highlight to color
-/// the code by file extension (via the filename), keeping a line-number gutter
-/// and shared horizontal scroll. The code is selectable (copy).
+/// Line-numbered, syntax-highlighted, soft-wrapping code viewer. Uses
+/// re_highlight to color the code by file extension. Each logical line is
+/// rendered as its own horizontally-stretching widget so long lines wrap
+/// (auto-wrap) rather than scroll sideways, and a line-number gutter stays
+/// aligned with the start of each logical line. Selectable (copy) via
+/// SelectionArea.
 class CodeView extends StatelessWidget {
   final String code;
   final String filepath;
@@ -16,54 +19,58 @@ class CodeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lines = code.split('\n');
     final colors = colorsOf(context);
     final text = textOf(context);
     final codeStyle = text.mono.copyWith(fontSize: 12);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final theme = highlightTheme(dark, codeStyle);
     final base = theme.base;
-    final span = _span(dark, codeStyle, base);
+    final lines = code.split('\n');
 
     return Scrollbar(
-      child: SingleChildScrollView(
+      child: ListView(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 36,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    for (var i = 1; i <= lines.length; i++)
-                      Text('$i',
-                          style: codeStyle.copyWith(color: colors.mutedForeground)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                    minWidth: MediaQuery.sizeOf(context).width - 80),
-                child: SelectionArea(
-                  child: Text.rich(span ?? TextSpan(children: [TextSpan(text: code, style: base)]),
-                      style: base),
-                ),
-              ),
-            ],
-          ),
-        ),
+        children: [
+          for (var i = 0; i < lines.length; i++)
+            _line(i + 1, lines[i], colors, codeStyle, dark, base),
+        ],
       ),
     );
   }
 
-  TextSpan? _span(bool dark, TextStyle codeStyle, TextStyle base) {
+  /// A single logical line: gutter number + the (possibly wrapped) highlighted
+  /// content. Soft-wrap via a stretched Text.rich so long lines wrap.
+  Widget _line(int num, String raw, AppColors colors, TextStyle codeStyle,
+      bool dark, TextStyle base) {
+    final span = _span(dark, codeStyle, base, raw);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 44,
+          child: Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: Text('$num',
+                textAlign: TextAlign.right,
+                style: codeStyle.copyWith(color: colors.mutedForeground)),
+          ),
+        ),
+        Expanded(
+          child: SelectionArea(
+            child: Text.rich(
+              span ?? TextSpan(children: [TextSpan(text: raw, style: base)]),
+              style: base,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  TextSpan? _span(bool dark, TextStyle codeStyle, TextStyle base, String raw) {
     try {
-      final result = _hl.highlight(code: code, language: languageFor(filepath));
+      final result = _hl.highlight(code: raw, language: languageFor(filepath));
       final theme = highlightTheme(dark, codeStyle);
       final renderer = TextSpanRenderer(base, theme.scopes);
       result.render(renderer);

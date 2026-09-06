@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import 'api.dart';
+import 'enums.dart';
 import 'models.dart';
-
-enum SiderTab { chat, code, containers, worksheets, config }
-
-enum SessionOverlay { timeline, files, mailbox, container, todos }
+import 'navigation.dart';
 
 /// Mirrors stores.svelte.ts: app-wide state + repository/file-outlook caching.
 class AppStore extends ChangeNotifier {
@@ -291,6 +289,19 @@ class AppStore extends ChangeNotifier {
     sessionOverlay = null;
     diffChangeId = null;
     markSessionRead(id);
+    // Open the conversation as a page in the chat stack.
+    pushPage(ChatSessionPage());
+  }
+
+  /// Open a repo in the code tab at the top of its stack.
+  void openCodeRepo(String org, String repo, String bookmark) {
+    openRepo(org, repo, bookmark);
+    pushPage(CodeRepoPage(org, repo, bookmark));
+  }
+
+  /// Open a file in the code tab at the top of its stack.
+  void openCodeFile(String path) {
+    pushPage(CodeFilePage(path));
   }
 
   /// Optimistically clear the local badge; the platform records the read
@@ -343,6 +354,46 @@ class AppStore extends ChangeNotifier {
     siderTab = tab;
     notifyListeners();
   }
+
+  // ---- Navigation stack (per tab) ----------------------------------------
+
+  /// Read-only view of the current tab's navigation stack. Populated lazily
+  /// by [ensureRoot] on first access; phone renders the top entry, tablets the
+  /// last two. Switching tabs preserves each tab's depth (never reset).
+  final Map<SiderTab, List<AppPage>> _stacks = {};
+
+  List<AppPage> _stackFor(SiderTab tab) =>
+      _stacks.putIfAbsent(tab, () => [rootPageFor(tab)]);
+
+  List<AppPage> get currentStack => _stackFor(siderTab);
+
+  AppPage get topPage => currentStack.last;
+
+  /// Push a page onto the current tab's stack. If a page with the same key
+  /// already exists it is replaced at its existing depth (so e.g. re-opening a
+  /// file doesn't grow the stack).
+  void pushPage(AppPage page) {
+    final list = currentStack;
+    final idx = page.key == null ? -1 : list.indexWhere((p) => p.key == page.key);
+    if (idx != -1) {
+      // Truncate to the existing entry, then re-append a fresh one.
+      list.removeRange(idx, list.length);
+    }
+    list.add(page);
+    notifyListeners();
+  }
+
+  /// Pop the top page of the current tab's stack. Never pops below the root.
+  void popPage() {
+    final list = currentStack;
+    if (list.length > 1) {
+      list.removeLast();
+      notifyListeners();
+    }
+  }
+
+  /// True when the current tab stack has more than just its root page.
+  bool get canPopPage => currentStack.length > 1;
 
   /// Public wrapper so screens can trigger a rebuild after mutating lists.
   void notifyObservers() => notifyListeners();

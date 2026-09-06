@@ -178,7 +178,7 @@ class _OrgTreeState extends State<OrgTree> {
     final selected = store.codeRepo == r.repo && store.codeOrg == o.org;
     return InkWell(
       onTap: () {
-        store.openRepo(o.org, r.repo, b.bookmark);
+        store.openCodeRepo(o.org, r.repo, b.bookmark);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(

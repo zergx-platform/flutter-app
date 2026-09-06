@@ -90,7 +90,7 @@ class TreeNode extends StatelessWidget {
     }
     final selected = store.selectedFilePath == entry.path;
     return InkWell(
-      onTap: () => store.openFile(entry.path),
+      onTap: () => store.openCodeFile(entry.path),
       child: Container(
         color: selected ? colors.primary.withValues(alpha: 0.15) : null,
         padding: const EdgeInsets.symmetric(vertical: 3),

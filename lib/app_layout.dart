@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'enums.dart';
 import 'i18n.dart';
 import 'store.dart';
 import 'theme/app_theme.dart';

@@ -5,6 +5,7 @@ import '../i18n.dart';
 import '../models.dart';
 import '../services/download_service.dart';
 import '../store.dart';
+import '../enums.dart';
 import '../theme/app_theme.dart';
 import '../widgets/commit_diff_page.dart';
 import '../widgets/dialogs.dart';

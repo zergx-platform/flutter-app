@@ -6,32 +6,26 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../i18n.dart';
-import '../app_layout.dart';
+import '../enums.dart';
+import '../navigation.dart';
 import '../messages.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
-import '../widgets/diff_view.dart';
 import '../widgets/message_bubble.dart';
-import '../widgets/session_list_header.dart';
-import 'chat_sidebar.dart';
-import 'container_overlay.dart';
-import 'files_overlay.dart';
-import 'overlays.dart';
-import 'change_diff.dart';
 
-/// IM-style chat screen. Mobile-first: full-height conversation, sticky
-/// composer with safe-area padding, long-press message actions. Wide
-/// screens keep the sidebar + overlay panel layout.
-class ChatScreen extends StatefulWidget {
+/// Conversation page shown when a session is open. Owns the chat header,
+/// message list and composer. It reads the active session from [store]; a
+/// single [MessagesController] is kept per chat-screen instance.
+class ChatSessionPageWidget extends StatefulWidget {
   final AppStore store;
-  const ChatScreen({super.key, required this.store});
+  const ChatSessionPageWidget({super.key, required this.store});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<ChatSessionPageWidget> createState() => _ChatSessionPageState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatSessionPageState extends State<ChatSessionPageWidget> {
   AppStore get store => widget.store;
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
@@ -383,80 +377,31 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = colorsOf(context);
-    final layout = AppLayout(MediaQuery.sizeOf(context).width);
     return PopScope(
-      // System back inside a conversation returns to the session list (or
-      // closes the desktop overlay panel) instead of backgrounding the app.
+      // System back inside a conversation returns to the previous chat view
+      // (session list / overlay) instead of backgrounding the app.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (store.sessionOverlay != null) {
-          store.closeOverlay();
+        if (store.canPopPage) {
+          store.popPage();
         } else {
           store.closeSession();
         }
       },
-      child: Scaffold(
-        body: layout.isCompact
-            // Phone: single column — chat header + messages + composer.
-            ? Column(
-                children: [
-                  _topBar(context),
-                  Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
-                  Expanded(child: _messageList()),
-                  _composer(context),
-                ],
-              )
-            // Tablet/desktop: two independent pages side-by-side. Left is the
-            // sessions list (same as before opening a chat, just narrower);
-            // right is the chat detail with its OWN header (back button only
-            // on the right), messages, and composer.
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  final showSidebar = layout.isTablet;
-                  final showOverlay =
-                      store.sessionOverlay != null && layout.isWide;
-                  return Row(
-                    children: [
-                      if (showSidebar)
-                        SizedBox(
-                          width: (constraints.maxWidth * 0.26).clamp(240.0, 320.0),
-                          child: _sidebar(context),
-                        ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _topBar(context),
-                            Divider(height: 1,
-                                color: colors.border.withValues(alpha: 0.5)),
-                            Expanded(child: _messageList()),
-                            _composer(context),
-                          ],
-                        ),
-                      ),
-                      if (showOverlay)
-                        SizedBox(
-                          width: 440,
-                          child: _overlayPanel(context),
-                        ),
-                    ],
-                  );
-                },
-              ),
-      ),
-    );
-  }
-
-  Widget _sidebar(BuildContext context) {
-    final colors = colorsOf(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-          border: Border(
-              right: BorderSide(color: colors.border.withValues(alpha: 0.5)))),
       child: Column(
         children: [
-          SessionListHeader(store: store),
-          Expanded(child: ChatSidebar(store: store)),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _topBar(context),
+                Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
+              ],
+            ),
+          ),
+          Expanded(child: _messageList()),
+          _composer(context),
         ],
       ),
     );
@@ -466,16 +411,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final colors = colorsOf(context);
     final text = textOf(context);
     final s = store.activeSession;
-    final overlayTitle = switch (store.sessionOverlay) {
-      SessionOverlay.timeline => context.l10n.timeline,
-      SessionOverlay.files => context.l10n.files,
-      SessionOverlay.mailbox => context.l10n.mailbox,
-      SessionOverlay.container => context.l10n.container,
-      SessionOverlay.todos => context.l10n.todos,
-      null => '',
-    };
-    // ignore: unused_local_variable
-    final _ = overlayTitle;
     return SafeArea(
       bottom: false,
       child: SizedBox(
@@ -486,13 +421,7 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_rounded, size: 22),
-                onPressed: () {
-                  if (store.sessionOverlay != null) {
-                    store.closeOverlay();
-                  } else {
-                    store.closeSession();
-                  }
-                },
+                onPressed: () => store.popPage(),
               ),
               Container(
                 width: 8,
@@ -584,16 +513,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Open a session sub-page. Wide screens dock it as a right panel; phones
-  /// push a full-screen route (the side panel is width-gated at 1024px, so
-  /// without this the overlay would be set but never rendered on mobile).
+  /// Open a session sub-page by pushing onto the chat tab's stack.
   void _openOverlay(SessionOverlay overlay) {
-    store.openOverlay(overlay);
-    if (!AppLayout(MediaQuery.sizeOf(context).width).isWide) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => _OverlayPage(store: store, overlay: overlay),
-      ));
-    }
+    store.pushPage(ChatOverlayPage(overlay));
   }
 
   Future<void> _deleteSession() async {
@@ -952,285 +874,6 @@ class _ChatScreenState extends State<ChatScreen> {
   static String _k(int n) {
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return '$n';
-  }
-
-  Widget _overlayPanel(BuildContext context) {
-    final colors = colorsOf(context);
-    final overlay = store.sessionOverlay;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-          border: Border(
-              left: BorderSide(color: colors.border.withValues(alpha: 0.5)))),
-      child: Column(
-        children: [
-          SizedBox(
-            height: AppBars.height,
-            child: Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                    child: Row(
-                      children: [
-                        for (final t in SessionOverlay.values)
-                          _OverlayTab(
-                            label: _overlayLabel(t),
-                            selected: overlay == t,
-                            onTap: () => store.openOverlay(t),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 16),
-                  onPressed: () => store.closeOverlay()),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: colors.border.withValues(alpha: 0.5)),
-          Expanded(child: _buildOverlay()),
-        ],
-      ),
-    );
-  }
-
-  String _overlayLabel(SessionOverlay ov) {
-    switch (ov) {
-      case SessionOverlay.timeline:
-        return context.l10n.timeline;
-      case SessionOverlay.files:
-        return context.l10n.files;
-      case SessionOverlay.mailbox:
-        return context.l10n.mailbox;
-      case SessionOverlay.container:
-        return context.l10n.container;
-      case SessionOverlay.todos:
-        return context.l10n.todos;
-    }
-  }
-
-  Widget _buildOverlay() {
-    switch (store.sessionOverlay) {
-      case SessionOverlay.timeline:
-        if (store.diffChangeId != null) {
-          return TimelineDiffScreen(store: store, changeId: store.diffChangeId!);
-        }
-        return TimelineOverlay(
-            store: store, onSelectDiff: (id) => store.openChange(id));
-      case SessionOverlay.files:
-        return FilesOverlay(store: store);
-      case SessionOverlay.mailbox:
-        return MailboxOverlay(store: store);
-      case SessionOverlay.container:
-        return ContainerOverlay(store: store);
-      case SessionOverlay.todos:
-        return TodosOverlay(store: store);
-      case null:
-        return const SizedBox.shrink();
-    }
-  }
-}
-
-class _OverlayTab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _OverlayTab(
-      {required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
-    final text = textOf(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.rSm,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm, vertical: AppSpacing.xs + 1),
-          decoration: BoxDecoration(
-            color: selected ? colors.muted : Colors.transparent,
-            borderRadius: AppRadius.rSm,
-          ),
-          child: Text(label,
-              style: text.micro.copyWith(
-                  color: selected ? colors.primary : colors.mutedForeground,
-                  fontWeight:
-                      selected ? FontWeight.w600 : FontWeight.normal)),
-        ),
-      ),
-    );
-  }
-}
-
-/// Full-screen host for a session overlay on phones. Back button closes the
-/// overlay state so the side panel (wide screens) stays in sync. The body
-/// listens to the store so switching between the list and a diff inside the
-/// page (e.g. tapping a change, then "Back") rebuilds correctly.
-class _OverlayPage extends StatelessWidget {
-  final AppStore store;
-  final SessionOverlay overlay;
-  const _OverlayPage({required this.store, required this.overlay});
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      // Sync store state when the system back pops this route.
-      canPop: true,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) store.closeOverlay();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () {
-              store.closeOverlay();
-              Navigator.of(context).pop();
-            },
-          ),
-          title: Text(switch (overlay) {
-            SessionOverlay.timeline => context.l10n.timeline,
-            SessionOverlay.files => context.l10n.files,
-            SessionOverlay.mailbox => context.l10n.mailbox,
-            SessionOverlay.container => context.l10n.container,
-            SessionOverlay.todos => context.l10n.todos,
-          }),
-        ),
-        body: ListenableBuilder(
-          listenable: store,
-          builder: (context, _) => _buildBody(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    switch (overlay) {
-      case SessionOverlay.timeline:
-        if (store.diffChangeId != null) {
-          return TimelineDiffScreen(
-              store: store, changeId: store.diffChangeId!);
-        }
-        return TimelineOverlay(
-            store: store, onSelectDiff: (id) => store.openChange(id));
-      case SessionOverlay.files:
-        return FilesOverlay(store: store);
-      case SessionOverlay.mailbox:
-        return MailboxOverlay(store: store);
-      case SessionOverlay.container:
-        return ContainerOverlay(store: store);
-      case SessionOverlay.todos:
-        return TodosOverlay(store: store);
-    }
-  }
-}
-
-class TimelineDiffScreen extends StatefulWidget {
-  final AppStore store;
-  final String changeId;
-  const TimelineDiffScreen(
-      {super.key, required this.store, required this.changeId});
-
-  @override
-  State<TimelineDiffScreen> createState() => _TimelineDiffScreenState();
-}
-
-class _TimelineDiffScreenState extends State<TimelineDiffScreen> {
-  AppStore get store => widget.store;
-  String _diff = '';
-  String _error = '';
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final s = widget.store.activeSession;
-    if (s == null) return;
-    try {
-      // change_id → current commit_id → unified diff (rebase-safe). Old
-      // code called /repos/{o}/{r}/diff/{change_id} which no longer exists
-      // on the jjlab that dropped that route (404 "not a git endpoint").
-      final d = await widget.store.api.changeDiff(
-          s.org, s.repo, widget.changeId,
-          bookmark: s.bookmark);
-      setState(() {
-        _diff = d;
-        if (d.isEmpty) _error = context.l10n.noChanges;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = '$e';
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _openFullScreen() async {
-    final s = widget.store.activeSession;
-    if (s == null) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChangeDiffScreen(
-        api: widget.store.api,
-        org: s.org,
-        repo: s.repo,
-        changeId: widget.changeId,
-        bookmark: s.bookmark,
-      ),
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = colorsOf(context);
-    return Column(
-      children: [
-        ListTile(
-          leading: const Icon(Icons.commit_rounded),
-          title: Text('${widget.changeId.substring(0, 12)}…',
-              style: textOf(context).mono),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                tooltip: context.l10n.changeDiff,
-                onPressed: _openFullScreen,
-              ),
-              TextButton(
-                  // Go back to the change list (notifies the store so both
-                  // the desktop panel and the mobile overlay page rebuild).
-                  onPressed: () => store.closeDiff(),
-                  child: Text(context.l10n.back)),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error.isNotEmpty
-                  ? Center(
-                      child: Text(_error,
-                          style:
-                              TextStyle(color: colors.mutedForeground)))
-                  : _diff.isEmpty
-                      ? Center(
-                          child: Text(context.l10n.noChanges,
-                              style: TextStyle(
-                                  color: colors.mutedForeground)))
-                      : DiffView(diffText: _diff),
-        ),
-      ],
-    );
   }
 }
 

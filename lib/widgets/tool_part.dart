@@ -11,6 +11,7 @@ import '../screens/task_progress.dart';
 import '../theme/app_theme.dart';
 import 'diff_parser.dart';
 import 'diff_view.dart';
+import 'code_view.dart';
 import 'tool_icon.dart';
 
 /// Recreates ToolPartView.svelte + family-specific body rendering.
@@ -430,15 +431,20 @@ class _ToolPartViewState extends State<ToolPartView> {
     // Result content.
     final output = state?.output;
     if (output != null && output.isNotEmpty) {
-      children.add(Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.xs),
-        constraints: const BoxConstraints(maxHeight: 220),
-        child: SingleChildScrollView(
-          child: SelectableText(fmtOutput(output),
-              style: text.mono.copyWith(fontSize: 11)),
-        ),
-      ));
+      if (tool == 'read' && widget.org != null && widget.repo != null) {
+        // read: show a highlighted, line-numbered, auto-wrapping code block.
+        children.add(_readContent(context, output));
+      } else {
+        children.add(Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          constraints: const BoxConstraints(maxHeight: 220),
+          child: SingleChildScrollView(
+            child: SelectableText(fmtOutput(output),
+                style: text.mono.copyWith(fontSize: 11)),
+          ),
+        ));
+      }
     } else if (widget.isStreaming && status == 'running') {
       children.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -465,6 +471,37 @@ class _ToolPartViewState extends State<ToolPartView> {
       ),
       child: SelectableText(text,
           style: textOf(context).mono.copyWith(fontSize: 11)),
+    );
+  }
+
+  /// read result: highlighted, line-numbered, auto-wrapping content. The raw
+  /// output is the numbered "1: ..." text from the repo-extension; we render it
+  /// as a highlighted CodeView on the file's path so lines wrap and are
+  /// colorized, and keep the numbered text intact (lines already carry the
+  /// "N: " prefix that CodeView's gutter would otherwise double — so we strip
+  /// the gutter here via a plain highlighted render). We use the path as the
+  /// filepath for syntax detection.
+  Widget _readContent(BuildContext context, String output) {
+    final text = textOf(context);
+    final path = _s(input['path']);
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 260),
+      decoration: BoxDecoration(
+        color: colorsOf(context).muted.withValues(alpha: 0.4),
+        borderRadius: AppRadius.rSm,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      child: SingleChildScrollView(
+        child: _codeTextWithNums(output, path, text),
+      ),
+    );
+  }
+
+  Widget _codeTextWithNums(String output, String path, AppTypography text) {
+    return CodeView(
+      code: output,
+      filepath: path.isEmpty ? 'x.txt' : path,
     );
   }
 
