@@ -85,10 +85,12 @@ class ChatAvatar extends StatelessWidget {
         // Solid: no pattern.
         return const [];
       case AvatarLevel.repo:
-        // A fixed, symmetric honeycomb shared by every repo.
-        return honeycombCells('!repo');
+        // A fixed, symmetric hexagonal wreath shared by every repo.
+        return honeycombWreath();
       case AvatarLevel.branch:
-        return honeycombCells(_patternSeed);
+        // Bookmark-seeded honeycomb, forced to be mirror-symmetric about the
+        // vertical axis (same semantic as the old square identicon).
+        return honeycombCells(_patternSeed, mirror: true);
     }
   }
 
@@ -140,38 +142,88 @@ class ChatAvatar extends StatelessWidget {
   /// finer. (Old square side = D/5 → hex circumradius = D/(5*2) = D/10.)
   static double get _hexSize => 0.10;
 
-  /// A prettier, denser honeycomb than a plain grid: pick a hexagon *center*
-  /// on a pointy-top hex lattice and mark it on when the seed bit is set.
-  /// Only hexes whose circumcircle lies fully inside the disc are kept so no
-  /// tile pokes outside the circle. The seed is the bookmark name (stable).
-  static List<HexCell> honeycombCells(String seed) {
-    final R = _hexSize; // circumradius as a fraction of the diameter
-    final s = _fnv(seed);
-    final out = <HexCell>[];
-
-    // Pointy-top hexagon lattice: horizontal spacing = sqrt(3)*R, vertical
-    // spacing = 1.5*R, every other row offset by half a step.
+  /// The fixed, radially-symmetric hexagonal wreath used for every repo. The
+  /// honeycomb lattice is symmetric about both axes, so taking an annulus
+  /// (radial band) yields a symmetric ring of hexes — a recognizable "wreath"
+  /// without relying on the seed. All hexes stay inside the disc.
+  static List<HexCell> honeycombWreath() {
+    final R = _hexSize;
     final stepX = sqrt(3) * R;
     final stepY = 1.5 * R;
-    // Cover a square of side 1 (normalized), centered at 0,0.
+    final out = <HexCell>[];
     for (var row = -8; row <= 8; row++) {
       final y = row * stepY;
       final xOff = row.isOdd ? stepX / 2 : 0.0;
       for (var col = -8; col <= 8; col++) {
         final x = col * stepX + xOff;
-        // Hexagon is fully inside the unit disc (radius 0.5) when its
-        // circumcircle (center distance + circumradius) stays within 0.5.
-        if (x * x + y * y > 1.0) continue;
-        // Each hexagon has a circumradius R; require center + R ≤ 0.5.
-        if (sqrt(x * x + y * y) > 0.5 - R) continue;
-
-        // Mark with a deterministic bit from the seed hash.
-        final bit = _bitAt(s, out.length);
-        out.add(HexCell(x, y, R, bit));
+        final d = sqrt(x * x + y * y);
+        // Keep only hexes in a mid-radius annulus (a ring near the rim), and
+        // inside the disc (center + R <= 0.5).
+        if (d < 0.26 || d > 0.40) continue;
+        if (d > 0.5 - R) continue;
+        out.add(HexCell(x, y, R, true));
       }
     }
     return out;
   }
+
+  /// A bookmark-seeded honeycomb. When [mirror] is true the pattern is forced
+  /// to mirror-symmetric about the vertical axis (x → -x), matching the old
+  /// identicon's symmetry. Only hexes whose circumcircle lies fully inside the
+  /// disc are kept so no tile pokes outside the circle. The seed is the
+  /// bookmark name (stable): every identical bookmark renders identically.
+  static List<HexCell> honeycombCells(String seed, {bool mirror = false}) {
+    final R = _hexSize;
+    final s = _fnv(seed);
+
+    // Pointy-top hexagon lattice: horizontal spacing = sqrt(3)*R, vertical
+    // spacing = 1.5*R, every other row offset by half a step. The lattice is
+    // symmetric about both axes (even rows symmetric about x=0; adjacent odd
+    // rows are the same set mirrored), so mirroring is lossless.
+    final stepX = sqrt(3) * R;
+    final stepY = 1.5 * R;
+    final cells = <HexCell>[];
+    for (var row = -8; row <= 8; row++) {
+      final y = row * stepY;
+      final xOff = row.isOdd ? stepX / 2 : 0.0;
+      for (var col = -8; col <= 8; col++) {
+        final x = col * stepX + xOff;
+        if (sqrt(x * x + y * y) > 0.5 - R) continue;
+        cells.add(HexCell(x, y, R, true));
+      }
+    }
+
+    if (!mirror) {
+      // Direct deterministic on/off from the seed.
+      return [
+        for (var i = 0; i < cells.length; i++)
+          HexCell(cells[i].x, cells[i].y, R, _bitAt(s, i)),
+      ];
+    }
+
+    // Mirror-symmetric: index cells by rounded coordinates so each cell can
+    // find its x → -x mirror, then set a pair on/off from a single shared bit.
+    final byCoord = <String, int>{};
+    for (var i = 0; i < cells.length; i++) {
+      byCoord['${_k(cells[i].x)}|${_k(cells[i].y)}'] = i;
+    }
+    final on = List<bool>.filled(cells.length, false);
+    for (var i = 0; i < cells.length; i++) {
+      if (on[i]) continue;
+      final key = '${_k(-cells[i].x)}|${_k(cells[i].y)}';
+      final mi = byCoord[key] ?? i;
+      final bit = _bitAt(s, i < mi ? i : mi);
+      on[i] = bit;
+      if (mi != i) on[mi] = bit;
+    }
+    return [
+      for (var i = 0; i < cells.length; i++)
+        HexCell(cells[i].x, cells[i].y, R, on[i]),
+    ];
+  }
+
+  /// Round a normalized coordinate to a stable key (avoids float drift).
+  static String _k(double v) => v.toStringAsFixed(6);
 
   /// Deterministic on/off for hexagon [i], derived from the seed hash mixed
   /// with the index via a small avalanche (hash → xorshift), so adjacent
