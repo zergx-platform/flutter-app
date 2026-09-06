@@ -300,9 +300,12 @@ class _Shell extends StatelessWidget {
 
   /// Phone: a single stack-mounted page, with back-gesture pop.
   Widget _phoneBody(SiderTab tab) {
-    if (tab == SiderTab.config) return _configBody();
     final stack = store.currentStack;
-    final pages = buildStackPages(store, stack, lastCount: 1);
+    final pages = buildStackPages(store, stack,
+        lastCount: 1,
+        darkMode: darkMode,
+        onDarkMode: onDarkMode,
+        onSwitchBackend: onSwitchBackend);
     return PopScope(
       canPop: !store.canPopPage,
       onPopInvokedWithResult: (didPop, _) {
@@ -315,24 +318,17 @@ class _Shell extends StatelessWidget {
 
   /// Tablet: the last two pages of the stack, side by side, 50/50.
   Widget _tabletBody(SiderTab tab) {
-    // Config owns its layout (internal sub-page stack); keep it full width.
-    if (tab == SiderTab.config) return _configBody();
     final stack = store.currentStack;
-    final pages = buildStackPages(store, stack, lastCount: 2);
+    final pages = buildStackPages(store, stack,
+        lastCount: 2,
+        darkMode: darkMode,
+        onDarkMode: onDarkMode,
+        onSwitchBackend: onSwitchBackend);
     if (pages.length == 1) return pages.first;
     return Row(
       children: [
         for (final p in pages) Expanded(child: p),
       ],
-    );
-  }
-
-  Widget _configBody() {
-    return ConfigScreen(
-      store: store,
-      darkMode: darkMode,
-      onDarkMode: onDarkMode,
-      onSwitchBackend: onSwitchBackend,
     );
   }
 }
@@ -345,7 +341,6 @@ class _SetupScreen extends StatefulWidget {
   @override
   State<_SetupScreen> createState() => _SetupScreenState();
 }
-
 class _SetupScreenState extends State<_SetupScreen> {
   late final TextEditingController _base =
       TextEditingController(text: widget.initialBaseUrl);

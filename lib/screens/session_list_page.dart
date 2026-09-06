@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../i18n.dart';
 import '../store.dart';
-import '../theme/app_theme.dart';
 import 'chat_sidebar.dart';
 import '../widgets/session_list_header.dart';
 

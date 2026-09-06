@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../i18n.dart';
 import '../navigation.dart';
 import '../store.dart';
-import '../theme/app_theme.dart';
 import 'chat.dart';
 import 'timeline_diff_page.dart';
 import 'container_overlay.dart';

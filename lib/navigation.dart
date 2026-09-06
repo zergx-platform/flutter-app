@@ -39,6 +39,7 @@ class ChatOverlayPage extends AppPage {
   final SessionOverlay overlay;
   const ChatOverlayPage(this.overlay) : super('chat_overlay');
 }
+
 /// Code tab — bottom of the stack (org → repo → bookmark tree).
 class CodeRootPage extends AppPage {
   const CodeRootPage() : super('code_root');
@@ -69,13 +70,22 @@ class WorksheetsRootPage extends AppPage {
   const WorksheetsRootPage() : super('worksheets_root');
 }
 
+/// Config tab — bottom of the stack (settings list).
+class ConfigRootPage extends AppPage {
+  const ConfigRootPage() : super('config_root');
+}
+
+/// Config tab — a drill-in sub page (providers / presets / tools / …).
+class ConfigSubPage extends AppPage {
+  final String id;
+  const ConfigSubPage(this.id) : super('config_sub_$id');
+}
+
 /// The stack-bottom page for a given tab.
 AppPage rootPageFor(SiderTab tab) => switch (tab) {
       SiderTab.chat => const ChatListPage(),
       SiderTab.code => const CodeRootPage(),
       SiderTab.containers => const ContainersRootPage(),
       SiderTab.worksheets => const WorksheetsRootPage(),
-      // Config is rendered directly by the shell (its own sub-page stack); the
-      // root here is unused and never pushed.
-      SiderTab.config => const ContainersRootPage(),
+      SiderTab.config => const ConfigRootPage(),
     };

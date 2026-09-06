@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../i18n.dart';
 import '../models.dart';
+import '../navigation.dart';
 import '../prefs.dart';
 import '../store.dart';
 import '../theme/app_theme.dart';
@@ -11,17 +12,26 @@ import '../widgets/dialogs.dart';
 
 /// Recreates ConfigPage.svelte (simplified, without the external
 /// models.dev template fetch and PWA install section).
+///
+/// A single widget serves both the config tab's stack root (the settings list)
+/// and a drill-in sub page ([initialId] non-null) so the per-tab nav stack can
+/// render the list and a drill-in side by side on tablets. Navigation is done
+/// via [AppStore.pushPage]/[popPage] on the config stack.
 class ConfigScreen extends StatefulWidget {
   final AppStore store;
   final bool darkMode;
   final ValueChanged<bool> onDarkMode;
   final VoidCallback? onSwitchBackend;
+  /// When null this is the settings list (stack root); otherwise it renders the
+  /// given drill-in page (providers / presets / tools / appearance).
+  final String? initialId;
   const ConfigScreen({
     super.key,
     required this.store,
     this.darkMode = true,
     required this.onDarkMode,
     this.onSwitchBackend,
+    this.initialId,
   });
 
   @override
@@ -33,12 +43,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Map<String, ProviderInfo> _providers = {};
   bool _loading = true;
 
-  final List<String> _stack = [];
-
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
@@ -47,40 +55,29 @@ class _ConfigScreenState extends State<ConfigScreen> {
       final p = await store.api.providers();
       if (mounted) _providers = p;
     } catch (_) {}
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
   }
 
-  void _push(String id) => setState(() => _stack.add(id));
-  void _pop() => setState(() => _stack.removeLast());
+  /// Push a drill-in sub page onto the config tab's stack.
+  void _push(String id) => store.pushPage(ConfigSubPage(id));
 
   @override
   Widget build(BuildContext context) {
-    // Back-gesture handling for the in-Config sub-pages (providers/presets/
-    // tools/appearance), which are NOT Navigator routes — without this the
-    // system back on a sub-page would pop the whole route and exit to the
-    // launcher instead of returning to the settings list.
-    return PopScope(
-      canPop: _stack.isEmpty,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_stack.isNotEmpty) _pop();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: _stack.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back), onPressed: _pop)
-              : null,
-          title: Text(_stack.isNotEmpty
-              ? _titleOf(_stack.last)
-              : context.l10n.tabConfig),
-        ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _stack.isEmpty
-                ? _listView(context)
-                : _detail(_stack.last, context),
+    final id = widget.initialId;
+    final isDetail = id != null;
+    return Scaffold(
+      appBar: AppBar(
+        leading: isDetail
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back), onPressed: () => store.popPage())
+            : null,
+        title: Text(isDetail ? _titleOf(id) : context.l10n.tabConfig),
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : isDetail
+              ? _detail(id, context)
+              : _listView(context),
     );
   }
 
