@@ -174,7 +174,6 @@ class ChatAvatar extends StatelessWidget {
   /// bookmark name (stable): every identical bookmark renders identically.
   static List<HexCell> honeycombCells(String seed, {bool mirror = false}) {
     final R = _hexSize;
-    final s = _fnv(seed);
 
     // Pointy-top hexagon lattice: horizontal spacing = sqrt(3)*R, vertical
     // spacing = 1.5*R, every other row offset by half a step. The lattice is
@@ -197,7 +196,7 @@ class ChatAvatar extends StatelessWidget {
       // Direct deterministic on/off from the seed.
       return [
         for (var i = 0; i < cells.length; i++)
-          HexCell(cells[i].x, cells[i].y, R, _bitAt(s, i)),
+          HexCell(cells[i].x, cells[i].y, R, _bitAt(seed, i)),
       ];
     }
 
@@ -212,7 +211,7 @@ class ChatAvatar extends StatelessWidget {
       if (on[i]) continue;
       final key = '${_k(-cells[i].x)}|${_k(cells[i].y)}';
       final mi = byCoord[key] ?? i;
-      final bit = _bitAt(s, i < mi ? i : mi);
+      final bit = _bitAt(seed, i < mi ? i : mi);
       on[i] = bit;
       if (mi != i) on[mi] = bit;
     }
@@ -225,20 +224,21 @@ class ChatAvatar extends StatelessWidget {
   /// Round a normalized coordinate to a stable key (avoids float drift).
   static String _k(double v) => v.toStringAsFixed(6);
 
-  /// Deterministic on/off for hexagon [i], derived from the seed hash mixed
-  /// with the index via a small avalanche (hash → xorshift), so adjacent
-  /// hexes differ enough to read as a pattern while every identical bookmark
-  /// renders identically.
-  static bool _bitAt(int h, int i) {
-    if (h == 0) return (i & 1) == 0;
-    var v = (h ^ (i * 0x9E3779B9)) & 0x7fffffff;
-    // xorshift + multiply to scatter nearby indices.
-    v ^= v << 13;
-    v &= 0x7fffffff;
-    v ^= v >> 17;
-    v ^= v << 5;
-    v &= 0x7fffffff;
-    return (v & 1) == 1;
+  /// Deterministic on/off for hexagon [i]. Hashing the *whole* seed + index
+  /// fresh per cell (not a single base hash reused with a weak xorshift) keeps
+  /// distinct seeds (e.g. "main" vs "master") from colliding into identical
+  /// patterns, while the same seed always renders the same.
+  static bool _bitAt(String seed, int i) {
+    if (seed.isEmpty) return (i & 1) == 0;
+    return (_mix(_fnv('$seed#$i')) & 1) == 1;
+  }
+
+  /// A strong finalizer so adjacent / near-identical inputs diverge (FNV alone
+  /// is too weak: "main" and "master" were mapping to the same bit pattern).
+  static int _mix(int x) {
+    x = (x ^ (x >> 16)) * 0x7feb352d & 0xffffffff;
+    x = (x ^ (x >> 15)) * 0x846ca68b & 0xffffffff;
+    return (x ^ (x >> 16)) & 0xffffffff;
   }
 
   // ---- WCAG contrast math ----
