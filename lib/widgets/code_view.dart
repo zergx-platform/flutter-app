@@ -15,6 +15,7 @@ class CodeView extends StatelessWidget {
   final String filepath;
   final bool shrinkWrap;
   final bool showLineNumbers;
+  final List<CodeLine>? numbered;
   final Highlight _hl;
   CodeView({
     super.key,
@@ -22,7 +23,26 @@ class CodeView extends StatelessWidget {
     required this.filepath,
     this.shrinkWrap = false,
     this.showLineNumbers = true,
+    this.numbered,
   }) : _hl = Highlight()..registerLanguages(builtinLanguagesFor(filepath));
+
+  /// Header: gutter number (or null if no slot) + the content to highlight.
+  /// Used by `read` results that already carry their own "N: " line numbers so
+  /// the CLI content can be re-flowed into an independent VsCode-style gutter.
+  static List<CodeLine> parseNumbered(String output) {
+    final lines = <CodeLine>[];
+    final re = RegExp(r'^(\d+):\s?(.*)$');
+    for (final raw in output.split('\n')) {
+      final m = re.firstMatch(raw);
+      if (m != null && m.group(1) != null) {
+        lines.add(
+            CodeLine(int.tryParse(m.group(1)!)!, m.group(2) ?? ''));
+      } else {
+        lines.add(CodeLine(null, raw));
+      }
+    }
+    return lines;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +54,57 @@ class CodeView extends StatelessWidget {
     final base = theme.base;
     final lines = code.split('\n');
 
+    // VsCode-style line-count-adaptive gutter: grows as the line count needs
+    // more digits (1 → 2 → 3 → 4 digits), so numbers never wrap or clip.
+    final count = numbered != null ? numbered!.length : lines.length;
+    final maxDigits = count.toString().length;
+    final gutter = showLineNumbers ? (maxDigits * 8 + 30).toDouble() : 0.0;
     return Scrollbar(
       child: ListView(
         shrinkWrap: shrinkWrap,
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         children: [
-          for (var i = 0; i < lines.length; i++)
-            _line(i + 1, lines[i], colors, codeStyle, dark, base,
-                showLineNumbers),
+          if (numbered != null)
+            for (var i = 0; i < numbered!.length; i++)
+              _numberedLine(numbered![i], colors, codeStyle, dark, base, gutter)
+          else
+            for (var i = 0; i < lines.length; i++)
+              _line(i + 1, lines[i], colors, codeStyle, dark, base, gutter),
         ],
       ),
+    );
+  }
+
+  /// A numbered/parseable logical line with its own VsCode-style gutter slot.
+  Widget _numberedLine(CodeLine cl, AppColors colors, TextStyle codeStyle,
+      bool dark, TextStyle base, double gutter) {
+    final span = _span(dark, codeStyle, base, cl.content);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showLineNumbers)
+          SizedBox(
+            width: gutter,
+            child: Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: Text(
+                  cl.number == null ? '' : '${cl.number}',
+                  textAlign: TextAlign.right,
+                  style: codeStyle.copyWith(color: colors.mutedForeground)),
+            ),
+          ),
+        Expanded(
+          child: SelectionArea(
+            child: Text.rich(
+              span != null
+                  ? span
+                  : TextSpan(children: [TextSpan(text: cl.content, style: base)]),
+              style: base,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -53,14 +113,14 @@ class CodeView extends StatelessWidget {
   /// [showLineNumbers] is false the gutter is omitted (used when the content
   /// already carries its own "N: " line prefix, e.g. a `read` tool result).
   Widget _line(int num, String raw, AppColors colors, TextStyle codeStyle,
-      bool dark, TextStyle base, bool showNumbers) {
+      bool dark, TextStyle base, double gutter) {
     final span = _span(dark, codeStyle, base, raw);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showNumbers)
+        if (showLineNumbers)
           SizedBox(
-            width: 44,
+            width: gutter,
             child: Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: Text('$num',
@@ -91,6 +151,15 @@ class CodeView extends StatelessWidget {
       return null;
     }
   }
+}
+
+/// A single logical code line for [CodeView], optionally carrying an explicit
+/// line number. `number == null` means the row has no dedicated gutter slot
+/// (e.g. the trailing "(file not fully read...)" hint under a `read` result).
+class CodeLine {
+  final int? number;
+  final String content;
+  const CodeLine(this.number, this.content);
 }
 
 /// Language name resolved from a file path/extension. Falls back to plaintext.

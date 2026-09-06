@@ -50,6 +50,14 @@ class _ToolPartViewState extends State<ToolPartView> {
   // Toggle for the input-params JSON panel only (independent of card _open).
   bool _paramsOpen = true;
 
+  @override
+  void initState() {
+    super.initState();
+    // read results are dense — default to collapsed; the metadata bar (path /
+    // bookmark / line range) stays visible above, only the file content folds.
+    _open = widget.part.tool != 'read';
+  }
+
   String _s(Object? v) => v is String ? v : '';
 
   String get tool => widget.part.tool;
@@ -388,7 +396,16 @@ class _ToolPartViewState extends State<ToolPartView> {
     }
 
     // Success: input parameters → result metadata → result content.
-    if (input.isNotEmpty) children.add(_inputParamsPanel(input, _paramsOpen));
+    // read: instead of the raw JSON panel, show a compact summary bar (path +
+    // org:repo:bookmark + offset/limit range) that is always visible; the
+    // content (folded by default) sits below it.
+    if (input.isNotEmpty) {
+      if (tool == 'read') {
+        children.add(_readSummary());
+      } else {
+        children.add(_inputParamsPanel(input, _paramsOpen));
+      }
+    }
 
     // Result metadata (change_id / diff / additions-deletions).
     if (changeId != null) {
@@ -474,36 +491,90 @@ class _ToolPartViewState extends State<ToolPartView> {
     );
   }
 
-  /// read result: highlighted, line-numbered, auto-wrapping content. The raw
-  /// output is the numbered "1: ..." text from the repo-extension; we render it
-  /// as a highlighted CodeView on the file's path so lines wrap and are
-  /// colorized. The output already carries a "N: " prefix, so we disable the
-  /// CodeView's own gutter to avoid double line numbers, and use shrinkWrap
-  /// because the card sits inside an outer scrolling ListView.
+  /// read results carry their own "N: " line-number prefix in the output; re-flow
+  /// them into an independent VsCode-style gutter so the number is separated
+  /// from the content and highlighted, rather than embedded in the text.
   Widget _readContent(BuildContext context, String output) {
     final path = _s(input['path']);
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxHeight: 260),
+      constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
         color: colorsOf(context).muted.withValues(alpha: 0.4),
         borderRadius: AppRadius.rSm,
       ),
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: SingleChildScrollView(
-        child: _codeTextWithNums(output, path),
+        child: CodeView(
+          code: output,
+          filepath: path.isEmpty ? 'x.txt' : path,
+          shrinkWrap: true,
+          showLineNumbers: true,
+          numbered: CodeView.parseNumbered(output),
+        ),
       ),
     );
   }
 
-  Widget _codeTextWithNums(String output, String path) {
-    return CodeView(
-      code: output,
-      filepath: path.isEmpty ? 'x.txt' : path,
-      shrinkWrap: true,
-      showLineNumbers: false,
+  /// Always-visible metadata bar for a read call: org:repo:bookmark → path,
+  /// plus the offset/limit line range when present. Sits above the folded
+  /// content so the user sees what was read without expanding.
+  Widget _readSummary() {
+    final colors = colorsOf(context);
+    final text = textOf(context);
+    final path = _s(input['path']);
+    final org = _s(widget.org);
+    final repo = _s(widget.repo);
+    final bm = _s(widget.bookmark);
+    final offset = _asInt(input['offset']) ?? 1;
+    final limit = _asInt(input['limit']);
+    final scope = <String>[
+      if (org.isNotEmpty) org,
+      if (repo.isNotEmpty) repo,
+      if (bm.isNotEmpty) bm,
+    ].join(':');
+    // Line range displayed: from `offset`, extending `limit` lines when given.
+    final range = limit != null && limit > 0
+        ? 'L$offset-${offset + limit - 1}'
+        : 'L$offset';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        borderRadius: AppRadius.rSm,
+        color: colors.background.withValues(alpha: 0.35),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.description_outlined,
+              size: 13, color: colors.mutedForeground),
+          const SizedBox(width: AppSpacing.xs),
+          if (scope.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: Text(scope,
+                  style: text.micro.copyWith(color: colors.mutedForeground)),
+            ),
+          Expanded(
+            child: Text(path,
+                overflow: TextOverflow.ellipsis,
+                style: text.mono.copyWith(
+                    fontSize: 11, color: colors.foreground)),
+          ),
+          if (range.isNotEmpty)
+            Text(range,
+                style: text.mono.copyWith(
+                    fontSize: 10, color: colors.mutedForeground)),
+        ],
+      ),
     );
   }
+
+  /// int-typed accessors for the read summary.
+  int? _asInt(Object? v) => v is int ? v : (v is num ? v.toInt() : null);
 
   /// A compact collapsible panel showing a tool call's input parameters JSON.
   Widget _inputParamsPanel(Map<String, dynamic> input, bool expanded) {
