@@ -13,9 +13,16 @@ import 'highlight_theme.dart';
 class CodeView extends StatelessWidget {
   final String code;
   final String filepath;
+  final bool shrinkWrap;
+  final bool showLineNumbers;
   final Highlight _hl;
-  CodeView({super.key, required this.code, required this.filepath})
-      : _hl = Highlight()..registerLanguages(builtinLanguagesFor(filepath));
+  CodeView({
+    super.key,
+    required this.code,
+    required this.filepath,
+    this.shrinkWrap = false,
+    this.showLineNumbers = true,
+  }) : _hl = Highlight()..registerLanguages(builtinLanguagesFor(filepath));
 
   @override
   Widget build(BuildContext context) {
@@ -29,33 +36,38 @@ class CodeView extends StatelessWidget {
 
     return Scrollbar(
       child: ListView(
+        shrinkWrap: shrinkWrap,
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         children: [
           for (var i = 0; i < lines.length; i++)
-            _line(i + 1, lines[i], colors, codeStyle, dark, base),
+            _line(i + 1, lines[i], colors, codeStyle, dark, base,
+                showLineNumbers),
         ],
       ),
     );
   }
 
   /// A single logical line: gutter number + the (possibly wrapped) highlighted
-  /// content. Soft-wrap via a stretched Text.rich so long lines wrap.
+  /// content. Soft-wrap via a stretched Text.rich so long lines wrap. When
+  /// [showLineNumbers] is false the gutter is omitted (used when the content
+  /// already carries its own "N: " line prefix, e.g. a `read` tool result).
   Widget _line(int num, String raw, AppColors colors, TextStyle codeStyle,
-      bool dark, TextStyle base) {
+      bool dark, TextStyle base, bool showNumbers) {
     final span = _span(dark, codeStyle, base, raw);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 44,
-          child: Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: Text('$num',
-                textAlign: TextAlign.right,
-                style: codeStyle.copyWith(color: colors.mutedForeground)),
+        if (showNumbers)
+          SizedBox(
+            width: 44,
+            child: Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: Text('$num',
+                  textAlign: TextAlign.right,
+                  style: codeStyle.copyWith(color: colors.mutedForeground)),
+            ),
           ),
-        ),
         Expanded(
           child: SelectionArea(
             child: Text.rich(

@@ -477,12 +477,10 @@ class _ToolPartViewState extends State<ToolPartView> {
   /// read result: highlighted, line-numbered, auto-wrapping content. The raw
   /// output is the numbered "1: ..." text from the repo-extension; we render it
   /// as a highlighted CodeView on the file's path so lines wrap and are
-  /// colorized, and keep the numbered text intact (lines already carry the
-  /// "N: " prefix that CodeView's gutter would otherwise double — so we strip
-  /// the gutter here via a plain highlighted render). We use the path as the
-  /// filepath for syntax detection.
+  /// colorized. The output already carries a "N: " prefix, so we disable the
+  /// CodeView's own gutter to avoid double line numbers, and use shrinkWrap
+  /// because the card sits inside an outer scrolling ListView.
   Widget _readContent(BuildContext context, String output) {
-    final text = textOf(context);
     final path = _s(input['path']);
     return Container(
       width: double.infinity,
@@ -493,15 +491,17 @@ class _ToolPartViewState extends State<ToolPartView> {
       ),
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: SingleChildScrollView(
-        child: _codeTextWithNums(output, path, text),
+        child: _codeTextWithNums(output, path),
       ),
     );
   }
 
-  Widget _codeTextWithNums(String output, String path, AppTypography text) {
+  Widget _codeTextWithNums(String output, String path) {
     return CodeView(
       code: output,
       filepath: path.isEmpty ? 'x.txt' : path,
+      shrinkWrap: true,
+      showLineNumbers: false,
     );
   }
 
